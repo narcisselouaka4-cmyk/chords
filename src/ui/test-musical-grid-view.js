@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 import { createMusicalGridView } from './components/musical-grid-view.js';
 import { initGridDesignToggle } from './components/grid-design-toggle.js';
 
@@ -182,4 +184,48 @@ test('DOM : comparaison utilisable même sans stockage de préférence', () => {
   assert.equal(host.dataset.gridDesign, 'classic');
   button.listeners.click(); assert.equal(host.dataset.gridDesign, 'capsules');
   button.listeners.click(); assert.equal(host.dataset.gridDesign, 'classic');
+});
+
+test('DOM : une vraie case par temps, accords aux attaques et clic dans une tenue', () => {
+  const host = new Element(), seeks = [], edits = [];
+  const view = createMusicalGridView(host, { onSeek: (...args) => seeks.push(args), onEdit: (id) => edits.push(id) });
+  const before = structuredClone(analysis); view.render(analysis);
+  const cells = host.querySelectorAll('.mg-time-cell');
+  assert.equal(cells.length, 48);
+  assert(cells.every((cell) => cell.tagName === 'button'));
+  assert.deepEqual(cells.filter((cell) => cell.textContent).map((cell) => cell.textContent), ['C', 'F']);
+  cells[5].listeners.click(); assert.deepEqual(seeks[0], [2.5, 'F-2']);
+  cells[5].listeners.dblclick(); assert.equal(edits[0], 'F-2');
+  cells[5].listeners.keydown({ key: 'ArrowRight', preventDefault() {} });
+  assert.equal(cells[6].focused, true);
+  assert.deepEqual(analysis, before);
+});
+
+test('DOM : la sélection avance dans une tenue, change de ligne et revient après recul', () => {
+  const host = new Element(), view = createMusicalGridView(host); view.render(analysis);
+  const cells = host.querySelectorAll('.mg-time-cell');
+  for (const [time, beat] of [[1, 2], [1.5, 3], [8.5, 17], [.5, 1]]) {
+    view.update(time);
+    assert.equal(cells[beat].attrs['aria-current'], 'true');
+    assert.equal(cells[beat].classList.contains('is-current'), true);
+    assert.equal(cells.filter((cell) => cell.classList.contains('is-current')).length, 1);
+  }
+  view.update(24);
+  assert.equal(cells.filter((cell) => cell.classList.contains('is-current')).length, 0);
+});
+
+test('lecture : la grille reçoit le temps même si un autre panneau échoue ensuite', () => {
+  const source = readFileSync(new URL('./analyzer-tab.js', import.meta.url), 'utf8');
+  const start = source.indexOf('function updatePlaybackPosition(');
+  const body = source.slice(start, source.indexOf('\n}\n', start) + 3);
+  const received = [];
+  const context = vm.createContext({
+    currentAnalysis: { duration: 24 }, currentPlayer: { getDuration: () => 24 },
+    chordGridExpanded: true, musicalGridView: { update: (time) => received.push(time) },
+    updateMusicContext() { throw Error('panneau indisponible'); },
+  });
+  vm.runInContext(body, context);
+  assert.throws(() => context.updatePlaybackPosition(1.5), /panneau indisponible/);
+  assert.throws(() => context.updatePlaybackPosition(2.5), /panneau indisponible/);
+  assert.deepEqual(received, [1.5, 2.5]);
 });

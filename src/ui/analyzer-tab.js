@@ -1715,6 +1715,8 @@ function updatePlaybackPosition(currentTime) {
   const clamped = Math.max(0, Math.min(currentTime, duration));
   const ratio = duration > 0 ? clamped / duration : 0;
 
+  // La grille reçoit l'horloge avant les autres panneaux et la frise masquée.
+  if (chordGridExpanded) musicalGridView?.update(clamped);
   updateMusicContext(clamped);
   els.progressFill.style.width = `${ratio * 100}%`;
   els.progressThumb.style.left = `${ratio * 100}%`;
@@ -1745,8 +1747,6 @@ function updatePlaybackPosition(currentTime) {
     else block.style.removeProperty('--chord-progress');
   });
 
-
-  if (chordGridExpanded) musicalGridView?.update(clamped);
 
   // Suivre la case courante sur son axe, sans déplacer les commandes du lecteur.
   if (activeIndex >= 0 && activeIndex !== lastAutoScrollIndex && blocks[activeIndex]) {
@@ -2136,7 +2136,11 @@ async function createPlayerForAnalysis(analysis) {
     // Les sauts en pause ne passent pas par la boucle requestAnimationFrame.
     for (const event of ['seeked', 'timeupdate', 'loadedmetadata']) {
       currentPlayer.element.addEventListener(event, () => {
-        updatePlaybackPosition(currentPlayer?.getCurrentTime?.() || 0);
+        const time = currentPlayer?.getCurrentTime?.() || 0;
+        // Les événements du média continuent le suivi même si un autre panneau
+        // interrompt sa mise à jour par animation. Aucun changement de tempo ici.
+        if (chordGridExpanded) musicalGridView?.update(time);
+        updatePlaybackPosition(time);
       });
     }
     currentPlayer.element.addEventListener('ended', updatePlayButton);

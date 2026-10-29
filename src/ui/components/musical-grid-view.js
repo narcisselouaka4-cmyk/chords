@@ -8,10 +8,10 @@ function element(tag, className, text) {
 }
 
 export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
-  let model = null, activeBeat = -1, activeRow = -1, beatElements = [], rowElements = [];
+  let model = null, activeBeat = -1, activeRow = -1, beatElements = [], rowElements = [], timeCells = [], timeRows = [];
   function render(analysis, { settings, rhythm, detailed = false } = {}) {
     model = buildMusicalGrid(analysis, { settings, rhythm });
-    activeBeat = -1; activeRow = -1; beatElements = []; rowElements = [];
+    activeBeat = -1; activeRow = -1; beatElements = []; rowElements = []; timeCells = []; timeRows = [];
     host.replaceChildren();
     for (const section of model.sections) {
       // On conserve les respirations entre groupes, sans leur attribuer un nom de partie.
@@ -27,7 +27,7 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           label.appendChild(element('span', 'mg-tempo-change', `≈ ${Math.round(row.bpm)} BPM`));
         }
         line.appendChild(label);
-        const track = element('div', 'mg-row-track');
+        const track = element('div', 'mg-row-track mg-capsule-track');
         // Quatre mesures irrégulières peuvent dépasser le nombre nominal de temps.
         track.style.setProperty('--row-beats', String(Math.max(model.settings.beatsPerBar * 4, row.to - row.from)));
         for (const cell of row.cells) {
@@ -92,7 +92,36 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           mark.style.gridColumn = `${bar.from - row.from + 1} / span ${bar.to - bar.from}`;
           bars.appendChild(mark);
         }
-        track.appendChild(bars); line.appendChild(track); block.appendChild(line);
+        track.appendChild(bars); line.appendChild(track);
+
+        // Vue à cases : de vrais boutons indépendants, un par temps, même sans nouvelle attaque.
+        const classic = element('div', 'mg-row-track mg-classic-track');
+        classic.style.setProperty('--row-beats', String(Math.max(model.settings.beatsPerBar * 4, row.to - row.from)));
+        timeRows[row.index] = [];
+        for (const cell of row.cells) for (let i = cell.from; i < cell.to; i++) {
+          const button = element('button', 'mg-time-cell'); button.type = 'button';
+          button.style.gridColumn = String(i - row.from + 1);
+          button.dataset.beat = String(i); button.dataset.segmentId = cell.segmentId;
+          button.dataset.symbol = cell.symbol; button.dataset.start = String(model.boundaries[i]);
+          const chord = cell.symbol === 'N' ? 'Silence' : cell.symbol;
+          button.setAttribute('aria-label', `${chord}, temps ${i - row.from + 1}, ${timeLabel(model.boundaries[i])}`);
+          button.title = `${chord} · ${model.boundaries[i].toFixed(2)} s\nClic : écouter ici · Double-clic : corriger l’accord`;
+          if (i === cell.from && !cell.continued) button.textContent = cell.symbol === 'N' ? '—' : cell.symbol;
+          if (row.bars.some((bar) => !bar.pickup && bar.from === i)) button.classList.add('mg-measure-start');
+          button.addEventListener('click', () => onSeek?.(model.boundaries[i], cell.segmentId));
+          button.addEventListener('dblclick', () => onEdit?.(cell.segmentId));
+          button.addEventListener('keydown', (event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+            event.preventDefault(); event.stopPropagation?.();
+            const adjacent = timeRows[row.index + (event.key === 'ArrowUp' ? -1 : 1)];
+            const target = event.key === 'ArrowUp' || event.key === 'ArrowDown'
+              ? adjacent?.[Math.min(i - row.from, adjacent.length - 1)]
+              : timeCells[i + (event.key === 'ArrowLeft' ? -1 : 1)];
+            target?.focus();
+          });
+          timeCells[i] = button; timeRows[row.index].push(button); classic.appendChild(button);
+        }
+        line.appendChild(classic); block.appendChild(line);
       }
       host.appendChild(block);
     }
@@ -114,9 +143,13 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
     if (beat === activeBeat) return;
     beatElements[activeBeat]?.classList.remove('is-current');
     beatElements[activeBeat]?.parentElement?.removeAttribute('aria-current');
+    timeCells[activeBeat]?.classList.remove('is-current');
+    timeCells[activeBeat]?.removeAttribute('aria-current');
     activeBeat = beat;
     beatElements[beat]?.classList.add('is-current');
     beatElements[beat]?.parentElement?.setAttribute('aria-current', 'true');
+    timeCells[beat]?.classList.add('is-current');
+    timeCells[beat]?.setAttribute('aria-current', 'true');
     const row = model.rows.findIndex((r) => r.from <= beat && beat < r.to);
     if (row !== activeRow) {
       rowElements[activeRow]?.classList.remove('is-current'); activeRow = row;

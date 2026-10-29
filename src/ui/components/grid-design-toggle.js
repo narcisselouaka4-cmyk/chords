@@ -9,7 +9,11 @@ export function initGridDesignToggle(button, host, storage) {
   } catch (_) { /* Le bouton reste utilisable si le stockage est indisponible. */ }
 
   const apply = () => {
+    const currentRow = host.querySelector('.mg-row.is-current');
+    const previousTop = currentRow?.getBoundingClientRect().top;
     host.dataset.gridDesign = design;
+    // Les cases sont plus compactes : garder la ligne lue au même endroit à l'écran.
+    if (currentRow) host.scrollTop += currentRow.getBoundingClientRect().top - previousTop;
     button.textContent = `Design : ${design === 'classic' ? 'Cases' : 'Capsules'}`;
     button.title = `Afficher le design ${design === 'classic' ? 'Capsules' : 'Cases'}`;
   };

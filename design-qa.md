@@ -1,3 +1,68 @@
+# Analyse — vraies cases par temps et suivi visible — 29/10/2026
+
+final result: passed
+
+## Retour utilisateur et correction
+
+Narcisse rejette le résultat de `9903e21`, rappelle la capture Chordify fournie
+`/tmp/codex-clipboard-0bf2b5de-3e75-4cc1-b053-7aeb4be26dbe.png` et précise que
+la sélection reste immobile pendant la lecture. L'ancien mode Cases changeait
+seulement les capsules en rectangles et surlignait des spans internes.
+
+- Mode Cases : un vrai bouton par temps, noms seulement aux attaques, cellules
+  suivantes vides, gouttières et barres de mesure marquées. Hauteur 56 px.
+- Vue Capsules conservée dans sa propre piste, masquée en Cases ; les deux vues
+  partagent le modèle et restent raccordées au même temps. Bascule sans reconstruire
+  ni changer la lecture ; hauteur différente compensée pour ancrer la ligne courante.
+- Une seule case par temps est activée visuellement, y compris pendant la tenue.
+  Identité source conservée pour le clic et le double-clic de correction.
+- Le suivi reçoit le temps avant les autres panneaux et la frise cachée. Les
+  événements timeupdate/seeked/loadedmetadata alimentent aussi directement la grille,
+  afin de garder ce suivi indépendant d'un échec d'un autre panneau.
+
+## Preuves et comparaison
+
+Référence fournie et rendu réunis dans
+`audit-output/beat-cells-2026-10-29/comparison-reference.jpg` : régions de grille
+normalisées à 1075 px. Capture de référence 1920×1080 ; implémentation en 1440×900,
+DPR 1. Les contenus musicaux diffèrent volontairement : vrai projet Sanogo contre
+le medley illustré sur Chordify. La comparaison concerne les cases, les espaces,
+les barres et l'écriture aux attaques. Hors périmètre : lecteur et chrome Chordify.
+
+Typographie du produit (14 px), cases à coins de 3 px et gouttières de 3 px,
+fond neutre, accent du produit sur la case active. Pas de néon, d'objet mobile ou
+de labels de parties inventés. Espaces entre groupes conservés. Captures dans les
+deux thèmes, à 1024 et 1440 px ; aucun rognage de texte ni débordement horizontal
+constaté dans les contrôles finaux. Les mesures/premiers temps irréguliers conservent
+leur nombre réel de pulsations. Aucun nouvel asset décoratif ou icône ajouté.
+
+## Vérifications
+
+- 12 tests interactifs/lecture : une case par temps, tenues sans noms répétés,
+  clic et correction par identité dans une case vide, avance au sein d'une tenue,
+  changement de ligne/recul/fin, bascule et préférence, grille mise à jour avant
+  une erreur simulée d'un autre panneau. Tous passent.
+- Contrat DOM, 24 tests grille (Sanogo/SEIGNEUR/ANGES), persistance, exports,
+  régressions Parties 1/3 et build passent (avertissement habituel des gros chunks).
+- Navigateur, vrai contrôleur et copie du projet/WAV Sanogo, IPC de lecture/calage
+  de test, aucun projet utilisateur écrit. Sélection : temps 163 à 85 s, puis 203
+  à 105,107638 s pendant la lecture, puis 184 à 95,582594 s après recul. Une seule
+  case active. Clic sur une case vide : 85,18 s, temps 164, double-clic ouvre bien E.
+- Bascule Cases/Capsules : temps inchangé et haut de ligne courante maintenu à
+  349,5 px dans le contrôle. Capsules retrouvent leur remplissage.
+- Console sans erreur. Préférences restaurées, banc et copies supprimés, viewport reset.
+
+## Limites
+
+Le figement signalé dans l'application native n'a pas été reproduit avant correction
+ici : le suivi fonctionnait dans le banc navigateur. Ne pas présenter l'ordre de mise
+à jour comme une cause native prouvée. Le nouveau rendu, l'avancée et le repli par
+événements média sont vérifiés ici ; confirmation après rechargement d'Electron
+encore demandée à Narcisse. Aucun changement du moteur/calage/BPM ni certification
+musicale à l'oreille. Pas de P0/P1/P2 restant dans le rendu navigateur vérifié.
+
+---
+
 # Analyse — comparaison Cases / Capsules — 29/10/2026
 
 final result: passed

@@ -90,17 +90,16 @@
 #analysis-tab .mg-bar-line { position: relative; }
 #analysis-tab .mg-bar-line::before, #analysis-tab .mg-bar-line:last-child::after { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; border-left: 1px solid color-mix(in srgb, var(--an-text-secondary) 40%, transparent); }
 #analysis-tab .mg-bar-line:last-child::after { left: auto; right: 0; }
-/* Comparaison en un clic : mêmes temps, mêmes lignes et mêmes zones de clic. */
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-cell { padding: 0; border: 1px solid var(--an-border-soft); border-radius: 3px; background: var(--an-surface-raised, var(--an-surface)); overflow: hidden; }
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-surface { inset: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; transform: none; }
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-fill { display: none; }
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-beat { min-height: 0; border-right: 1px solid color-mix(in srgb, var(--an-text-secondary) 18%, transparent); }
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-beat.is-current { background: var(--an-accent-soft); box-shadow: inset 0 -3px var(--an-accent); }
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-cell:hover { background: var(--an-accent-soft); }
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-cell:focus-visible { outline: 2px solid var(--an-accent); outline-offset: -3px; }
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-cell:focus-visible .mg-surface { outline: none; }
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-bar-line::before,
-#analysis-tab .musical-grid[data-grid-design='classic'] .mg-bar-line:last-child::after { top: 0; bottom: 0; border-left-width: 2px; }
+/* Cases distinctes par temps : noms aux attaques, cases vides pendant les tenues. */
+#analysis-tab .mg-classic-track { display: none; column-gap: 3px; background: color-mix(in srgb, var(--an-text-secondary) 12%, transparent); }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-capsule-track { display: none; }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-classic-track { display: grid; }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-row { min-height: 56px; }
+#analysis-tab .mg-time-cell { position: relative; grid-row: 1; min-width: 0; min-height: 56px; margin: 0; padding: 8px 6px; border: 1px solid var(--an-border-soft); border-radius: 3px; background: var(--an-surface); color: var(--an-text); font: inherit; font-size: 14px; font-weight: 500; line-height: 1.2; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+#analysis-tab .mg-time-cell.mg-measure-start::before { content: ''; position: absolute; top: 0; bottom: 0; left: -3px; width: 3px; border-radius: 1px; background: color-mix(in srgb, var(--an-text-secondary) 65%, transparent); pointer-events: none; }
+#analysis-tab .mg-time-cell:hover { border-color: var(--an-accent); }
+#analysis-tab .mg-time-cell.is-current { background: color-mix(in srgb, var(--an-accent) 32%, var(--an-surface)); border-color: var(--an-accent); box-shadow: inset 0 -3px var(--an-accent); }
+#analysis-tab .mg-time-cell:focus-visible { outline: 2px solid var(--an-accent); outline-offset: -3px; z-index: 3; }
 #analysis-tab .mg-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 18px; padding: 12px 16px; border: 1px solid var(--an-border-soft); border-radius: 6px; color: var(--an-text-secondary); font-size: 12px; }
 #analysis-tab .mg-settings legend { padding: 0 6px; font-size: 12px; }
 #analysis-tab .mg-settings label { display: flex; align-items: center; gap: 8px; }
