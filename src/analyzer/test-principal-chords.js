@@ -21,6 +21,29 @@ check('Approches et dominantes brèves ne deviennent pas des piliers', () => {
   chords.splice(8, 0, { chord: 'C#7', startTime: 15.5, endTime: 16 });
   assert.deepEqual(principalChords(chords), ['D', 'E', 'F#m']);
 });
+check('Sabaoth : un accord tenu plus longtemps ne chasse pas un pilier qui revient plus souvent', () => {
+  // Relevé réel de « Sabaoth » (Jonathan Gambela) : une intro sur Fm/Bbm, puis une
+  // boucle de cinq harmonies pour quatre cases. Le C# n'arrive qu'en fin de phrase
+  // et revient un peu moins souvent que le Fm, mais il est tenu deux fois plus
+  // longtemps — il totalisait donc plus de temps et chassait le Fm du bandeau.
+  // Narcisse : les piliers sont Ab, Eb, Bbm et Fm.
+  const intro = ['Fm', 'Bbm', 'Fm', 'Bbm', 'Fm', 'Eb', 'Bbm', 'Fm', 'Eb', 'C#'];
+  const chords = grid([...intro, ...repeat(['Ab', 'Eb', 'Bbm', 'Fm', 'Ab', 'Eb', 'C#'], 8)]);
+  // Allonger chaque C# : c'est précisément ce qui faisait basculer l'ancien tri.
+  for (let i = 0; i < chords.length; i++) {
+    if (chords[i].chord !== 'C#') continue;
+    chords[i].endTime += 2;
+    for (let j = i + 1; j < chords.length; j++) { chords[j].startTime += 2; chords[j].endTime += 2; }
+  }
+  const compte = (nom) => chords.filter((c) => c.chord === nom).length;
+  const duree = (nom) => chords.filter((c) => c.chord === nom).reduce((s, c) => s + c.endTime - c.startTime, 0);
+  // Le piège est bien en place : le C# revient moins souvent mais dure plus longtemps.
+  assert.ok(compte('C#') < compte('Fm'), 'le C# doit revenir moins souvent que le Fm');
+  assert.ok(duree('C#') > duree('Fm'), 'le C# doit totaliser plus de temps que le Fm');
+  const result = principalChords(chords);
+  assert.equal(result.length, 4);
+  assert.deepEqual([...result].sort(), ['Ab', 'Bbm', 'Eb', 'Fm']);
+});
 check('Un cycle long reste analysable mais le bandeau ne garde que quatre piliers', () => {
   const pattern = ['C', 'Am', 'Dm', 'G', 'Em', 'A7', 'Dm', 'G7'];
   const result = principalChords(grid(repeat(pattern, 4)));

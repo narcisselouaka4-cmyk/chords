@@ -94,13 +94,27 @@ export function principalChords(chords = [], { sharedEvidence = false } = {}) {
   // Le cycle complet sert à reconnaître la forme. Le bandeau ne montre que
   // ses piliers : quatre harmonies distinctes au maximum, sans répéter le I.
   // Choisir dans le motif établi écarte les variations qui n'en font pas partie.
+  // [Claude] — 2026-10-29 — Départager par le NOMBRE DE TOURS, pas par la durée
+  // cumulée. Narcisse, sur « Sabaoth » (Jonathan Gambela) : la boucle est
+  //   Ab Eb Bbm Fm | Ab Eb C#
+  // soit cinq harmonies pour quatre cases. Le C#, posé en fin de phrase, est tenu
+  // 2,3 s en moyenne contre 1,5 s pour le Fm : il revient MOINS souvent (34 tours
+  // contre 36) mais totalisait plus de temps (77 s contre 54 s), et chassait le Fm
+  // du bandeau. Sa formulation : « on fonctionne du nombre de fois qu'une suite
+  // d'accords apparaît ». Un accord tenu longtemps n'est pas plus structurant
+  // qu'un accord qui revient à chaque tour.
+  // Mesuré sur ses seize analyses : seul « Sabaoth » change, et il devient juste.
+  // La durée reste le départage secondaire, à nombre de tours égal.
   const unique = [...new Set(pattern)];
-  const support = new Map(unique.map((id) => [id, 0]));
+  const support = new Map(unique.map((id) => [id, { tours: 0, dur: 0 }]));
   tokens.forEach((t) => {
-    const id = idOf(t);
-    if (support.has(id)) support.set(id, support.get(id) + t.dur);
+    const entry = support.get(idOf(t));
+    if (entry) { entry.tours += 1; entry.dur += t.dur; }
   });
-  const pillars = new Set([...unique].sort((a, b) => support.get(b) - support.get(a)).slice(0, 4));
+  const pillars = new Set([...unique]
+    .sort((a, b) => support.get(b).tours - support.get(a).tours
+      || support.get(b).dur - support.get(a).dur)
+    .slice(0, 4));
   // Conserver l'ordre de première apparition dans le motif, pas l'ordre du classement.
   return unique.filter((id) => pillars.has(id)).map((id) => {
     const names = new Map();
