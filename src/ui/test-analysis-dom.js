@@ -185,7 +185,7 @@ function testResultsWithoutRemovedPanels() {
 function testMusicalGridContract() {
   const html = readText('src/index.html'), js = readText('src/ui/analyzer-tab.js');
   const css = readText('src/ui/components/analysis-chord-grid.css');
-  for (const id of ['analyzer-musical-grid', 'analyzer-grid-signature', 'analyzer-grid-phase', 'analyzer-grid-offset', 'analyzer-grid-half', 'analyzer-grid-double', 'analyzer-grid-bpm', 'analyzer-grid-align', 'analyzer-grid-anchor']) {
+  for (const id of ['analyzer-musical-grid', 'analyzer-grid-signature', 'analyzer-grid-phase', 'analyzer-grid-offset', 'analyzer-grid-half', 'analyzer-grid-double', 'analyzer-grid-bpm', 'analyzer-grid-align', 'analyzer-grid-anchor', 'analyzer-grid-design']) {
     if (!html.includes(`id="${id}"`) || !js.includes(`getElementById('${id}')`)) throw new Error(`Grille musicale : ${id} manquant`);
   }
   const corriger = html.slice(html.indexOf('class="analyzer-panel corriger-panel"'));

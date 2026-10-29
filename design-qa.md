@@ -1,3 +1,38 @@
+# Analyse — comparaison Cases / Capsules — 29/10/2026
+
+final result: passed
+
+Demande : retrouver une grille à cases de type Chordify et revenir au design actuel
+en un clic, uniquement pour comparer. Bouton « Design : Cases / Capsules » dans la
+barre de la grille, préférence locale `pjc.analysis.grid-design`, Cases par défaut.
+Aucune reconstruction de grille, aucun saut du lecteur, aucun recalcul ni écriture
+sur le projet. Les deux styles partagent les mêmes lignes, durées et identités.
+Le rendu Capsules et son remplissage sont conservés ; Cases rétablit les rectangles,
+les divisions de temps et le surlignage du temps actif. Pas de parties réintroduites.
+
+## Vérifications
+
+- Neuf tests DOM interactifs passent, dont bascule aller/retour, préférence mémorisée,
+  élément actif et scroll conservés, fonctionnement si le stockage est bloqué.
+- Contrat DOM, 24 tests de grille (Sanogo/SEIGNEUR/ANGES), persistance, exports,
+  régressions Parties 1/3 et build passent. Avertissement habituel des gros chunks.
+- Navigateur intégré, vrai contrôleur et copie du projet/WAV Sanogo, IPC de lecture
+  et calage de test ; aucun projet utilisateur écrit. À 85 s : même lecture, scroll
+  768 px conservé ; Cases cache le remplissage, Capsules le rétablit. Lecture active
+  pendant deux bascules sans pause, clic dans Cases et préférence après rechargement
+  vérifiés. Console sans erreur.
+- Rendu sombre à 1280×720 et clair à 1024×900 inspecté pour les deux styles. Aucun
+  débordement horizontal. Captures comparées dans
+  `audit-output/grid-comparison-2026-10-29/comparison.jpg` ; autres captures au même
+  endroit. Capsule actuelle identique, cases conformes au style historique rétabli,
+  hauteur des lignes commune pour ne pas déplacer le contenu pendant la comparaison.
+- Lecteur, informations musicales, clavier, moteur/version/calage et sources inchangés.
+  Préférences de test restaurées, page et copies temporaires supprimées, viewport reset.
+
+Limite : pas de nouveau parcours natif Electron ni de certification musicale du BPM.
+
+---
+
 # Analyse — capsules translucides et remplissage de lecture — 28/10/2026
 
 final result: passed

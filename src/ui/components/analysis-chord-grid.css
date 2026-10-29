@@ -56,6 +56,9 @@
 #analysis-tab .mg-tempo-controls { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--an-text); }
 #analysis-tab .mg-tempo-controls button, #analysis-tab .mg-settings button { background: var(--an-surface-elevated, var(--an-surface)); border: 1px solid var(--an-border-strong); border-radius: 4px; color: var(--an-text); padding: 4px 8px; cursor: pointer; }
 #analysis-tab .mg-tempo-controls button:hover, #analysis-tab .mg-settings button:hover { border-color: var(--an-accent); }
+#analysis-tab .mg-design-toggle { border: 1px solid var(--an-border-strong); border-radius: 4px; background: var(--an-surface); color: var(--an-text); padding: 5px 9px; font: inherit; font-size: 11px; cursor: pointer; }
+#analysis-tab .mg-design-toggle:hover { border-color: var(--an-accent); }
+#analysis-tab .mg-design-toggle:focus-visible { outline: 2px solid var(--an-accent); outline-offset: 2px; }
 #analysis-tab .mg-section { margin: 12px 0 28px; }
 #analysis-tab .mg-section:last-child { margin-bottom: 0; }
 #analysis-tab .mg-row { display: flex; gap: 10px; align-items: stretch; min-height: 72px; margin-bottom: 4px; }
@@ -87,6 +90,17 @@
 #analysis-tab .mg-bar-line { position: relative; }
 #analysis-tab .mg-bar-line::before, #analysis-tab .mg-bar-line:last-child::after { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; border-left: 1px solid color-mix(in srgb, var(--an-text-secondary) 40%, transparent); }
 #analysis-tab .mg-bar-line:last-child::after { left: auto; right: 0; }
+/* Comparaison en un clic : mêmes temps, mêmes lignes et mêmes zones de clic. */
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-cell { padding: 0; border: 1px solid var(--an-border-soft); border-radius: 3px; background: var(--an-surface-raised, var(--an-surface)); overflow: hidden; }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-surface { inset: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; transform: none; }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-fill { display: none; }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-beat { min-height: 0; border-right: 1px solid color-mix(in srgb, var(--an-text-secondary) 18%, transparent); }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-beat.is-current { background: var(--an-accent-soft); box-shadow: inset 0 -3px var(--an-accent); }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-cell:hover { background: var(--an-accent-soft); }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-cell:focus-visible { outline: 2px solid var(--an-accent); outline-offset: -3px; }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-cell:focus-visible .mg-surface { outline: none; }
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-bar-line::before,
+#analysis-tab .musical-grid[data-grid-design='classic'] .mg-bar-line:last-child::after { top: 0; bottom: 0; border-left-width: 2px; }
 #analysis-tab .mg-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 18px; padding: 12px 16px; border: 1px solid var(--an-border-soft); border-radius: 6px; color: var(--an-text-secondary); font-size: 12px; }
 #analysis-tab .mg-settings legend { padding: 0 6px; font-size: 12px; }
 #analysis-tab .mg-settings label { display: flex; align-items: center; gap: 8px; }

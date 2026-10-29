@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMusicalGridView } from './components/musical-grid-view.js';
+import { initGridDesignToggle } from './components/grid-design-toggle.js';
 
 // DOM minimal : on exerce le vrai rendu et ses gestionnaires, sans exécuter Electron.
 class Element {
@@ -150,4 +151,35 @@ test('DOM : saut direct, changement de capsule et retour arrière sans remplissa
   view.render(source); view.update(3.5);
   assert.equal(Number(host.querySelectorAll('.mg-cell')[1].style['--playhead']), .25);
   assert.deepEqual(source, analysis, 'la présentation ne modifie pas les accords sources');
+});
+
+test('DOM : comparaison Cases/Capsules mémorisée, sans reconstruire la grille ni perdre la position', () => {
+  const saved = new Map(), storage = { getItem: (k) => saved.get(k), setItem: (k, v) => saved.set(k, v) };
+  const host = new Element(), button = new Element('button'), view = createMusicalGridView(host);
+  view.render(analysis); view.update(5); host.scrollTop = 100;
+  const cells = host.querySelectorAll('.mg-cell'), active = cells[1];
+  initGridDesignToggle(button, host, storage);
+  assert.equal(host.dataset.gridDesign, 'classic');
+  assert.equal(button.textContent, 'Design : Cases');
+  button.listeners.click();
+  assert.equal(host.dataset.gridDesign, 'capsules');
+  assert.equal(button.textContent, 'Design : Capsules');
+  assert.equal(host.querySelectorAll('.mg-cell')[1], active);
+  assert.equal(active.attrs['aria-current'], 'true');
+  assert.equal(Number(active.style['--playhead']), .5);
+  assert.equal(host.scrollTop, 100);
+  const reopened = new Element();
+  initGridDesignToggle(new Element('button'), reopened, storage);
+  assert.equal(reopened.dataset.gridDesign, 'capsules');
+  button.listeners.click();
+  assert.equal(host.dataset.gridDesign, 'classic');
+  assert.equal(host.scrollTop, 100);
+});
+
+test('DOM : comparaison utilisable même sans stockage de préférence', () => {
+  const host = new Element(), button = new Element('button');
+  initGridDesignToggle(button, host, { getItem() { throw Error('bloqué'); }, setItem() { throw Error('bloqué'); } });
+  assert.equal(host.dataset.gridDesign, 'classic');
+  button.listeners.click(); assert.equal(host.dataset.gridDesign, 'capsules');
+  button.listeners.click(); assert.equal(host.dataset.gridDesign, 'classic');
 });

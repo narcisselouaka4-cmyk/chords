@@ -1,6 +1,7 @@
 import { normalizeGridSettings, effectiveGridTempo } from '../analyzer/musical-grid.js';
 import { readGridView } from '../analyzer/grid-project.js';
 import { createMusicalGridView } from './components/musical-grid-view.js';
+import { initGridDesignToggle } from './components/grid-design-toggle.js';
 import { selectMediaFile, selectAnalysisFile, createAudioPlayer, isSupportedMediaFile, isAudioFile, isVideoFile } from '../audio/media-engine.js';
 import { createRegionPlayer } from './components/analyzer-region-player.js';
 import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
@@ -134,6 +135,7 @@ const els = {
   gridStatus: document.getElementById('analyzer-grid-status'),
   gridHalf: document.getElementById('analyzer-grid-half'),
   gridDouble: document.getElementById('analyzer-grid-double'),
+  gridDesign: document.getElementById('analyzer-grid-design'),
   gridSignature: document.getElementById('analyzer-grid-signature'),
   gridPhase: document.getElementById('analyzer-grid-phase'),
   gridOffset: document.getElementById('analyzer-grid-offset'),
@@ -264,6 +266,7 @@ export function initAnalyzerTab() {
   initTimelineZoom();
   bindTimelineScroll();
   bindMusicalGrid();
+  initGridDesignToggle(els.gridDesign, els.musicalGrid);
   els.reanalyzeBtn?.addEventListener('click', () => { reanalyzeCurrentTrack(); });
   bindSectionTabs();
   bindExportMidiButton();
