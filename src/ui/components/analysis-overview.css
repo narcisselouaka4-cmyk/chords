@@ -16,14 +16,14 @@
   min-width: 0;
   gap: 2px 0;
 }
-#analysis-tab .an-music-context[data-tone='1'] { --context-color: #c4b5fd; }
-#analysis-tab .an-music-context[data-tone='2'] { --context-color: #e2bf85; }
-#analysis-tab .an-music-context[data-tone='3'] { --context-color: #83c7da; }
-#analysis-tab .an-music-context[data-tone='4'] { --context-color: #dca6bf; }
-:root[data-theme='light'] #analysis-tab .an-music-context[data-tone='1'] { --context-color: #7250af; }
-:root[data-theme='light'] #analysis-tab .an-music-context[data-tone='2'] { --context-color: #865c17; }
-:root[data-theme='light'] #analysis-tab .an-music-context[data-tone='3'] { --context-color: #176377; }
-:root[data-theme='light'] #analysis-tab .an-music-context[data-tone='4'] { --context-color: #943f69; }
+#analysis-tab .an-music-context[data-tone='1'], #analysis-tab .an-chord-progression-ribbon[data-harmonic-tone='1'] { --context-color: #c4b5fd; }
+#analysis-tab .an-music-context[data-tone='2'], #analysis-tab .an-chord-progression-ribbon[data-harmonic-tone='2'] { --context-color: #e2bf85; }
+#analysis-tab .an-music-context[data-tone='3'], #analysis-tab .an-chord-progression-ribbon[data-harmonic-tone='3'] { --context-color: #83c7da; }
+#analysis-tab .an-music-context[data-tone='4'], #analysis-tab .an-chord-progression-ribbon[data-harmonic-tone='4'] { --context-color: #dca6bf; }
+:root[data-theme='light'] #analysis-tab .an-music-context[data-tone='1'], :root[data-theme='light'] #analysis-tab .an-chord-progression-ribbon[data-harmonic-tone='1'] { --context-color: #7250af; }
+:root[data-theme='light'] #analysis-tab .an-music-context[data-tone='2'], :root[data-theme='light'] #analysis-tab .an-chord-progression-ribbon[data-harmonic-tone='2'] { --context-color: #865c17; }
+:root[data-theme='light'] #analysis-tab .an-music-context[data-tone='3'], :root[data-theme='light'] #analysis-tab .an-chord-progression-ribbon[data-harmonic-tone='3'] { --context-color: #176377; }
+:root[data-theme='light'] #analysis-tab .an-music-context[data-tone='4'], :root[data-theme='light'] #analysis-tab .an-chord-progression-ribbon[data-harmonic-tone='4'] { --context-color: #943f69; }
 #analysis-tab .an-context-item { min-width: 0; display: flex; align-items: baseline; gap: 6px; padding-right: 16px; white-space: nowrap; }
 #analysis-tab .an-context-item + .an-context-item { padding-left: 16px; border-left: 1px solid var(--an-border); }
 #analysis-tab .an-context-label { font-size: 10.5px; color: var(--an-text-secondary); }
