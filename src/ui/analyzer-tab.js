@@ -1,6 +1,7 @@
+import { formatMusicChord, formatMusicNote, notationOptions } from './music-notation.js';
 import { normalizeGridSettings, effectiveGridTempo } from '../analyzer/musical-grid.js';
 import { readGridView } from '../analyzer/grid-project.js';
-import { createMusicalGridView } from './components/musical-grid-view.js';
+import { createAnalysisMusicView as createMusicalGridView } from './components/analysis-music-view.js';
 import { selectMediaFile, selectAnalysisFile, createAudioPlayer, isSupportedMediaFile, isAudioFile, isVideoFile } from '../audio/media-engine.js';
 import { createRegionPlayer } from './components/analyzer-region-player.js';
 import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
@@ -130,6 +131,7 @@ const els = {
   progressionRibbon: document.getElementById('analyzer-progression-ribbon'),
   musicalGrid: document.getElementById('analyzer-musical-grid'),
   gridMeter: document.getElementById('analyzer-grid-meter'),
+  gridView: document.getElementById('analyzer-grid-view'),
   gridTempo: document.getElementById('analyzer-grid-tempo'),
   gridStatus: document.getElementById('analyzer-grid-status'),
   gridHalf: document.getElementById('analyzer-grid-half'),
@@ -264,6 +266,9 @@ export function initAnalyzerTab() {
   initTimelineZoom();
   bindTimelineScroll();
   bindMusicalGrid();
+  bindGridPresentation();
+  lastNotation = JSON.stringify(notationOptions());
+  window.addEventListener('keyboard-settings-changed', refreshAnalysisNotation);
   els.reanalyzeBtn?.addEventListener('click', () => { reanalyzeCurrentTrack(); });
   bindSectionTabs();
   bindExportMidiButton();
@@ -1477,8 +1482,8 @@ function renderTimeline(chords, duration) {
   chords.forEach((chord, index) => {
     // L'indice visible change avec le filtre, l'identité de la cible non.
     const sourceIndex = currentAnalysis?.chords?.indexOf(chord) ?? -1;
-    const effectiveChordStr = getEffectiveChord(chord);
-    const originalDetected = chord.chord;
+    const effectiveChordStr = formatMusicChord(getEffectiveChord(chord));
+    const originalDetected = formatMusicChord(chord.chord);
     const isOverridden = chord.manualOverride != null;
 
     // Le premier accord part de zéro : un morceau commence rarement pile sur une
@@ -1654,10 +1659,19 @@ function syncGridSettings() {
   els.gridDouble.disabled = gridSettings.tempoMultiplier === 2;
 }
 
+function bindGridPresentation() {
+  try { if (localStorage.getItem('pjc.analysis.music-view') === 'score') els.gridView.value = 'score'; } catch (_) { /* Choix de séance. */ }
+  els.gridView.addEventListener('change', () => {
+    try { localStorage.setItem('pjc.analysis.music-view', els.gridView.value); } catch (_) { /* Choix de séance. */ }
+    renderMusicalGrid();
+    musicalGridView?.update(currentPlayer?.getCurrentTime?.() || 0);
+  });
+}
+
 function renderMusicalGrid() {
   if (!chordGridExpanded || !currentAnalysis || !musicalGridView) return;
-  const model = musicalGridView.render(currentAnalysis, { settings: gridSettings, rhythm: gridRhythm });
-  els.gridMeter.textContent = `${gridSettings.beatsPerBar}/${gridSettings.beatUnit} · 4 mesures / ligne`;
+  const model = musicalGridView.render(currentAnalysis, { settings: gridSettings, rhythm: gridRhythm, formatChord: formatMusicChord, presentation: els.gridView.value });
+  els.gridMeter.textContent = `${gridSettings.beatsPerBar}/${gridSettings.beatUnit} · ${els.gridView.value === 'score' ? 'grande portée piano' : '4 mesures / ligne'}`;
   els.gridTempo.textContent = `${Math.round(model.tempo * 10) / 10} BPM`;
   els.gridStatus.textContent = gridRhythmRequest ? 'Calage des pulsations…' : model.estimated ? 'Calage au tempo · réglable dans Corriger' : 'Calage audio estimé · Corriger';
   syncGridSettings();
@@ -1705,6 +1719,7 @@ function highlightSelectedSegment(segmentId) {
 
 let harmonicContexts = [];
 let lastContextId = null;
+let lastNotation = '';
 
 function updatePlaybackPosition(currentTime) {
   if (!currentAnalysis) return;
@@ -1848,9 +1863,7 @@ function keyDisplayLabel(keyName, mode) {
   const endsM = /m$/i.test(name) && name.length >= 2;
   const root = endsM ? name.slice(0, -1) : name;
   const isMinor = endsM || mode === 'minor';
-  const names = ['Do', 'Do♯', 'Ré', 'Mi♭', 'Mi', 'Fa', 'Fa♯', 'Sol', 'La♭', 'La', 'Si♭', 'Si'];
-  const pc = noteNameToPc(root);
-  return `${pc == null ? root : names[pc]} ${isMinor ? 'mineur' : 'majeur'}`;
+  return `${formatMusicNote(root)} ${isMinor ? 'mineur' : 'majeur'}`;
 }
 
 
@@ -2371,6 +2384,19 @@ function renderOverview(analysis) {
   updateMusicContext(currentPlayer?.getCurrentTime?.() || 0);
 }
 
+function refreshAnalysisNotation() {
+  const notation = JSON.stringify(notationOptions());
+  if (notation === lastNotation) return;
+  lastNotation = notation;
+  if (!currentAnalysis) return;
+  const top = els.musicalGrid.scrollTop;
+  lastContextId = null;
+  rerenderTimeline();
+  els.musicalGrid.scrollTop = top;
+  musicalGridView?.update(currentPlayer?.getCurrentTime?.() || 0, false);
+  if (chordEditor?.isOpen) chordEditor.refreshNotation();
+}
+
 function updateMusicContext(time) {
   const context = harmonicContextAt(harmonicContexts, time);
   if (!context || !els.musicContext) return;
@@ -2383,13 +2409,13 @@ function updateMusicContext(time) {
   els.contextChords.replaceChildren();
   for (const chord of context.chords) {
     const span = document.createElement('span');
-    span.textContent = chord;
+    span.textContent = formatMusicChord(chord);
     els.contextChords.appendChild(span);
   }
   if (!context.chords.length) els.contextChords.textContent = '—';
-  els.contextChords.title = context.chords.length ? context.chords.join(' · ') : 'Aucune progression récurrente établie pour ce passage';
+  els.contextChords.title = context.chords.length ? context.chords.map((chord) => formatMusicChord(chord)).join(' · ') : 'Aucune progression récurrente établie pour ce passage';
   if (changed) {
-    els.contextAnnouncement.textContent = `Tonalité : ${els.contextKey.textContent}. Accords principaux : ${context.chords.join(', ') || 'non établis'}.`;
+    els.contextAnnouncement.textContent = `Tonalité : ${els.contextKey.textContent}. Accords principaux : ${context.chords.map((chord) => formatMusicChord(chord)).join(', ') || 'non établis'}.`;
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       els.musicContext.getAnimations().forEach((a) => a.cancel());
       els.musicContext.animate([{ opacity: 0.75 }, { opacity: 1 }], { duration: 160 });

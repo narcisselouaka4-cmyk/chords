@@ -1,3 +1,4 @@
+import { formatMusicChord, formatMusicNote, canonicalChordInput } from './music-notation.js';
 // [Refonte visuelle 2026-09-02] — Panneau Corriger de l'onglet Analyse.
 //
 // Ce module est autonome : il lit les segments fournis par analyzer-tab.js,
@@ -78,7 +79,7 @@ function bindCorrigerUI() {
     const segment = resolveSegment(selectedSegmentId);
     if (!segment) return;
     const effective = getEffectiveChord(segment);
-    if (panelEls.corrigerInput) panelEls.corrigerInput.value = effective === 'N' ? '' : effective;
+    if (panelEls.corrigerInput) panelEls.corrigerInput.value = effective === 'N' ? '' : formatMusicChord(effective);
   });
 
   panelEls.corrigerInput?.addEventListener('keydown', (e) => {
@@ -91,7 +92,7 @@ function bindCorrigerUI() {
   panelEls.corrigerCandidates?.addEventListener('click', (e) => {
     const chip = e.target.closest('[data-candidate]');
     if (!chip || !panelEls.corrigerInput) return;
-    panelEls.corrigerInput.value = chip.dataset.candidate;
+    panelEls.corrigerInput.value = formatMusicChord(chip.dataset.candidate);
     panelEls.corrigerInput.focus();
   });
 
@@ -185,8 +186,8 @@ function renderSegmentList() {
     return `
       <button type="button" class="corriger-segment ${isSelected ? 'selected' : ''} ${corrected ? 'corrected' : ''}"
               data-segment-id="${escapeHtml(seg.segmentId || '')}"
-              title="${fmt(seg.startTime)} → ${fmt(seg.endTime)} — ${corrected ? `Corrigé : ${detected} → ${effective}` : reason}">
-        <span class="corriger-segment-chord">${escapeHtml(effective)}</span>
+              title="${fmt(seg.startTime)} → ${fmt(seg.endTime)} — ${corrected ? `Corrigé : ${formatMusicChord(detected)} → ${formatMusicChord(effective)}` : reason}">
+        <span class="corriger-segment-chord">${escapeHtml(formatMusicChord(effective))}</span>
         <span class="corriger-segment-time">${fmt(seg.startTime)} – ${fmt(seg.endTime)}</span>
         <span class="corriger-segment-reason">${escapeHtml(reason)}</span>
         ${corrected ? '<span class="corriger-segment-badge" title="Corrigé manuellement">✏</span>' : ''}
@@ -227,7 +228,7 @@ function renderEditor(segment, analysis) {
   const corrected = segment.manualOverride != null;
 
   if (panelEls.corrigerEditorDetected) {
-    panelEls.corrigerEditorDetected.textContent = detected === effective ? detected : `${detected} → ${effective}`;
+    panelEls.corrigerEditorDetected.textContent = detected === effective ? formatMusicChord(detected) : `${formatMusicChord(detected)} → ${formatMusicChord(effective)}`;
     panelEls.corrigerEditorDetected.classList.toggle('corrected', corrected);
   }
   if (panelEls.corrigerEditorMeta) {
@@ -235,7 +236,7 @@ function renderEditor(segment, analysis) {
       + (typeof segment.confidence === 'number' ? ` · confiance ${(segment.confidence * 100).toFixed(0)}%` : '');
   }
 
-  const inputValue = corrected ? effective : '';
+  const inputValue = corrected ? formatMusicChord(effective) : '';
   if (panelEls.corrigerInput && document.activeElement !== panelEls.corrigerInput) {
     panelEls.corrigerInput.value = inputValue;
   }
@@ -252,7 +253,7 @@ function renderEditorKeyboard(effectiveChord) {
   }
   const display = deriveChordDisplay(effectiveChord);
   const notes = display.allPcs.map((pc) => pc + 60); // C4 octave approximative
-  const { svg, noteNames } = miniKeyboardForNotes(notes);
+  const { svg, noteNames } = miniKeyboardForNotes(notes, { formatNote: formatMusicNote });
   panelEls.corrigerKeyboard.innerHTML = `
     <div class="corriger-keyboard-wrap">${svg}</div>
     <div class="corriger-keyboard-notes">${noteNames.join(' · ') || '—'}</div>
@@ -268,7 +269,7 @@ function renderCandidates(segment, effectiveChord) {
   }
   panelEls.corrigerCandidates.innerHTML = candidates.map((c) => `
     <button type="button" class="corriger-candidate" data-candidate="${escapeHtml(c.chord)}" title="${escapeHtml(c.reason)}">
-      <span class="corriger-candidate-name">${escapeHtml(c.chord)}</span>
+      <span class="corriger-candidate-name">${escapeHtml(formatMusicChord(c.chord))}</span>
       <span class="corriger-candidate-score">${(c.confidence * 100).toFixed(0)}%</span>
     </button>
   `).join('');
@@ -319,12 +320,12 @@ function applyEditorInput(raw) {
   const analysis = getAnalysis();
   if (!segment || !analysis) return;
 
-  const input = raw.trim();
+  const input = canonicalChordInput(raw);
   let override = null;
 
   if (input && input !== 'N') {
     if (!VALID_CHORD_RE.test(input)) {
-      showPanelMessage('Symbole invalide. Utilisez par exemple F#m7, C/E, Bbmaj9…', 'warning');
+      showPanelMessage('Symbole invalide. Exemples : Fa♯m7, Do/Mi ou F#m7, C/E…', 'warning');
       return;
     }
     const parsed = parseChordSymbol(input);

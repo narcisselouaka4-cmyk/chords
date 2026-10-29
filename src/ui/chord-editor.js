@@ -1,3 +1,4 @@
+import { formatMusicChord, formatMusicNote } from './music-notation.js';
 import { noteNameToPc, NOTE_NAMES } from '../chord-engine/intervals.js';
 export { NOTE_NAMES } from '../chord-engine/intervals.js';
 import { captureChordTarget } from './chord-edit-session.js';
@@ -137,7 +138,7 @@ export class ChordEditor {
     detectedLine.className = 'chord-editor-detected';
     this._detectedEl = document.createElement('span');
     this._detectedEl.className = 'chord-editor-detected-name';
-    this._detectedEl.textContent = this.segment.chord || 'N';
+    this._detectedEl.textContent = formatMusicChord(this.segment.chord || 'N');
     detectedLine.innerHTML = 'Détecté&nbsp;: ';
     detectedLine.appendChild(this._detectedEl);
     body.appendChild(detectedLine);
@@ -148,7 +149,7 @@ export class ChordEditor {
     for (let i = 0; i < 12; i++) {
       const opt = document.createElement('option');
       opt.value = String(i);
-      opt.textContent = NOTE_NAMES[i];
+      opt.textContent = formatMusicNote(NOTE_NAMES[i]);
       this._rootSelect.appendChild(opt);
     }
     this._rootSelect.value = String(initialRoot);
@@ -180,7 +181,7 @@ export class ChordEditor {
     for (let i = 0; i < 12; i++) {
       const opt = document.createElement('option');
       opt.value = String(i);
-      opt.textContent = NOTE_NAMES[i];
+      opt.textContent = formatMusicNote(NOTE_NAMES[i]);
       this._bassSelect.appendChild(opt);
     }
     this._bassSelect.value = initialBass != null ? String(initialBass) : '';
@@ -264,11 +265,20 @@ export class ChordEditor {
     return { root, quality, bass };
   }
 
+  refreshNotation() {
+    if (!this.isOpen) return;
+    for (const select of [this._rootSelect, this._bassSelect]) {
+      for (const opt of select?.options || []) if (opt.value !== '') opt.textContent = formatMusicNote(NOTE_NAMES[Number(opt.value)]);
+    }
+    this._detectedEl.textContent = formatMusicChord(this.segment.chord || 'N');
+    this._updatePreview();
+  }
+
   _updatePreview() {
     const { root, quality, bass } = this._getFormValues();
     const preview = formatEffectiveChord(root, quality, bass);
     if (this._previewEl) {
-      this._previewEl.textContent = preview;
+      this._previewEl.textContent = formatMusicChord(preview);
     }
   }
 

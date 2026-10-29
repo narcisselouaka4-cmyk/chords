@@ -9,7 +9,7 @@ function element(tag, className, text) {
 
 export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
   let model = null, activeBeat = -1, activeRow = -1, beatElements = [], rowElements = [], timeCells = [], timeRows = [];
-  function render(analysis, { settings, rhythm, detailed = false } = {}) {
+  function render(analysis, { settings, rhythm, detailed = false, formatChord = (symbol) => symbol } = {}) {
     model = buildMusicalGrid(analysis, { settings, rhythm });
     activeBeat = -1; activeRow = -1; beatElements = []; rowElements = []; timeCells = []; timeRows = [];
     host.replaceChildren();
@@ -41,9 +41,9 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           button.dataset.fromBeat = String(cell.from);
           button.dataset.toBeat = String(cell.to);
           if (cell.symbol === 'N') button.classList.add('is-silence');
-          const chord = cell.symbol === 'N' ? 'Silence' : cell.symbol;
+          const chord = cell.symbol === 'N' ? 'Silence' : formatChord(cell.symbol);
           button.setAttribute('aria-label', `${chord}, ${cell.to - cell.from} temps, ${timeLabel(cell.startTime)}, mesure ${row.bars.find((b) => cell.from < b.to)?.number}`);
-          button.title = `${chord} · ${cell.to - cell.from} temps${cell.passages.length ? ` · Passages : ${cell.passages.map((p) => p.symbol).join(', ')}` : ''}\nClic : écouter ici · Double-clic : corriger l’accord`;
+          button.title = `${chord} · ${cell.to - cell.from} temps${cell.passages.length ? ` · Passages : ${cell.passages.map((p) => formatChord(p.symbol)).join(', ')}` : ''}\nClic : écouter ici · Double-clic : corriger l’accord`;
           const surface = element('span', 'mg-surface');
           const fill = element('span', 'mg-fill');
           fill.setAttribute('aria-hidden', 'true');
@@ -55,10 +55,10 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
             button.appendChild(beat);
           }
           const content = element('span', 'mg-cell-content');
-          const symbol = cell.symbol === 'N' ? '—' : cell.symbol;
+          const symbol = cell.symbol === 'N' ? '—' : formatChord(cell.symbol);
           content.appendChild(element('span', cell.continued ? 'mg-continuation' : 'mg-symbol', symbol));
           if (detailed && cell.passages.length) {
-            const names = cell.passages.filter((p, i, all) => !i || all[i - 1].symbol !== p.symbol).map((p) => p.symbol);
+            const names = cell.passages.filter((p, i, all) => !i || all[i - 1].symbol !== p.symbol).map((p) => formatChord(p.symbol));
             content.appendChild(element('span', 'mg-passages', names.join(' · ')));
           }
           surface.appendChild(content);
@@ -103,10 +103,10 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           button.style.gridColumn = String(i - row.from + 1);
           button.dataset.beat = String(i); button.dataset.segmentId = cell.segmentId;
           button.dataset.symbol = cell.symbol; button.dataset.start = String(model.boundaries[i]);
-          const chord = cell.symbol === 'N' ? 'Silence' : cell.symbol;
+          const chord = cell.symbol === 'N' ? 'Silence' : formatChord(cell.symbol);
           button.setAttribute('aria-label', `${chord}, temps ${i - row.from + 1}, ${timeLabel(model.boundaries[i])}`);
           button.title = `${chord} · ${model.boundaries[i].toFixed(2)} s\nClic : écouter ici · Double-clic : corriger l’accord`;
-          if (i === cell.from && !cell.continued) button.textContent = cell.symbol === 'N' ? '—' : cell.symbol;
+          if (i === cell.from && !cell.continued) button.textContent = cell.symbol === 'N' ? '—' : formatChord(cell.symbol);
           if (row.bars.some((bar) => !bar.pickup && bar.from === i)) button.classList.add('mg-measure-start');
           button.addEventListener('click', () => onSeek?.(model.boundaries[i], cell.segmentId));
           button.addEventListener('dblclick', () => onEdit?.(cell.segmentId));

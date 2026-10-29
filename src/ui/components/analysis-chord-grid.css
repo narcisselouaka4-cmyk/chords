@@ -131,3 +131,20 @@
   #analysis-tab #analyzer-section-tabs .an-subtab-btn { font-size: 11px; padding: 10px 4px; }
   #analysis-tab .mg-cell-content { padding-inline: 5px; }
 }
+
+/* Partition : la même grille temporelle, gravée en notes sur une grande portée. */
+#analysis-tab .mg-view-picker { display: flex; align-items: center; gap: 7px; color: var(--an-text-secondary); font-size: 11px; }
+#analysis-tab .mg-view-picker select { font: inherit; color: var(--an-text); background: var(--an-surface); border: 1px solid var(--an-border-strong); border-radius: 4px; padding: 4px 6px; }
+#analysis-tab .score-caption { color: var(--an-text-secondary); font-size: 11px; margin: 0 0 12px; }
+#analysis-tab .score-system { overflow-x: auto; margin: 0 0 16px; }
+#analysis-tab .score-section-start { margin-top: 30px; }
+#analysis-tab .score-system svg { display: block; width: 100%; height: auto; min-width: 600px; fill: var(--an-text); }
+#analysis-tab .score-system svg path, #analysis-tab .score-system svg text { fill: var(--an-text); }
+#analysis-tab .score-system svg { stroke: var(--an-text); }
+#analysis-tab .score-system svg path[fill='none'] { fill: none; }
+#analysis-tab .score-system .score-time { font: 11px var(--font-mono, monospace); fill: var(--an-text-secondary); }
+#analysis-tab .score-system .score-chord-label { font: 500 13px var(--font-ui, sans-serif); }
+#analysis-tab .score-system .score-beat { fill: transparent; stroke: none; cursor: pointer; }
+#analysis-tab .score-system .score-beat:hover { fill: color-mix(in srgb, var(--an-accent) 8%, transparent); }
+#analysis-tab .score-system .score-beat[aria-current='true'] { fill: color-mix(in srgb, var(--an-accent) 19%, transparent); stroke: var(--an-accent); stroke-width: 1px; }
+#analysis-tab .score-system .score-beat:focus-visible { outline: none; stroke: var(--an-accent); stroke-width: 2px; }

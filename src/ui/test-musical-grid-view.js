@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { formatMusicChord } from './music-notation.js';
 import { createMusicalGridView } from './components/musical-grid-view.js';
 import { initGridDesignToggle } from './components/grid-design-toggle.js';
 
@@ -228,4 +229,18 @@ test('lecture : la grille reçoit le temps même si un autre panneau échoue ens
   assert.throws(() => context.updatePlaybackPosition(1.5), /panneau indisponible/);
   assert.throws(() => context.updatePlaybackPosition(2.5), /panneau indisponible/);
   assert.deepEqual(received, [1.5, 2.5]);
+});
+
+test('DOM : notation latine sans modifier les symboles ni les identités de la grille', () => {
+  const host = new Element(), calls = [];
+  const source = { tempo: 120, duration: 2, chords: [chord('F#m7/C#', 0, 2)] };
+  const before = JSON.stringify(source);
+  const view = createMusicalGridView(host, { onSeek: (...args) => calls.push(args) });
+  view.render(source, { formatChord: (symbol) => formatMusicChord(symbol, { latin: true, spelling: 'auto' }) });
+  const first = host.querySelectorAll('.mg-time-cell')[0];
+  assert.equal(first.textContent, 'Fa♯m7/Do♯');
+  assert.equal(first.dataset.symbol, 'F#m7/C#');
+  first.listeners.click();
+  assert.equal(calls[0][1], source.chords[0].segmentId);
+  assert.equal(JSON.stringify(source), before);
 });

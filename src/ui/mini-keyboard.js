@@ -138,7 +138,7 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
   whites.forEach((midi, index) => {
     const x = index * WHITE_WIDTH;
     const active = activeSet.has(midi);
-    const title = active ? ` title="${midiToNoteName(midi, true, false)}"` : '';
+    const title = active ? ` title="${(options.formatNote || ((name) => name))(midiToNoteName(midi, true, false))}"` : '';
     markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="0" width="${WHITE_WIDTH}" height="${WHITE_HEIGHT}" rx="${WHITE_RADIUS}" fill="${fillOf(midi)}" stroke="${STROKES.w[tone(midi)]}" stroke-width="${active ? 1 : 0.6}"${title}/>`;
   });
 
@@ -148,7 +148,7 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     const x = blackKeyX(midi, firstWhite);
     if (x < 0 || x + BLACK_WIDTH > width) continue;
     const active = activeSet.has(midi);
-    const title = active ? ` title="${midiToNoteName(midi, true, false)}"` : '';
+    const title = active ? ` title="${(options.formatNote || ((name) => name))(midiToNoteName(midi, true, false))}"` : '';
     markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="-1" width="${BLACK_WIDTH}" height="${BLACK_HEIGHT}" rx="${BLACK_RADIUS}" fill="${fillOf(midi)}" stroke="${STROKES.b[tone(midi)]}" stroke-width="0.8"${title}/>`;
   }
 
@@ -156,7 +156,7 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
   const noteNames = activeNotes
     .filter((n) => typeof n === 'number')
     .sort((a, b) => a - b)
-    .map((n) => midiToNoteName(n, true, false));
+    .map((n) => (options.formatNote || ((name) => name))(midiToNoteName(n, true, false)));
   return { svg, noteNames };
 }
 
@@ -176,6 +176,7 @@ export function miniKeyboardForNotes(activeNotes, options = {}) {
     leftHand: opts.leftHand,
     rightHand: opts.rightHand,
     added: opts.added,
+    formatNote: opts.formatNote,
   };
   if (!Array.isArray(activeNotes) || activeNotes.length === 0) {
     const fallbackStart = startMidiOverride ?? 60;

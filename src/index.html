@@ -1449,6 +1449,12 @@
             <div class="an-chord-progression-ribbon" id="analyzer-progression-ribbon" role="region" aria-label="Ligne des accords">
               <div class="an-grid-toolbar">
                 <span class="an-grid-heading">Grille d’accords</span>
+                <label class="mg-view-picker">Affichage
+                  <select id="analyzer-grid-view" aria-label="Affichage des accords">
+                    <option value="cases">Cases</option>
+                    <option value="score">Partition</option>
+                  </select>
+                </label>
                 <span id="analyzer-grid-meter" class="mg-meter">4/4</span>
                 <div class="mg-tempo-controls" role="group" aria-label="Tempo de la grille">
                   <button type="button" id="analyzer-grid-half" title="Diviser le tempo de la grille par deux">÷2</button>
