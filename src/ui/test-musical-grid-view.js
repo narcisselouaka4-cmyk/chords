@@ -244,3 +244,19 @@ test('DOM : notation latine sans modifier les symboles ni les identités de la g
   assert.equal(calls[0][1], source.chords[0].segmentId);
   assert.equal(JSON.stringify(source), before);
 });
+
+test('DOM : le nom de l’accord tenu reste ciblé même quand la case courante est vide', () => {
+  const host = new Element(), view = createMusicalGridView(host);
+  view.render({ tempo: 120, duration: 4, chords: [chord('C', 0, 2), chord('F', 2, 4)] });
+  const cells = host.querySelectorAll('.mg-time-cell');
+  view.update(1.5);
+  assert.equal(cells[3].textContent, '');
+  assert(cells[3].classList.contains('is-current'));
+  assert(cells[0].classList.contains('is-playing'));
+  view.update(2.5);
+  assert(!cells[0].classList.contains('is-playing'));
+  assert(cells[4].classList.contains('is-playing'));
+  view.update(0.5);
+  assert(cells[0].classList.contains('is-playing'));
+  assert(!cells[4].classList.contains('is-playing'));
+});

@@ -13,9 +13,9 @@ function svgElement(tag, attrs, text) {
 }
 
 export function createChordScoreView(host, { onSeek, onEdit } = {}) {
-  let model, activeBeat = -1, activeSystem = null, hitAreas = [], systems = [];
+  let model, activeBeat = -1, activeSystem = null, hitAreas = [], systems = [], noteGroups = [], chordLabels = [];
   function render(grid, { formatChord = (symbol) => symbol } = {}) {
-    model = grid; activeBeat = -1; activeSystem = null; hitAreas = []; systems = [];
+    model = grid; activeBeat = -1; activeSystem = null; hitAreas = []; systems = []; noteGroups = []; chordLabels = [];
     host.replaceChildren();
     const note = document.createElement('p'); note.className = 'score-caption';
     note.textContent = 'Réduction harmonique · positions proposées · durées calées sur la grille';
@@ -69,6 +69,7 @@ export function createChordScoreView(host, { onSeek, onEdit } = {}) {
         voices[0].draw(context, top); voices[1].draw(context, bottom);
         return { bar, top, bottom, topNotes, bottomNotes };
       });
+      let currentLabel = null;
       for (const pair of pairs) {
         const { bar, top, topNotes, bottomNotes } = pair;
         for (let i = 0; i < bar.events.length; i++) {
@@ -85,9 +86,11 @@ export function createChordScoreView(host, { onSeek, onEdit } = {}) {
             });
           }
           const x = notes[0].getAbsoluteX();
-          if ((!event.tiePrevious && (event.symbol !== 'N' || !previousNotes?.silence)) || i === 0 && pair === pairs[0]) svg.appendChild(svgElement('text', {
-            x: x - 4, y: 42, class: 'score-chord-label',
-          }, event.symbol === 'N' ? 'Silence' : formatChord(event.symbol) + (event.voicing.unsupported ? ' · non transcrit' : '')));
+          if ((!event.tiePrevious && (event.symbol !== 'N' || !previousNotes?.silence)) || i === 0 && pair === pairs[0]) {
+            currentLabel = svgElement('text', { x: x - 4, y: 42, class: 'score-chord-label' },
+              event.symbol === 'N' ? 'Silence' : formatChord(event.symbol) + (event.voicing.unsupported ? ' · non transcrit' : ''));
+            svg.appendChild(currentLabel);
+          }
           const left = i ? (topNotes[i - 1].getAbsoluteX() + x) / 2 : top.getNoteStartX() - 10;
           const right = i + 1 < topNotes.length ? (x + topNotes[i + 1].getAbsoluteX()) / 2 : top.getNoteEndX();
           for (let beat = event.from; beat < event.to; beat++) {
@@ -103,6 +106,8 @@ export function createChordScoreView(host, { onSeek, onEdit } = {}) {
               const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -(group.at(-1).to - group[0].from), ArrowDown: group.at(-1).to - group[0].from }[e.key];
               if (step) { e.preventDefault(); e.stopPropagation(); hitAreas[beat + step]?.focus(); }
             });
+            noteGroups[beat] = notes.map((note) => note.getSVGElement()).filter(Boolean);
+            chordLabels[beat] = currentLabel;
             hitAreas[beat] = hit; systems[beat] = line; svg.appendChild(hit);
           }
           previousNotes = { notes, line, context, silence: event.voicing.silence };
@@ -116,7 +121,11 @@ export function createChordScoreView(host, { onSeek, onEdit } = {}) {
     const beat = beatAtTime(model.boundaries, time);
     if (beat === activeBeat) return;
     hitAreas[activeBeat]?.removeAttribute('aria-current');
+    noteGroups[activeBeat]?.forEach((el) => el.classList.remove('score-note-current'));
+    chordLabels[activeBeat]?.classList.remove('is-playing');
     activeBeat = beat; hitAreas[beat]?.setAttribute('aria-current', 'true');
+    noteGroups[beat]?.forEach((el) => el.classList.add('score-note-current'));
+    chordLabels[beat]?.classList.add('is-playing');
     const line = systems[beat];
     if (line !== activeSystem) {
       activeSystem = line;

@@ -95,7 +95,7 @@
 #analysis-tab .mg-time-cell { position: relative; grid-row: 1; min-width: 0; min-height: 56px; margin: 0; padding: 8px 6px; border: 1px solid var(--an-border-soft); border-radius: 3px; background: var(--an-surface); color: var(--an-text); font: inherit; font-size: 14px; font-weight: 500; line-height: 1.2; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
 #analysis-tab .mg-time-cell.mg-measure-start::before { content: ''; position: absolute; top: 0; bottom: 0; left: -3px; width: 3px; border-radius: 1px; background: color-mix(in srgb, var(--an-text-secondary) 65%, transparent); pointer-events: none; }
 #analysis-tab .mg-time-cell:hover { border-color: var(--an-accent); }
-#analysis-tab .mg-time-cell.is-current { background: color-mix(in srgb, var(--modulation-accent, var(--an-accent)) 32%, var(--an-surface)); border-color: var(--modulation-accent, var(--an-accent)); box-shadow: inset 0 -3px var(--modulation-accent, var(--an-accent)); }
+#analysis-tab .mg-time-cell.is-current { background: color-mix(in srgb, var(--an-accent) 32%, var(--an-surface)); border-color: var(--an-accent); box-shadow: inset 0 -3px var(--an-accent); }
 #analysis-tab .mg-time-cell:focus-visible { outline: 2px solid var(--an-accent); outline-offset: -3px; z-index: 3; }
 #analysis-tab .mg-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 18px; padding: 12px 16px; border: 1px solid var(--an-border-soft); border-radius: 6px; color: var(--an-text-secondary); font-size: 12px; }
 #analysis-tab .mg-settings legend { padding: 0 6px; font-size: 12px; }
@@ -146,11 +146,18 @@
 #analysis-tab .score-system .score-chord-label { font: 500 13px var(--font-ui, sans-serif); }
 #analysis-tab .score-system .score-beat { fill: transparent; stroke: none; cursor: pointer; }
 #analysis-tab .score-system .score-beat:hover { fill: color-mix(in srgb, var(--an-accent) 8%, transparent); }
-#analysis-tab .score-system .score-beat[aria-current='true'] { fill: color-mix(in srgb, var(--modulation-accent, var(--an-accent)) 19%, transparent); stroke: var(--modulation-accent, var(--an-accent)); stroke-width: 1px; }
+#analysis-tab .score-system .score-beat[aria-current='true'] { fill: color-mix(in srgb, var(--an-accent) 19%, transparent); stroke: var(--an-accent); stroke-width: 1px; }
 #analysis-tab .score-system .score-beat:focus-visible { outline: none; stroke: var(--an-accent); stroke-width: 2px; }
 
-/* Même palette que la tonalité du bandeau, commune aux deux modes de lecture. */
-#analysis-tab .an-chord-progression-ribbon { --modulation-accent: var(--an-accent); }
-#analysis-tab .an-chord-progression-ribbon[data-harmonic-tone]:not([data-harmonic-tone='0']) { --modulation-accent: var(--context-color); }
-#analysis-tab .mg-modulation-notice { color: var(--modulation-accent); background: color-mix(in srgb, var(--modulation-accent) 9%, transparent); border: 1px solid color-mix(in srgb, var(--modulation-accent) 40%, transparent); border-radius: 4px; padding: 4px 8px; font-size: 11px; }
-#analysis-tab .mg-modulation-notice[hidden] { display: none; }
+/* Une transition d'encre uniquement, avec des teintes contrastées selon le thème. */
+@property --an-harmonic-ink { syntax: '<color>'; inherits: true; initial-value: #242424; }
+#analysis-tab .an-chord-progression-ribbon { --an-harmonic-ink: var(--an-text); }
+#analysis-tab .an-chord-progression-ribbon[data-harmonic-tone]:not([data-harmonic-tone='0']) { --an-harmonic-ink: var(--context-color); }
+#analysis-tab .an-chord-progression-ribbon.has-key-transition { transition: --an-harmonic-ink 450ms ease-out; }
+#analysis-tab .mg-time-cell.is-playing { color: var(--an-harmonic-ink, var(--an-text)); }
+#analysis-tab .score-system .score-chord-label.is-playing,
+#analysis-tab .score-system .score-note-current path { fill: var(--an-harmonic-ink, var(--an-text)); }
+#analysis-tab .score-system .score-note-current path[fill='none'] { fill: none; stroke: var(--an-harmonic-ink, var(--an-text)); }
+@media (prefers-reduced-motion: reduce) {
+  #analysis-tab .an-chord-progression-ribbon.has-key-transition { transition: none; }
+}

@@ -1,4 +1,4 @@
-import { createModulationFeedback, isModulation } from './components/modulation-feedback.js';
+import { createModulationFeedback } from './components/modulation-feedback.js';
 import { formatMusicChord, formatMusicNote, notationOptions } from './music-notation.js';
 import { normalizeGridSettings, effectiveGridTempo } from '../analyzer/musical-grid.js';
 import { readGridView } from '../analyzer/grid-project.js';
@@ -136,7 +136,6 @@ const els = {
   gridView: document.getElementById('analyzer-grid-view'),
   gridTempo: document.getElementById('analyzer-grid-tempo'),
   gridStatus: document.getElementById('analyzer-grid-status'),
-  modulationNotice: document.getElementById('analyzer-modulation-notice'),
   gridHalf: document.getElementById('analyzer-grid-half'),
   gridDouble: document.getElementById('analyzer-grid-double'),
   gridSignature: document.getElementById('analyzer-grid-signature'),
@@ -270,8 +269,7 @@ export function initAnalyzerTab() {
   bindTimelineScroll();
   bindMusicalGrid();
   bindGridPresentation();
-  modulationFeedback = createModulationFeedback({ host: els.musicalGrid, region: els.progressionRibbon,
-    badge: els.modulationNotice, describeKey: keyDisplayLabel });
+  modulationFeedback = createModulationFeedback({ region: els.progressionRibbon });
   lastNotation = JSON.stringify(notationOptions());
   window.addEventListener('keyboard-settings-changed', refreshAnalysisNotation);
   els.reanalyzeBtn?.addEventListener('click', () => { reanalyzeCurrentTrack(); });
@@ -2408,11 +2406,7 @@ function updateMusicContext(time) {
   if (!context || !els.musicContext) return;
   const id = `${context.start}:${context.key}:${context.mode}:${context.chords.join('|')}`;
   if (id === lastContextId) return;
-  const index = harmonicContexts.indexOf(context);
-  modulationFeedback?.update(context, {
-    modulated: index > 0 && isModulation(harmonicContexts[index - 1], context),
-    animate: chordGridExpanded,
-  });
+  modulationFeedback?.update(context, { animate: chordGridExpanded });
   const changed = lastContextId !== null;
   lastContextId = id;
   els.musicContext.dataset.tone = String(context.color % 5);

@@ -8,10 +8,11 @@ function element(tag, className, text) {
 }
 
 export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
-  let model = null, activeBeat = -1, activeRow = -1, beatElements = [], rowElements = [], timeCells = [], timeRows = [];
+  let model = null, activeBeat = -1, activeRow = -1, beatElements = [], rowElements = [], timeCells = [], timeRows = [], chordLabels = [];
   function render(analysis, { settings, rhythm, detailed = false, formatChord = (symbol) => symbol } = {}) {
     model = buildMusicalGrid(analysis, { settings, rhythm });
-    activeBeat = -1; activeRow = -1; beatElements = []; rowElements = []; timeCells = []; timeRows = [];
+    activeBeat = -1; activeRow = -1; beatElements = []; rowElements = []; timeCells = []; timeRows = []; chordLabels = [];
+    let chordLabel = null;
     host.replaceChildren();
     for (const section of model.sections) {
       // On conserve les respirations entre groupes, sans leur attribuer un nom de partie.
@@ -119,6 +120,8 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
               : timeCells[i + (event.key === 'ArrowLeft' ? -1 : 1)];
             target?.focus();
           });
+          if (i === cell.from && !cell.continued) chordLabel = button;
+          chordLabels[i] = chordLabel;
           timeCells[i] = button; timeRows[row.index].push(button); classic.appendChild(button);
         }
         line.appendChild(classic); block.appendChild(line);
@@ -145,11 +148,13 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
     beatElements[activeBeat]?.parentElement?.removeAttribute('aria-current');
     timeCells[activeBeat]?.classList.remove('is-current');
     timeCells[activeBeat]?.removeAttribute('aria-current');
+    chordLabels[activeBeat]?.classList.remove('is-playing');
     activeBeat = beat;
     beatElements[beat]?.classList.add('is-current');
     beatElements[beat]?.parentElement?.setAttribute('aria-current', 'true');
     timeCells[beat]?.classList.add('is-current');
     timeCells[beat]?.setAttribute('aria-current', 'true');
+    chordLabels[beat]?.classList.add('is-playing');
     const row = model.rows.findIndex((r) => r.from <= beat && beat < r.to);
     if (row !== activeRow) {
       rowElements[activeRow]?.classList.remove('is-current'); activeRow = row;
