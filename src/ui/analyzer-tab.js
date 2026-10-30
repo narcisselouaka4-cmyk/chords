@@ -1075,7 +1075,10 @@ async function launchAnalysisFromPrepare() {
   analysisRunning = true;
   setAnalysisControlsDisabled(true);
   const midi = currentSourceType === 'midi';
-  showProcessing(midi ? 'Lecture des notes du fichier MIDI…' : 'Extraction audio en cours…', { withElapsed: true });
+  // [Claude] — 2026-10-30 — Le calage des pulsations est maintenant inclus dans cette
+  // attente-là (et non plus imposé après coup) : le texte le dit, pour que la durée
+  // supplémentaire soit comprise plutôt que subie.
+  showProcessing(midi ? 'Lecture des notes du fichier MIDI…' : 'Analyse de l’audio et calage des pulsations…', { withElapsed: true });
   try {
     // [Claude] — 2026-10-09 — Un fichier MIDI : ses notes sont exactes, les accords en sont tirés
     // directement (pas de ffmpeg ni de chromagramme), et son écoute est rendue au piano.
@@ -1684,6 +1687,23 @@ function renderMusicalGrid() {
 async function ensureGridRhythm() {
   if (!currentAnalysis || gridRhythm || gridRhythmAnalysis === currentAnalysis) return;
   const analysis = currentAnalysis;
+  // [Claude] — 2026-10-30 — Le calage arrive désormais AVEC l'analyse, calculé pendant
+  // l'écran de chargement (runAnalysisPipeline). Narcisse : « que tout soit prêt et
+  // qu'il ne soit pas obligé d'attendre ENCORE ». S'il est là et utilisable, on le prend
+  // tel quel : aucun second calcul, donc aucune seconde attente. Il n'est pas réutilisé
+  // si l'utilisateur a imposé un BPM — readGridView l'écarte alors, et le repli ci-dessous
+  // recalcule au tempo demandé.
+  if (analysis.rhythm && gridSettings.tempoOverride == null) {
+    const prêt = readGridView({ display: { chordGrid: { settings: gridSettings, rhythm: analysis.rhythm } } }, analysis).rhythm;
+    if (prêt) {
+      gridRhythmAnalysis = analysis;
+      gridRhythm = prêt;
+      syncGridSettings(); renderMusicalGrid();
+      musicalGridView?.update(currentPlayer?.getCurrentTime?.() || 0);
+      if (window.electronAPI?.files?.writeFile) saveProject({ silent: true });
+      return;
+    }
+  }
   if (!analysis.wavPath || !window.electronAPI?.analyzer?.gridBeats) return;
   gridRhythmAnalysis = analysis;
   const request = {};

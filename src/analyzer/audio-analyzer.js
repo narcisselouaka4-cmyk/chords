@@ -83,6 +83,10 @@ export class TemplateAudioAnalyzer extends AudioAnalyzer {
 
     return {
       wavPath: result.wavPath || '',
+      // [Claude] — 2026-10-30 — Calage des pulsations calculé pendant l'analyse (voir
+      // runAnalysisPipeline) pour éviter une seconde attente dans l'onglet. Il DOIT
+      // figurer dans cette liste blanche, sinon il serait perdu en silence ici même.
+      rhythm: result.rhythm ?? null,
       analysisWavPath: result.analysisWavPath || result.wavPath || '',
       usedPianoStem: result.usedPianoStem ?? false,
       usedBassStem: result.usedBassStem ?? false,

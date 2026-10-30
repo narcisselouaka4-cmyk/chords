@@ -2415,8 +2415,24 @@ function setupStudioIPC() {
         }
       }
 
+      // [Claude] — 2026-10-30 — Le calage des pulsations se fait ICI, pendant l'écran de
+      //   chargement, et non plus après coup dans l'onglet. Narcisse : « place le calage de
+      //   pulsation dans le chargement pour que tout soit prêt et qu'il ne soit pas obligé
+      //   d'attendre ENCORE ». Il tourne 13 à 31 s : lancé après l'analyse, il imposait une
+      //   SECONDE attente juste au moment de lire les résultats. Il a besoin du tempo, donc
+      //   il vient après analyze-chords. Jamais bloquant : un échec rend simplement
+      //   `rhythm: null`, et l'onglet recalcule comme avant.
+      let rhythm = null;
+      try {
+        rhythm = await runDisplayGridBeats(playbackWav, { tempo: result.tempo },
+          { python: getPythonCommand(), trackChild });
+      } catch (rhythmErr) {
+        console.warn('[Analyzer] calage des pulsations ignoré :', rhythmErr.message);
+      }
+
       return {
         wavPath: playbackWav,
+        rhythm,
         analysisWavPath: analysisWav,
         usedPianoStem: Boolean(pianoStem),
         usedBassStem: Boolean(bassStem),
