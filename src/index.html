@@ -991,10 +991,15 @@
             </div>
             <div class="pedago-stage">
               <section class="tr-cinema-shell" id="pedagogie-main" aria-label="Lecteur de tutoriel">
-                <div class="tr-cinema-stage">
+                <div class="tr-cinema-stage" id="pedagogie-video-frame">
                   <section class="pedagogie-card is-video" id="pedagogie-video-card" style="display: none;">
                     <video class="pedagogie-video-player" id="pedagogie-video-player" preload="metadata" playsinline></video>
                   </section>
+                  <button type="button" class="pedago-video-size" id="pedagogie-video-size" aria-label="Agrandir la vidéo" aria-pressed="false" aria-controls="pedagogie-video-frame" title="Agrandir la vidéo">
+                    <svg class="is-grow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    <svg class="is-shrink" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+                    <span>Agrandir</span>
+                  </button>
 
                   <div class="tr-video-topline">
                     <span><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>TUTORIEL</span>

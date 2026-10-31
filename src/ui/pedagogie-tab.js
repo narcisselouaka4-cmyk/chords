@@ -78,6 +78,7 @@ import { createMetronomeMenu, setMetronomeMenuState, flashMetronomeBeat, trigger
 import { createMetronome } from '../audio/metronome.js';
 import { estimateTempo } from '../pedagogie/tempo-estimate.js';
 import { getAudioContext } from '../audio/simple-synth.js';
+import { bindTutorialVideoZoom } from './components/tutorial-video-zoom.js';
 
 // [Claude] — 2026-09-25 — Pourquoi l'image n'a pas été lue (Narcisse : « l'application
 // ne peut pas analyser l'image, et je ne sais pas pourquoi ») : dit en clair.
@@ -159,6 +160,7 @@ let v2nState = null;
 let notesUnavailable = null;
 // Lecteur vidéo blob : une seule URL vivante à la fois.
 let videoBlobUrl = null;
+let videoZoom = null;
 // Chemin dont l'URL blob courante est issue : suivre la sélection, pas seulement
 // la première apparition du lecteur.
 let mountedVideoPath = null;
@@ -1170,6 +1172,7 @@ let calibrationPoints = [];
 
 function startCalibration() {
   if (!selectedPath) return;
+  videoZoom?.close();
   calibrationMode = true;
   const stored = getV2nCorners(selectedPath);
   calibrationPoints = [];
@@ -1376,6 +1379,7 @@ async function mountVideo(path) {
 
 /** Libère l'URL blob courante. Toujours appelée avant un nouveau montage. */
 function destroyVideo() {
+  videoZoom?.close();
   if (videoBlobUrl) {
     URL.revokeObjectURL(videoBlobUrl);
     videoBlobUrl = null;
@@ -2207,6 +2211,12 @@ export function initPedagogieTab() {
   els.format = document.getElementById('pedagogie-format');
   els.videoCard = document.getElementById('pedagogie-video-card');
   els.videoPlayer = document.getElementById('pedagogie-video-player');
+  videoZoom = bindTutorialVideoZoom({
+    root: els.root,
+    frame: document.getElementById('pedagogie-video-frame'),
+    column: els.main,
+    button: document.getElementById('pedagogie-video-size'),
+  });
   // [Claude] — 2026-10-03 — La frise se replie (repliée par défaut), et la barre du passage.
   els.passage = document.getElementById('pedagogie-passage');
   els.timelineMount = document.getElementById('pedagogie-timeline');
@@ -2309,6 +2319,7 @@ export function initPedagogieTab() {
       render();
       return;
     }
+    videoZoom?.close();
     if (viewActive) { pauseVideo(); stopMetronome(); }
     viewActive = false;
     // La conversation retourne dans l'onglet Copilote quand on y va.

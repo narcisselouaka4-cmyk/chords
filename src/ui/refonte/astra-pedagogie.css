@@ -364,6 +364,44 @@
 :root[data-skin] #practice-view-pedagogie .pedagogie-badge.is-audio { color: #f0cf8a; }
 #pedagogie-main.is-playing .tr-video-topline > span:first-child { visibility: hidden; }
 
+/* Agrandissement local : le lecteur ne quitte pas son parent et garde sa lecture. */
+#practice-view-pedagogie .pedago-video-size {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #ffffff65;
+  border-radius: 6px;
+  background: #141418de;
+  color: #fff;
+  font: 500 12px var(--tr-font, sans-serif);
+  cursor: pointer;
+}
+#practice-view-pedagogie .pedago-video-size:hover { background: #303038; }
+#practice-view-pedagogie .pedago-video-size:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+#practice-view-pedagogie #pedagogie-video-frame .tr-video-topline { right: 128px; }
+#practice-view-pedagogie .pedago-video-size .is-shrink,
+#practice-view-pedagogie .pedago-video-size[aria-pressed="true"] .is-grow { display: none; }
+#practice-view-pedagogie .pedago-video-size[aria-pressed="true"] .is-shrink { display: block; }
+#practice-view-pedagogie .tr-cinema-stage.is-enlarged {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 5;
+  left: var(--video-zoom-left);
+  top: var(--video-zoom-top);
+  width: var(--video-zoom-width);
+  height: var(--video-zoom-height);
+  min-height: 0;
+  border: 1px solid #ffffff45;
+  border-radius: 10px;
+  box-shadow: 0 12px 48px #0008;
+}
+
 /* Progression du relevé, sous la vidéo. */
 :root[data-skin] #practice-view-pedagogie .pedagogie-progress {
   display: flex;
