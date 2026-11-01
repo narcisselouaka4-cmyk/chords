@@ -1263,9 +1263,12 @@ function transferLick({ notes, chords, from, to, list, title, sharps, key, targe
  * @returns {{example: object|null, text: string, error?: string}}
  */
 export function applyTutorialPassage({ notes = [], chords = [], start, end, what = 'voicing', targets = [], title = '', key = null, targetKey = null, passingOnly = false } = {}) {
-  const from = Math.max(0, Number(start) || 0);
+  let from = Math.max(0, Number(start) || 0);
   // [Claude] — 2026-10-03 — Toute la plage choisie (10 min au plus), plus seulement 30 s.
-  const to = Math.min(Number(end) || from + 20, from + MAX_PASSAGE_SECONDS);
+  let to = Math.min(Number(end) || from + 20, from + MAX_PASSAGE_SECONDS);
+  // Les bornes demandées : un enchaînement repris sur une partie du passage se dit (plus bas).
+  const askedFrom = from;
+  const askedTo = to;
   const list = (Array.isArray(targets) ? targets : []).map((t) => String(t || '').trim());
   if (!list.length) return { example: null, text: '', error: 'Aucun accord cible reconnu.' };
   if (list.some((t) => !t || !parseChordName(t))) return { example: null, text: '', error: 'Un accord cible n’est pas reconnu. Précise tous les accords de la progression ; je ne supprime pas les accords inconnus.' };
@@ -1276,13 +1279,54 @@ export function applyTutorialPassage({ notes = [], chords = [], start, end, what
   const sharps = prefersSharps(list);
   // Les mouvements utilisent les accords vérifiés par les notes, lorsque leur lecture
   // contredit l'étiquette ; une grille seule ne peut imposer une fonction harmonique.
-  const shapes = voicingShapes(notes, chords, { start: from, end: to });
+  let shapes = voicingShapes(notes, chords, { start: from, end: to });
+  // [Claude] — 2026-11-01 — Reprendre un mouvement du prof sur une autre progression, Narcisse :
+  // « ce serait le point le plus fort de l'application ». Mesuré avant ce jour sur ses deux vraies
+  // vidéos (Amazing Grace, Next Level Worship) : **0 réussite sur 12 essais**. La moindre
+  // interruption de plus d'une seconde, ou le moindre accord que les notes ne confirment pas,
+  // faisait refuser TOUT le passage — or un prof parle, s'arrête, reprend : il y a toujours un trou.
+  // On ne refuse donc plus le passage entier. On y cherche le plus long enchaînement qu'il joue
+  // d'un trait ET que les notes confirment, et c'est celui-là qu'on adapte, en le disant.
+  // La fidélité ne bouge pas : deux accords séparés par un silence ne sont jamais assemblés, et un
+  // accord non vérifié par les notes n'entre jamais dans un mouvement.
+  let shortened = false;
   if (what === 'enchainement') {
+    const verified = (c) => !c.uncertain
+      && shapes.some((sh) => !sh.unsure && sh.time >= Math.max(from, c.start) - 0.15 && sh.time < Math.min(to, c.end));
     const sourceChords = chords.filter((c) => c.start < to && c.end > from).sort((a, b) => a.start - b.start);
-    if (sourceChords.some((c, i) => i > 0 && c.start - sourceChords[i - 1].end > 1)) return { example: null, text: '', error: 'Le relevé contient une interruption entre ces accords. Je ne peux pas les assembler comme un mouvement continu ; sélectionne un seul enchaînement joué.' };
-    const missing = chords.find((c) => c.start < to && c.end > from
-      && (c.uncertain || !shapes.some((s) => !s.unsure && s.time >= Math.max(from, c.start) - 0.15 && s.time < Math.min(to, c.end))));
-    if (missing) return { example: null, text: '', error: `Les notes de ${missing.label || missing.name || 'cet accord'} vers ${clock(missing.start)} ne permettent pas de vérifier le mouvement complet. Je ne peux pas adapter cette suite à partir des seules étiquettes.` };
+    const runs = [];
+    let run = [];
+    for (const c of sourceChords) {
+      const gap = run.length ? c.start - run[run.length - 1].end : 0;
+      if (!verified(c) || gap > 1) {
+        if (run.length > 1) runs.push(run);
+        run = [];
+      }
+      if (verified(c)) run.push(c);
+    }
+    if (run.length > 1) runs.push(run);
+    // Le plus long en durée réellement jouée.
+    const span = (r) => Math.min(to, r[r.length - 1].end) - Math.max(from, r[0].start);
+    const best = runs.sort((a, b) => span(b) - span(a))[0] || null;
+    // Moins de deux accords dans le passage : ce n'est pas une interruption, il n'y a simplement
+    // pas de mouvement. On laisse transferPassingChords le dire — il nomme l'accord relevé.
+    if (!best && sourceChords.length > 1) {
+      return {
+        example: null,
+        text: '',
+        error: `Entre ${clock(from)} et ${clock(to)}, il n'y a qu'une interruption : aucune suite d'accords qu'il enchaîne d'un trait et que ses notes confirment. Choisis un moment où il joue la suite sans s'arrêter.`,
+      };
+    }
+    // Sans enchaînement retenu (moins de deux accords), le passage n'est pas restreint :
+    // transferPassingChords dira ce qui manque.
+    if (best) {
+      const runFrom = Math.max(from, best[0].start);
+      const runTo = Math.min(to, best[best.length - 1].end);
+      shortened = runFrom > from + 0.05 || runTo < to - 0.05;
+      from = runFrom;
+      to = runTo;
+      if (shortened) shapes = voicingShapes(notes, chords, { start: from, end: to });
+    }
   }
   const checkedChords = chords.map((c) => {
     const sh = shapes.find((s) => !s.unsure && s.time >= c.start - 0.15 && s.time < c.end);
@@ -1297,7 +1341,15 @@ export function applyTutorialPassage({ notes = [], chords = [], start, end, what
     if (found.moves.length) return transferPassingChords({ ...input, found });
     kind = 'voicing';
   }
-  if (kind === 'enchainement') return transferPassingChords(input);
+  if (kind === 'enchainement') {
+    const out = transferPassingChords(input);
+    // Le pianiste a demandé un passage ; on lui dit sur quelle partie le mouvement a été pris.
+    if (out?.example && shortened) {
+      const said = `_(Entre ${clock(askedFrom)} et ${clock(askedTo)}, il s'interrompt : j'ai repris le plus long enchaînement qu'il joue d'un trait, de ${clock(from)} à ${clock(to)}.)_`;
+      out.text = out.text ? `${said}\n\n${out.text}` : said;
+    }
+    return out;
+  }
   if (kind === 'lick') return transferLick(input);
   return transferVoicings({ ...input, chords });
 }
