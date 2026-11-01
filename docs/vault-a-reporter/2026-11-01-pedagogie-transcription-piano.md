@@ -2,11 +2,21 @@
 title: Pédagogie IA — la transcription du piano au son échouait (modèle, torch récent)
 type: bug
 date: 2026-11-01
-status: corrigé, prouvé avec un modèle de même forme, non vérifié sur le PC
+status: DIAGNOSTIC RECTIFIÉ le 01/11 sur le PC — la transcription ne plantait pas ; voir 2026-11-01-pedagogie-verification-sur-le-pc.md
 tags: [pedagogie-ia, transcription, piano-transcription-inference, torch]
 ---
 
 # La transcription du piano au son échouait sans dire pourquoi
+
+> **RECTIFICATION (01/11/2026, session sur le PC de Narcisse).** Vérifié avec le vrai modèle sur sa
+> machine : la transcription **ne plantait pas**. Le modèle est complet (171 966 578 octets) et
+> torch 2.14 le charge **sans** `weights_only=False` : le correctif décrit ici n'était pas nécessaire
+> (il reste, inoffensif, comme garde-fou). La vraie cause est dans son relevé gardé du 28/10
+> (`Pedagogie/memoire/04028adb.json`) : `soundNotes: 307` — le son avait bien été transcrit — mais
+> `reason: "unreliable"`, 3 notes confirmées sur 85, parce que le bug des **deux claviers** ne faisait
+> lire que 127 notes à l'image. Le message affiché n'était pas « le son n'a pas pu être transcrit »
+> mais « le son et l'image ne se recoupent pas assez (musique de fond ?) ». Détail et mesures :
+> `2026-11-01-pedagogie-verification-sur-le-pc.md`.
 
 ## Symptôme
 Narcisse : « la transcription piano ne marche toujours pas dans Pédagogie IA ». L'application

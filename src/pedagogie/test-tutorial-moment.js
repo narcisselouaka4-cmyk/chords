@@ -71,6 +71,9 @@ check('un moment après la fin de la vidéo reste du texte', !linkClockTimes('à
 check('horloge m:ss', clock(65.9) === '1:05' && clock(0) === '0:00');
 
 console.log('Questions toutes prêtes');
+// [Claude] — 2026-11-01 — Quatre propositions depuis le retrait du Guide du tuto (a511dc5, 16/10,
+// demande de Narcisse) : « Joue le résultat final » rejouait une progression RECONSTITUÉE, elle est
+// partie avec le Guide.
 check('quatre propositions : deux demandes et deux choix', TUTORIAL_QUICK_ACTIONS.length === 4
   && TUTORIAL_QUICK_ACTIONS.filter((a) => a.message).length === 2 && TUTORIAL_QUICK_ACTIONS.filter((a) => a.chooser).length === 2);
 // [Claude] — 2026-10-04 — Ce qui est écrit part (choix de Narcisse) : une étiquette directe
