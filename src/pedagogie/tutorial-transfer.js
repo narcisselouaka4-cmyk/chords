@@ -790,16 +790,26 @@ function sameHarmonicFunction(sourceRoot, targetRoot, sourceKey, targetKey) {
     && pcOf(sourceRoot - from.rootPc) === pcOf(targetRoot - to.rootPc));
 }
 
-function chainBefore(moves, prev, target, { sharps = false, sourceKey = null, targetKey = null } = {}) {
+function chainBefore(moves, prev, target, { sharps = false, sourceKey = null, targetKey = null, loose = false } = {}) {
   const motion = pcOf(target.rootPc - prev.rootPc);
   if (motion === 0) return null;
   const family = chordFamily(target.quality);
-  // Le même accord d'arrivée seul ne suffit pas : un I → vi ne devient pas un ii → V.
+  // Strict (par défaut) : le même accord d'arrivée seul ne suffit pas — un I → vi ne devient
+  // pas un ii → V. Il faut la même famille de départ, le même déplacement de fondamentale et
+  // la même fonction des deux accords.
+  //
+  // [Claude] — 2026-11-01 — Souple (`loose`, seulement en repli quand le strict ne place rien,
+  // et toujours annoncé au pianiste) : on n'exige plus que de l'ARRIVÉE — sa famille et sa
+  // fonction. C'est ce qui fait le sens d'un accord d'approche : il se définit par rapport à
+  // l'accord sur lequel il tombe, pas par celui qu'on quitte. Le code le construit d'ailleurs
+  // déjà ainsi (`spellFromArrival`). Narcisse : appliquer le procédé « là où il a du sens dans
+  // ta progression, en te disant ce qu'il a fait ».
   const move = [...moves].filter((m) => m.from
-    && m.from.family === chordFamily(prev.quality)
-    && m.to.family === family && m.motion === motion
-    && sameHarmonicFunction(m.from.rootPc, prev.rootPc, sourceKey, targetKey)
-    && sameHarmonicFunction(m.to.rootPc, target.rootPc, sourceKey, targetKey))
+    && m.to.family === family
+    && sameHarmonicFunction(m.to.rootPc, target.rootPc, sourceKey, targetKey)
+    && (loose || (m.from.family === chordFamily(prev.quality)
+      && m.motion === motion
+      && sameHarmonicFunction(m.from.rootPc, prev.rootPc, sourceKey, targetKey))))
     .sort((a, b) => a.time - b.time)[0];
   if (!move) return null;
   // Basse qui avance d'un demi-ton : pas de passage, sauf si le prof en mettait un là.
@@ -842,18 +852,25 @@ const PASSING_SLOT = 2;
  * @param {{sharps?: boolean}} [options] - noms en dièses (sinon en bémols, hors lettre évidente)
  * @returns {{sequence: {name: string, passing: boolean, seconds: number, relation?: string, teacher?: string}[], everywhere: boolean}}
  */
-export function applyPassingMoves(moves, targets, { sharps = false, sourceKey = null, targetKey = null } = {}) {
+export function applyPassingMoves(moves, targets, { sharps = false, sourceKey = null, targetKey = null, allowLoose = false } = {}) {
   const parsed = (targets || []).map((t) => parseChordName(t)).filter(Boolean);
-  const build = () => {
+  const build = (loose) => {
     const list = [];
     parsed.forEach((t, i) => {
-      const chain = i > 0 && moves?.length ? chainBefore(moves, parsed[i - 1], t, { sharps, sourceKey, targetKey }) : null;
+      const chain = i > 0 && moves?.length ? chainBefore(moves, parsed[i - 1], t, { sharps, sourceKey, targetKey, loose }) : null;
       if (chain) list.push(...chain);
       list.push({ name: t.name, passing: false });
     });
     return list;
   };
-  const sequence = build();
+  // [Claude] — 2026-11-01 — D'abord à l'identique. Rien placé et le repli autorisé : on retente
+  // en ne demandant que l'accord d'arrivée (`loose`). `loose` dit au texte de l'annoncer.
+  let sequence = build(false);
+  let loose = false;
+  if (allowLoose && !sequence.some((c) => c.passing)) {
+    const relaxed = build(true);
+    if (relaxed.some((c) => c.passing)) { sequence = relaxed; loose = true; }
+  }
   // Durées : un passage prend sur l'accord principal qui le précède (60 % au plus).
   for (let i = 0; i < sequence.length; i += 1) {
     if (sequence[i].passing) continue;
@@ -866,7 +883,7 @@ export function applyPassingMoves(moves, targets, { sharps = false, sourceKey = 
       sequence[k].seconds = Math.max(0.35, Math.round(PASSING_SLOT * sequence[k].share * (total / shares) * 100) / 100);
     }
   }
-  return { sequence, everywhere: false };
+  return { sequence, everywhere: false, loose };
 }
 
 // ── Licks, runs et fills : la ligne du prof, note par note ──────────────────────
@@ -1153,12 +1170,17 @@ function transferPassingChords({ notes, chords, from, to, list, title, sharps, k
     }
     return { example: null, text: '', error: `Pas d'accord de passage identifié entre ${clock(from)} et ${clock(to)} : le relevé donne ${grid}. Je ne peux pas lui attribuer un accord de passage ni le remplacer par un autre procédé. Sélectionne un passage qui contient le mouvement voulu, ou demande explicitement d'adapter seulement le voicing.` };
   }
-  const { sequence, everywhere } = applyPassingMoves(moves, list, { sharps, sourceKey: key, targetKey });
+  const { sequence, everywhere, loose } = applyPassingMoves(moves, list, { sharps, sourceKey: key, targetKey, allowLoose: true });
   if (!sequence.some((c) => c.passing)) {
     const source = moves.map((m) => [m.from?.name, ...m.chain.map((c) => c.name), m.to.name].filter(Boolean).join(' → ')).join(' ; ');
     return { example: null, text: '', error: `Le mouvement relevé (${source}) ne trouve pas de contexte compatible dans ${list.join(' → ')} : il faut conserver les degrés dans la tonalité, les familles des accords de départ et d'arrivée ainsi que leur déplacement de fondamentale. Le placer ici changerait son fonctionnement. Je ne le joue pas ; tu peux choisir une autre progression ou demander seulement le voicing.` };
   }
   const where = everywhere ? ' (ta progression ne fait nulle part son mouvement : glissé devant chaque accord)' : '';
+  // [Claude] — 2026-11-01 — Le repli souple se dit, toujours : le pianiste doit savoir que le
+  // contexte de départ n'est pas celui du prof, et ce qui a été conservé (l'accord d'arrivée).
+  const looseNote = loose
+    ? `_(Ta progression ne part pas des mêmes accords que lui. J'ai gardé son procédé là où il **arrive** sur le même type d'accord, avec la même fonction : c'est ce qui en fait le sens. Le contexte de départ, lui, n'est pas le sien.)_\n`
+    : '';
   const head = `_Enchaînement repris du prof (${moves.map((m) => `${clock(m.time)} : ${[m.from?.name, ...m.chain.map((c) => c.name), m.to.name].filter(Boolean).join(' → ')}, ${m.chain.map((c) => c.relation).join(', puis ')}`).join(' ; ')})${where} :_`;
   const subtitle = `Repris de ${clock(from)}–${clock(to)} · ${sequence.filter((c) => c.passing).length} accords de passage`;
   const exampleTitle = title || `Ses accords de passage sur ${list.join(' → ')}`;
@@ -1168,6 +1190,7 @@ function transferPassingChords({ notes, chords, from, to, list, title, sharps, k
   if (realized.length === sequence.length) {
     const voicings = `_Joués avec ses voicings (${describeUsed(usedShapes(realized, shapes))}) :_`;
     const example = chordsExample(realized, { title: exampleTitle, subtitle });
+    if (looseNote) return { example, summary: `Le procédé du prof est repris là où il arrive sur le même type d'accord, avec la même fonction ; le contexte de départ n'est pas le sien.`, text: [looseNote + head, voicings, ...realized.map((c) => realizedLine(c, { sharps }))].join('\n') };
     return { example, summary: `Les accords de passage de ${moves.map((m) => [m.from?.name, ...m.chain.map((c) => c.name), m.to.name].filter(Boolean).join(' → ')).join(' ; ')} sont repris uniquement aux endroits compatibles de ${list.join(' → ')}. Le départ, l’arrivée et leur déplacement harmonique sont conservés.`, text: [head, voicings, ...realized.map((c) => realizedLine(c, { sharps }))].join('\n') };
   }
   return { example: null, text: '', error: 'Le mouvement harmonique est compatible, mais les notes de ses voicings ne sont pas assez lisibles pour produire une adaptation fidèle. Je ne les remplace pas par des accords inventés.' };

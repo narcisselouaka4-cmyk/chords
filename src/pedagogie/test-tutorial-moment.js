@@ -5,7 +5,7 @@ import {
   passageWindow, chordsInWindow, momentContext, linkClockTimes, clock, DEFAULT_PASSAGE_SECONDS,
 } from './tutorial-moment.js';
 import {
-  applyQuestion, otherKeyQuestion, keyIdFrom, keyLabel, TUTORIAL_QUICK_ACTIONS, TUTORIAL_PROGRESSIONS,
+  applyQuestion, hisProgression, compatibleProgressions, otherKeyQuestion, keyIdFrom, keyLabel, TUTORIAL_QUICK_ACTIONS, TUTORIAL_PROGRESSIONS,
 } from './tutorial-questions.js';
 import { tutorialMomentLines } from './copilot-client.js';
 
@@ -91,6 +91,38 @@ check('« Applique… » : ses accords de passage', applyQuestion({ kind: 'encha
 check('« Rejoue-le en… » en français', otherKeyQuestion('Bb') === 'Rejoue ce passage en Si♭.');
 check('tonalité détectée → tonalité de la liste', keyIdFrom('G major') === 'G' && keyIdFrom('C#') === 'Db' && keyIdFrom('Sol mineur') === 'G' && keyIdFrom('') === null);
 check('nom français', keyLabel('Eb') === 'Mi♭' && keyLabel('Fa♯') === 'Fa♯');
+
+console.log('Sa suite à lui, comme cible');
+const SES_ACCORDS = [{ label: 'C' }, { label: 'C' }, { label: 'Gadd9' }, { label: 'Dm7' }, { label: 'Db7alt' }];
+// Les répétitions consécutives fondues : on veut sa suite, pas son rythme.
+check('les répétitions consécutives fondent', hisProgression(SES_ACCORDS).join(' ') === 'C Gadd9 Dm7 Db7alt',
+  hisProgression(SES_ACCORDS).join(' '));
+// [Claude] — 2026-11-01 — Un nom que le moteur ne sait pas relire (« Fmaj7sus4/C », produit par
+// la lecture de l'image) ferait refuser toute la cible : il est écarté, les autres restent.
+check('un accord que le moteur ne sait pas relire est écarté',
+  hisProgression([{ label: 'C' }, { label: 'Fmaj7sus4/C' }, { label: 'Dm7' }]).join(' ') === 'C Dm7',
+  hisProgression([{ label: 'C' }, { label: 'Fmaj7sus4/C' }, { label: 'Dm7' }]).join(' '));
+check('moins de deux accords : pas de suite', hisProgression([{ label: 'C' }]).length === 0);
+check('rien du tout ne casse pas', hisProgression(null).length === 0 && hisProgression([]).length === 0);
+const up = hisProgression(SES_ACCORDS, { from: 'C', to: 'F', transpose: (l, n) => `${l}+${n}` });
+check('la transposition reçoit le bon écart (Do → Fa : 5 demi-tons)', up.every((x) => x.endsWith('+5')), up.join(' '));
+check('même tonalité : aucune transposition', hisProgression(SES_ACCORDS, { from: 'C', to: 'C', transpose: () => 'X' })
+  .join(' ') === 'C Gadd9 Dm7 Db7alt');
+check('sans transposeur, la suite reste telle quelle',
+  hisProgression(SES_ACCORDS, { from: 'C', to: 'F' }).join(' ') === 'C Gadd9 Dm7 Db7alt');
+// Huit accords au plus : au-delà la cible devient illisible.
+const longue = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'Db', 'Eb', 'Gb', 'Ab', 'Bb'].map((label) => ({ label }));
+check('au plus huit accords', hisProgression(longue).length === 8, `${hisProgression(longue).length}`);
+
+console.log('Les progressions où son jeu tient');
+check('seules celles que le moteur accepte sont gardées',
+  compatibleProgressions(['2-5-1', '1-6-2-5'], (p) => p === '2-5-1').join('') === '2-5-1');
+check('l\'ordre du menu est gardé',
+  compatibleProgressions(['a', 'b', 'c'], () => true).join(' ') === 'a b c');
+// On ne déclare jamais compatible ce qu'on n'a pas pu vérifier.
+check('un test qui échoue ne rend rien compatible', compatibleProgressions(['a', 'b'], () => { throw new Error('x'); }).length === 0);
+check('sans test, rien n\'est déclaré compatible', compatibleProgressions(['a', 'b'], null).length === 0);
+check('un test qui ne rend pas vrai ne compte pas', compatibleProgressions(['a'], () => 'oui').length === 0);
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);

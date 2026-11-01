@@ -19,8 +19,12 @@ import { hasAIKey } from '../ai/openai-config.js';
 import { liveTake } from '../recorder/live-take.js';
 import { reviewTake } from '../recorder/take-review.js';
 import { readCopilotContext } from './copilot-context.js';
+import { transferTargets } from './copilot-client.js';
+import { applyTutorialPassage } from './tutorial-transfer.js';
+import { transposeChordLabel } from './teacher-notes.js';
 import {
   TUTORIAL_QUICK_ACTIONS, TUTORIAL_KEYS, TRANSFER_KINDS, TUTORIAL_PROGRESSIONS,
+  hisProgression, compatibleProgressions,
   otherKeyQuestion, applyQuestion, keyIdFrom, keyLabel,
 } from './tutorial-questions.js';
 import { linkClockTimes, clock } from './tutorial-moment.js';
@@ -295,6 +299,39 @@ function buildKeyChooser() {
   ]);
 }
 
+/**
+ * [Claude] — 2026-11-01 — La suite d'accords que le prof joue dans le passage regardé,
+ * transposée dans la tonalité choisie. C'est la cible qui marche à coup sûr : son mouvement,
+ * juste posé ailleurs — « le même mouvement dans un autre contexte », ce que voulait Narcisse.
+ */
+function tutorialHisProgression(key) {
+  const ctx = readCopilotContext('tutorial');
+  return hisProgression(ctx?.moment?.chords, {
+    from: tutorialKeyId(), to: key, transpose: transposeChordLabel,
+  });
+}
+
+/**
+ * [Claude] — 2026-11-01 — Parmi les progressions du menu, celles où son jeu tient vraiment :
+ * le moteur local est interrogé pour de bon (applyTutorialPassage), on ne devine pas. Mesuré
+ * sur ses vraies vidéos : la plupart des progressions proposées ne collaient pas au passage,
+ * et le pianiste ne l'apprenait qu'après avoir envoyé sa demande.
+ */
+function tutorialCompatibleProgressions(kind, key) {
+  const ctx = readCopilotContext('tutorial');
+  const moment = ctx?.moment;
+  if (!moment || !ctx?.noteEvents?.length) return [];
+  return compatibleProgressions(TUTORIAL_PROGRESSIONS, (prog) => !!applyTutorialPassage({
+    notes: ctx.noteEvents,
+    chords: ctx.chords || [],
+    start: moment.start,
+    end: moment.end,
+    what: kind,
+    targets: transferTargets(prog, key),
+    key: ctx.key || null,
+  }).example);
+}
+
 function buildApplyChooser() {
   const choice = { kind: TRANSFER_KINDS[0].id, progression: TUTORIAL_PROGRESSIONS[0], key: tutorialKeyId() };
   const pick = (row, attr, value) => row.querySelectorAll('button').forEach((b) => {
@@ -306,16 +343,47 @@ function buildApplyChooser() {
   const write = () => prepare(applyQuestion(choice));
   const kinds = el('div', { className: 'copilot-chooser-row' }, TRANSFER_KINDS.map((k) => el('button', {
     type: 'button', className: 'copilot-chooser-option', 'data-kind': k.id, text: k.label,
-    onClick: () => { choice.kind = k.id; pick(kinds, 'kind', k.id); write(); },
+    onClick: () => { choice.kind = k.id; pick(kinds, 'kind', k.id); markCompatible(); write(); },
   })));
   const custom = el('input', {
     type: 'text', className: 'copilot-chooser-input', maxlength: '80',
     placeholder: 'ou la tienne : Fmaj7 E7 Am7 D9…', 'aria-label': 'Ta progression (degrés ou accords)',
   });
-  const progs = el('div', { className: 'copilot-chooser-row' }, TUTORIAL_PROGRESSIONS.map((p) => el('button', {
+  // [Claude] — 2026-11-01 — Les progressions où son jeu tient vraiment portent une coche, et
+  // le pianiste le voit AVANT d'envoyer sa demande (mesuré : la plupart ne collaient pas).
+  // La liste est recalculée à chaque changement de « quoi reprendre » et de tonalité.
+  const progButtons = TUTORIAL_PROGRESSIONS.map((p) => el('button', {
     type: 'button', className: 'copilot-chooser-option', 'data-prog': p, text: p,
     onClick: () => { choice.progression = p; custom.value = ''; pick(progs, 'prog', p); write(); send.disabled = false; },
-  })));
+  }));
+  const progs = el('div', { className: 'copilot-chooser-row' }, progButtons);
+  const markCompatible = () => {
+    const ok = new Set(tutorialCompatibleProgressions(choice.kind, choice.key));
+    for (const b of progButtons) {
+      const fits = ok.has(b.dataset.prog);
+      b.classList.toggle('is-fitting', fits);
+      b.title = fits
+        ? 'Son jeu tient sur cette progression (vérifié sur le passage regardé)'
+        : 'Son jeu ne se retrouve pas tel quel ici : essaie « sa suite », ou un autre passage.';
+    }
+  };
+  // « Sa suite à lui » : ses propres accords, transposés dans la tonalité choisie.
+  const hisBtn = el('button', {
+    type: 'button', className: 'copilot-chooser-option is-his', 'data-prog': 'his',
+    text: 'Sa suite, en…',
+    title: 'Les accords qu\'il joue dans ce passage, transposés dans la tonalité choisie',
+    onClick: () => {
+      const list = tutorialHisProgression(choice.key);
+      if (!list.length) return;
+      choice.progression = list.join(' ');
+      custom.value = '';
+      pick(progs, 'prog', 'his');
+      hisBtn.classList.add('is-selected');
+      write();
+      send.disabled = false;
+    },
+  });
+  progs.appendChild(hisBtn);
   custom.addEventListener('input', () => {
     choice.progression = custom.value.trim();
     pick(progs, 'prog', '');
@@ -331,6 +399,12 @@ function buildApplyChooser() {
       b.classList.toggle('is-selected', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
+    // « Sa suite » est écrite dans la tonalité choisie : elle se réécrit avec elle.
+    if (choice.progression && hisBtn.classList.contains('is-selected')) {
+      const list = tutorialHisProgression(id);
+      if (list.length) choice.progression = list.join(' ');
+    }
+    markCompatible();
     write();
   };
   keys.append(...keyButtons(setKey, choice.key));
@@ -344,6 +418,7 @@ function buildApplyChooser() {
   ]);
   pick(kinds, 'kind', choice.kind);
   pick(progs, 'prog', choice.progression);
+  markCompatible();
   // La phrase de départ est déjà dans la case.
   write();
   return box;

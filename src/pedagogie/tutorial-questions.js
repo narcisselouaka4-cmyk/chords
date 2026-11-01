@@ -13,6 +13,8 @@
 // est écrit part. Une étiquette envoie son propre texte ; un choix (tonalité, progression)
 // complète la phrase dans la case, qu'on lit avant de l'envoyer.
 
+import { parseChordName } from './note-roles.js';
+
 /** Les douze tonalités, nom anglais (pour l'application) et nom français (affiché). */
 export const TUTORIAL_KEYS = [
   { id: 'C', label: 'Do' }, { id: 'Db', label: 'Ré♭' }, { id: 'D', label: 'Ré' },
@@ -27,6 +29,71 @@ export const TRANSFER_KINDS = [
   { id: 'enchainement', label: 'Ses accords de passage', text: 'ses accords de passage' },
   { id: 'lick', label: 'Son lick', text: 'son lick' },
 ];
+
+// [Claude] — 2026-11-01 — « Sa suite à lui », et les progressions qui marchent vraiment.
+//
+// Narcisse : reprendre un mouvement vu dans une vidéo sur une autre progression « serait le
+// point le plus fort de l'application ». Mesuré : sur ses deux vraies vidéos, 8 échecs sur 20
+// venaient d'une seule cause — la suite d'accords que propose le menu (2-5-1, 4-5-3-6-2-5-1…)
+// ne se retrouve PAS dans ce que joue le prof, et l'application refuse plutôt que de dénaturer
+// son mouvement. On ne lui proposait donc presque jamais une cible où son jeu tient.
+//
+// Deux réponses : lui proposer SA suite (transposée où il veut : le même mouvement dans un
+// autre contexte, et ça marche toujours), et marquer les progressions du menu qui marchent.
+
+/** Combien d'accords au plus dans « sa suite » : au-delà, la cible devient illisible. */
+const HIS_PROGRESSION_MAX = 8;
+
+/** Rang chromatique d'une tonalité (« Db » → 1). */
+function keyPc(id) {
+  const LETTERS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const text = String(id || '').trim();
+  const base = LETTERS[text[0]?.toUpperCase()];
+  if (base == null) return null;
+  const alt = text[1] === '#' || text[1] === '\u266f' ? 1 : (text[1] === 'b' || text[1] === '\u266d') ? -1 : 0;
+  return ((base + alt) % 12 + 12) % 12;
+}
+
+/**
+ * La suite d'accords que le prof joue dans ce passage, prête à servir de cible : les
+ * répétitions consécutives fondues, au plus huit accords, transposée de la tonalité du
+ * tutoriel vers celle qu'on demande.
+ * @param {{label?: string, name?: string}[]} chords - les accords du passage (moment.chords)
+ * @param {{from?: string|null, to?: string|null, transpose?: (label: string, semitones: number) => string}} options
+ * @returns {string[]} les accords, ou [] si le passage n'en donne pas au moins deux
+ */
+export function hisProgression(chords, { from = null, to = null, transpose = null } = {}) {
+  const labels = [];
+  for (const c of chords || []) {
+    const label = String(c?.label || c?.name || '').trim();
+    if (!label || label === labels[labels.length - 1]) continue;
+    // La lecture de l'image produit parfois un nom que le moteur ne sait pas relire
+    // (« Fmaj7sus4/C ») : il ferait refuser toute la cible. On ne garde que ce qu'on sait
+    // nommer — construire la cible, ce n'est pas altérer son jeu.
+    if (!parseChordName(label)) continue;
+    labels.push(label);
+  }
+  if (labels.length < 2) return [];
+  const kept = labels.slice(0, HIS_PROGRESSION_MAX);
+  const fromPc = keyPc(from);
+  const toPc = keyPc(to);
+  if (!transpose || fromPc == null || toPc == null || fromPc === toPc) return kept;
+  const semitones = ((toPc - fromPc) % 12 + 12) % 12;
+  return kept.map((label) => transpose(label, semitones));
+}
+
+/**
+ * Les progressions du menu où son jeu tient vraiment, dans l'ordre d'origine. `test` reçoit
+ * la progression et rend vrai si l'adaptation aboutit (le moteur local tranche, pas nous).
+ * Une progression qu'on ne sait pas tester n'est jamais déclarée compatible.
+ * @returns {string[]}
+ */
+export function compatibleProgressions(progressions, test) {
+  if (typeof test !== 'function') return [];
+  return (progressions || []).filter((p) => {
+    try { return test(p) === true; } catch { return false; }
+  });
+}
 
 /** Progressions proposées, en degrés (la tonalité est choisie à côté). */
 export const TUTORIAL_PROGRESSIONS = ['4-5-3-6-2-5-1', '2-5-1', '1-6-2-5', '3-6-2-5-1', '1-4-5-1'];

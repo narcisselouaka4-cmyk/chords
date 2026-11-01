@@ -724,6 +724,21 @@
   color: var(--tr-accent);
   font-weight: 600;
 }
+/* [Claude] — 2026-11-01 — Les progressions où son jeu tient vraiment (vérifié par le moteur
+   sur le passage regardé) portent une coche : le pianiste le voit AVANT d'envoyer sa demande.
+   Les autres restent cliquables — c'est un repère, pas une interdiction. */
+.copilot-chooser-option.is-fitting::before {
+  content: '\2713\00a0';
+  color: var(--tr-accent);
+  font-weight: 700;
+}
+/* « Sa suite, en… » : ses propres accords, transposés. La cible qui marche à coup sûr. */
+.copilot-chooser-option.is-his {
+  border-style: dashed;
+  font-style: italic;
+}
+.copilot-chooser-option.is-his.is-selected { border-style: solid; font-style: normal; }
+
 .copilot-chooser-option:focus-visible,
 .copilot-chooser-key:focus-visible,
 .copilot-chooser-send:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
