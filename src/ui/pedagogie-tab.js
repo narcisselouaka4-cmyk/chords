@@ -1595,7 +1595,13 @@ async function runReading(path) {
           }
         }
       } else {
-        built.soundCheck = { reliable: false, reason: piano?.reason === 'dependency-missing' ? 'not-installed' : 'no-sound' };
+        // [Claude] — 2026-11-01 — La raison est gardée et dite (modèle non téléchargé, torch…) : avant,
+        // un échec de la transcription se résumait à « le son n'a pas pu être transcrit ».
+        built.soundCheck = {
+          reliable: false,
+          reason: piano?.reason === 'dependency-missing' ? 'not-installed' : 'no-sound',
+          detail: piano?.detail ? String(piano.detail).split('\n')[0].slice(0, 300) : null,
+        };
       }
     }
     // [Claude] — 2026-10-09 — La force de chaque attaque, mesurée au son de la vidéo (l'image ne

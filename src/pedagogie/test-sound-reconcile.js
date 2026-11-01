@@ -85,6 +85,10 @@ const heard = () => Array.from({ length: 10 }, (_, i) => snd(60 + (i % 5) * 2, 1
   const s = soundCheckSentence(reconcileWithSound(phrase(12), heard()).report);
   check('la phrase pour l\'écran dit ce qui a été corrigé', /10 octaves corrigées/.test(s));
   check('la phrase dit aussi quand le son n\'a pas servi', /image seule/.test(soundCheckSentence({ reason: 'unreliable' })));
+  // [Claude] — 2026-11-01 — Un échec de la transcription dit sa raison (modèle non téléchargé…).
+  const why = soundCheckSentence({ reliable: false, reason: 'no-sound', detail: 'Le modèle de transcription n\'a pas pu être téléchargé' });
+  check('un échec de la transcription dit sa raison', /pas pu être téléchargé/.test(why) && /image seule/.test(why));
+  check('sans raison connue, la phrase reste simple', soundCheckSentence({ reason: 'no-sound' }) === 'Le son n\'a pas pu être transcrit : les notes viennent de l\'image seule.');
 }
 
 {
