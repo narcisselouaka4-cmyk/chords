@@ -302,7 +302,7 @@ export function reconcileWithSound(imageNotes, soundList, options = {}) {
 export function soundCheckSentence(report) {
   if (!report) return '';
   if (report.reason === 'not-installed') return 'La transcription des notes au son n\'est pas installée : les notes viennent de l\'image seule.';
-  if (report.reason === 'no-sound') return 'Le son n\'a pas pu être transcrit : les notes viennent de l\'image seule.';
+  if (report.reason === 'no-sound') return `Le son n'a pas pu être transcrit${report.detail ? ` (${report.detail})` : ''} : les notes viennent de l'image seule.`;
   if (report.reason === 'unreliable') return 'Le son et l\'image ne se recoupent pas assez (musique de fond ?) : les notes viennent de l\'image seule.';
   if (!report.reliable) return '';
   const parts = [`${report.confirmed} notes de l'image confirmées par le son`];

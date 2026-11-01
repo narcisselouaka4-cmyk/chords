@@ -20,7 +20,7 @@ Sortie, succès :
      "pedals": [{"onset": 0.4, "offset": 2.1}], "duration": 123.4, "model": "piano-transcription-inference"}
 
 Sortie, échec :
-    {"ok": false, "reason": "MissingDependency" | "ReadFailed" | "Failed", "message": "..."}
+    {"ok": false, "reason": "MissingDependency" | "ModelMissing" | "ReadFailed" | "Failed", "message": "..."}
 
 POURQUOI piano-transcription-inference
 --------------------------------------
@@ -48,6 +48,58 @@ def emit(payload):
 def fail(reason, message):
     emit({"ok": False, "reason": reason, "message": message})
     sys.exit(0)
+
+
+# [Claude] — 2026-11-01 — Le modèle (~165 Mo) est téléchargé par la bibliothèque, avec wget, au premier
+# usage. Deux pannes en sortaient, toutes deux muettes (« Transcription impossible : » sans raison) :
+#   1. un téléchargement raté ou coupé laisse un fichier vide ou tronqué ; torch.load échoue alors à
+#      chaque fois sur une erreur sans message ;
+#   2. torch >= 2.6 ouvre les modèles en « weights_only » par défaut, et refuse celui-ci (il contient
+#      l'état de l'entraînement des auteurs, avec des objets numpy). requirements.txt ne fixe que
+#      torch>=2.2 : toute installation récente tombait là.
+MODEL_MIN_BYTES = 1.6e8  # même seuil que la bibliothèque
+
+
+def default_checkpoint():
+    from pathlib import Path
+    return os.path.join(str(Path.home()), "piano_transcription_inference_data", "note_F1=0.9677_pedal_F1=0.9186.pth")
+
+
+def prepare_checkpoint(path):
+    """Un modèle incomplet est retiré (la bibliothèque le retéléchargera) ; sans wget, on le dit."""
+    import shutil
+    if os.path.exists(path) and os.path.getsize(path) < MODEL_MIN_BYTES:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    if not os.path.exists(path) and not shutil.which("wget"):
+        fail("ModelMissing", f"Modèle de transcription absent ({path}) et wget introuvable pour le télécharger : "
+             "installez wget (sudo apt install wget) puis relancez l'analyse.")
+
+
+def check_checkpoint(path):
+    size = os.path.getsize(path) if os.path.exists(path) else 0
+    if size < MODEL_MIN_BYTES:
+        fail("ModelMissing", f"Le modèle de transcription n'a pas pu être téléchargé ({size} octets sur ~165 Mo, "
+             "depuis zenodo.org) : vérifiez la connexion, puis relancez l'analyse.")
+
+
+def trusted_model_loading():
+    """torch.load en mode complet, le temps de charger le modèle officiel (torch >= 2.6)."""
+    import contextlib
+    import functools
+    import torch
+
+    @contextlib.contextmanager
+    def scope():
+        original = torch.load
+        torch.load = functools.partial(original, weights_only=False)
+        try:
+            yield
+        finally:
+            torch.load = original
+    return scope()
 
 
 def parse_args(argv):
@@ -102,8 +154,16 @@ def main():
 
     notes = []
     pedals = []
+    checkpoint = default_checkpoint()
+    prepare_checkpoint(checkpoint)
     try:
-        transcriptor = PianoTranscription(device=options["device"], checkpoint_path=None)
+        with trusted_model_loading():
+            transcriptor = PianoTranscription(device=options["device"], checkpoint_path=checkpoint)
+    except Exception as e:  # noqa: BLE001
+        check_checkpoint(checkpoint)
+        fail("Failed", f"Chargement du modèle impossible : {type(e).__name__}: {e}")
+    check_checkpoint(checkpoint)
+    try:
         for begin, end in pieces:
             chunk = audio[int(begin * sample_rate):int(end * sample_rate)]
             with tempfile.TemporaryDirectory() as tmp:
@@ -124,7 +184,7 @@ def main():
                 except (KeyError, TypeError, ValueError):
                     continue
     except Exception as e:  # noqa: BLE001
-        fail("Failed", f"Transcription impossible : {e}")
+        fail("Failed", f"Transcription impossible : {type(e).__name__}: {e}")
 
     notes.sort(key=lambda n: (n["onset"], n["midi"]))
     emit({

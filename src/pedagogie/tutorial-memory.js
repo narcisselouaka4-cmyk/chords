@@ -52,7 +52,10 @@ export const MEMORY_VERSION = 1;
 //       l'emportait. Plus rien ne s'allumait : 97 notes rejouées de 0:03 à 2:55 au lieu de 562.
 //       format-detector.js fait voter d'abord sur l'EMPLACEMENT du clavier ; les relevés lus avec
 //       l'ancienne règle sont relus.
-export const READING_REVISION = 6;
+//   7 : [Claude] — 2026-11-01 — La transcription du piano au son échouait toujours (modèle non
+//       téléchargé ou refusé par torch >= 2.6 : electron/piano-transcriber.py). Les relevés lus sans
+//       elle sont relus, pour que le son recoupe enfin l'image.
+export const READING_REVISION = 7;
 /** Révision à partir de laquelle un relevé au son (clavier non reconnu) n'est plus relu. */
 const AUDIO_RECHECK_REVISION = 3;
 
