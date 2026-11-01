@@ -1,5 +1,5 @@
 // Tests de sound-sampling.js : choisir les extraits à faire écouter au modèle de transcription.
-import { pickSoundWindows, windowsArgument, windowsToSpans } from './sound-sampling.js';
+import { pickSoundWindows, windowsArgument, windowsToSpans, busiestWindow } from './sound-sampling.js';
 
 let pass = 0; let fail = 0;
 const check = (label, ok) => { if (ok) { pass += 1; console.log('  ✓', label); } else { fail += 1; console.log('  ✗', label); } };
@@ -37,6 +37,27 @@ const dense = (duration) => Array.from({ length: Math.floor(duration * 2) }, (_,
   check('--windows : « début:durée » séparés par des virgules', windowsArgument([{ start: 12.04, duration: 20 }, { start: 300, duration: 20 }]) === '12:20,300:20');
   const spans = windowsToSpans([{ start: 10, duration: 20 }]);
   check('plages de temps pour le recoupement', spans[0].start === 10 && spans[0].end === 30);
+}
+
+{
+  // [Claude] — 2026-11-02 — Le moment le plus joué, pour y chercher le tempo. Sur un tutoriel
+  // où le prof parle l'essentiel du temps, l'autocorrélation sur la vidéo entière est ambiguë
+  // (SALSA, 19 min : confiance 0,00) ; sur le moment le plus joué, elle devient « probable ».
+  const notes = [];
+  for (let t = 300; t < 330; t += 0.5) notes.push({ start: t });   // 60 notes entre 5:00 et 5:30
+  for (let t = 10; t < 15; t += 1) notes.push({ start: t });        // 5 notes au début
+  const w = busiestWindow(notes, 600);
+  check('la fenêtre tombe sur le moment le plus joué', w && w.start >= 295 && w.start <= 302, JSON.stringify(w));
+  check('elle dure trente secondes par défaut', w && Math.round(w.end - w.start) === 30, JSON.stringify(w));
+  check('une autre durée est possible', busiestWindow(notes, 600, { length: 20 }).end - busiestWindow(notes, 600, { length: 20 }).start === 20);
+  // On préfère ne rien dire plutôt que de désigner un moment où il ne joue pas.
+  check('trop peu de notes : aucune fenêtre', busiestWindow([{ start: 5 }, { start: 6 }], 600) === null);
+  check('aucune note : aucune fenêtre', busiestWindow([], 600) === null && busiestWindow(null, 600) === null);
+  check('durée inconnue : aucune fenêtre', busiestWindow(notes, 0) === null && busiestWindow(notes, NaN) === null);
+  // Une vidéo plus courte que la fenêtre : il n'y a rien à choisir, on la prend entière.
+  const court = busiestWindow(Array.from({ length: 20 }, (_, i) => ({ start: i })), 25);
+  check('vidéo plus courte que la fenêtre : elle entière', court && court.start === 0 && court.end === 25, JSON.stringify(court));
+  check('vidéo courte mais presque rien joué : aucune fenêtre', busiestWindow([{ start: 1 }], 25) === null);
 }
 
 console.log(`\n${pass} réussis, ${fail} échoués`);

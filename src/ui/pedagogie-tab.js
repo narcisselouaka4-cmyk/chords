@@ -50,7 +50,7 @@
 
 import { buildVideoAnalysis, buildAudioOnlyAnalysis } from '../pedagogie/video-analysis.js';
 import { reconcileWithSound, soundCheckSentence } from '../pedagogie/sound-reconcile.js';
-import { pickSoundWindows, windowsToSpans } from '../pedagogie/sound-sampling.js';
+import { pickSoundWindows, windowsToSpans, busiestWindow } from '../pedagogie/sound-sampling.js';
 import { appConfirm } from './components/app-dialog.js';
 import { explainUnrecognised } from '../pedagogie/format-detector.js';
 import { crossCheck } from '../pedagogie/cross-check.js';
@@ -937,7 +937,19 @@ async function detectTutorialTempo() {
   }
   if (!loud?.ok || !Array.isArray(loud.db)) return null;
   const useRange = passage && passage.end - passage.start >= 12;
-  const result = (useRange && estimateTempo(loud.db, loud.hop, { from: passage.start, to: passage.end })) || estimateTempo(loud.db, loud.hop);
+  // [Claude] — 2026-11-02 — Sans passage tracé, on cherchait le tempo sur TOUTE la vidéo. Sur un
+  // tutoriel où le prof parle l'essentiel du temps, l'autocorrélation y est ambiguë : mesuré sur
+  // « improvisar en la SALSA » (19 min), confiance 0,00 — donc rien n'est appliqué (le menu
+  // n'accepte qu'à partir de 0,3). Sur le moment le plus joué, la même mesure donne 0,33.
+  // On se rabat donc sur ce moment-là plutôt que sur le fichier entier (sound-sampling.js).
+  const busy = useRange ? null : busiestWindow(analysis?.noteEvents, Number(analysis?.stats?.duration) || Number(els.videoPlayer?.duration) || 0);
+  // On essaie les deux et on garde la mesure la plus sûre : selon la vidéo, c'est tantôt le
+  // moment le plus joué (SALSA : 0,05 → 0,36, le métronome se règle enfin), tantôt l'ensemble
+  // (« Amazing Grace » : 0,04 contre 0,02). Prendre le meilleur ne dégrade jamais.
+  const whole = estimateTempo(loud.db, loud.hop);
+  const onBusy = busy ? estimateTempo(loud.db, loud.hop, { from: busy.start, to: busy.end }) : null;
+  const best = [onBusy, whole].filter(Boolean).sort((a, b) => (b.confidence || 0) - (a.confidence || 0))[0] || null;
+  const result = (useRange && estimateTempo(loud.db, loud.hop, { from: passage.start, to: passage.end })) || best;
   return result ? { bpm: result.bpm, confidence: result.confidence, firstBeat: result.firstBeat } : null;
 }
 

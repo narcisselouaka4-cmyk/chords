@@ -59,6 +59,49 @@ export function pickSoundWindows(imageNotes, duration, options = {}) {
   return windows;
 }
 
+/**
+ * [Claude] — 2026-11-02 — La fenêtre où il JOUE le plus, pour y chercher le tempo.
+ *
+ * Mesuré sur « Clase 2 — improvisar en la SALSA » (19 min, il parle l'essentiel du temps) :
+ * sur la vidéo entière, le tempo sort à confiance **0,00** — l'application n'applique donc
+ * rien (metronome-menu.js n'accepte qu'à partir de 0,3), et c'est honnête : l'autocorrélation
+ * y est ambiguë (quatre candidats à moins de 4 % d'écart). Sur vingt secondes où il joue
+ * vraiment, la même mesure donne **0,33 — « probable »**.
+ *
+ * L'application sait déjà calculer le tempo du passage tracé ; ce qui manquait, c'est son
+ * repli quand aucun passage ne l'est. Plutôt que toute la vidéo, on prend le moment le plus
+ * joué. Cela ne demande rien au pianiste.
+ *
+ * Attention : dans un tutoriel, il joue des extraits à des tempos DIFFÉRENTS (mesuré : 92,5
+ * à 10:50, 123,4 à 16:20). Un « tempo de la vidéo » n'existe pas vraiment ; cette fenêtre
+ * donne celui du moment le plus joué, pas une vérité sur tout le fichier.
+ *
+ * @param {{start: number}[]} imageNotes - notes relevées
+ * @param {number} duration - durée de la vidéo (s)
+ * @param {{length?: number, step?: number, minNotes?: number}} [options]
+ * @returns {{start: number, end: number} | null} null si le relevé ne désigne aucun moment joué
+ */
+export function busiestWindow(imageNotes, duration, options = {}) {
+  const length = Number(options.length) || 30;
+  const step = Number(options.step) || 5;
+  const minNotes = Number.isFinite(options.minNotes) ? options.minNotes : SOUND_SAMPLING_DEFAULTS.minNotes;
+  const total = Number(duration);
+  if (!Number.isFinite(total) || total <= 0) return null;
+  const starts = (imageNotes || []).map((n) => Number(n?.start)).filter(Number.isFinite).sort((a, b) => a - b);
+  if (!starts.length) return null;
+  // Plus courte que la fenêtre voulue : il n'y a rien à choisir.
+  if (total <= length) return starts.length >= minNotes ? { start: 0, end: round1(total) } : null;
+  let best = null;
+  for (let from = 0; from + length <= total + 1e-9; from += step) {
+    const to = from + length;
+    let n = 0;
+    for (let i = 0; i < starts.length && starts[i] < to; i += 1) if (starts[i] >= from) n += 1;
+    if (!best || n > best.n) best = { start: from, n };
+  }
+  if (!best || best.n < minNotes) return null;
+  return { start: round1(best.start), end: round1(best.start + length) };
+}
+
 /** `--windows=` pour piano-transcriber.py : « début:durée,début:durée ». */
 export function windowsArgument(windows) {
   return (windows || []).map((w) => `${round1(w.start)}:${round1(w.duration)}`).join(',');
