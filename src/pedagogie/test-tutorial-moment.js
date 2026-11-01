@@ -71,13 +71,16 @@ check('un moment après la fin de la vidéo reste du texte', !linkClockTimes('à
 check('horloge m:ss', clock(65.9) === '1:05' && clock(0) === '0:00');
 
 console.log('Questions toutes prêtes');
-check('cinq propositions : trois directes, deux avec un choix', TUTORIAL_QUICK_ACTIONS.length === 5
-  && TUTORIAL_QUICK_ACTIONS.filter((a) => a.message).length === 3 && TUTORIAL_QUICK_ACTIONS.filter((a) => a.chooser).length === 2);
+// [Claude] — 2026-11-01 — Quatre propositions depuis le retrait du Guide du tuto (a511dc5, 16/10,
+// demande de Narcisse) : « Joue le résultat final » rejouait une progression RECONSTITUÉE, elle est
+// partie avec le Guide. Ce contrôle attendait encore cinq propositions.
+check('quatre propositions : deux directes, deux avec un choix', TUTORIAL_QUICK_ACTIONS.length === 4
+  && TUTORIAL_QUICK_ACTIONS.filter((a) => a.message).length === 2 && TUTORIAL_QUICK_ACTIONS.filter((a) => a.chooser).length === 2);
 // [Claude] — 2026-10-04 — Ce qui est écrit part (choix de Narcisse) : une étiquette directe
 // envoie son propre texte, rien de caché.
 check('ce qui est écrit part : « Explique ce passage », « Rejoue ce passage »',
   TUTORIAL_QUICK_ACTIONS.filter((a) => a.message).every((a) => a.message === `${a.label}.`)
-  && TUTORIAL_QUICK_ACTIONS.map((a) => a.label).join(' | ') === 'Explique ce passage | Rejoue ce passage | Joue le résultat final | Rejoue-le en… | Applique-le à…',
+  && TUTORIAL_QUICK_ACTIONS.map((a) => a.label).join(' | ') === 'Explique ce passage | Rejoue ce passage | Rejoue-le en… | Applique-le à…',
   TUTORIAL_QUICK_ACTIONS.map((a) => `${a.label} → ${a.message || a.chooser}`).join(' / '));
 check('la progression de Narcisse est proposée en premier', TUTORIAL_PROGRESSIONS[0] === '4-5-3-6-2-5-1');
 check('« Applique… » : quoi, progression en degrés, tonalité en français',
