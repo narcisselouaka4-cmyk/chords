@@ -30,7 +30,7 @@ export const CHAPTERS = [
         title: 'Bienvenue',
         body:
           "Piano Jazz Chords transforme un morceau en une grille d'accords que vous "
-          + "pouvez lire, corriger et travailler au piano. Ce tutoriel dure deux minutes "
+          + "pouvez lire, corriger et travailler au piano. Ce didacticiel dure deux minutes "
           + "et reste accessible à tout moment par le bouton « ? » en haut à droite.",
       },
       {
@@ -45,7 +45,7 @@ export const CHAPTERS = [
       {
         id: 'welcome-help',
         target: '#onboarding-help-btn',
-        title: 'Revenir au tutoriel',
+        title: 'Revenir au didacticiel',
         body:
           "Ce bouton rouvre ce menu à tout moment et permet de reprendre un chapitre "
           + "précis — par exemple « Lire et corriger Chordify » quand vous aurez une "
@@ -66,21 +66,12 @@ export const CHAPTERS = [
         target: '#analyzer-import-audio-btn',
         title: 'Importer un fichier audio',
         body:
-          "Formats acceptés : MP3, WAV, M4A. L'analyse porte toujours sur le fichier "
+          "Formats acceptés : MP3, WAV, M4A, MP4 et MIDI. L'analyse porte toujours sur le fichier "
           + "d'origine — rien n'est modifié sur votre disque.",
       },
       {
-        id: 'import-video',
-        target: '#analyzer-import-video-btn',
-        title: 'Ou une vidéo',
-        body:
-          "Un fichier MP4 fonctionne aussi : la bande son en est extraite pour l'analyse. "
-          + "L'application vous demandera ensuite s'il s'agit d'un tutoriel pédagogique "
-          + "ou d'un morceau, ce qui adapte l'interprétation.",
-      },
-      {
         id: 'import-library',
-        target: '#analyzer-library-list',
+        target: '#analyzer-library-open',
         title: 'Votre bibliothèque',
         body:
           "Tout morceau importé revient ici. Le menu « ⋮ » de chaque ligne permet de le "

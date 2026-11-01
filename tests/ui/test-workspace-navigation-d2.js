@@ -132,8 +132,11 @@ runTest('D2.3 — Analyse → Studio → Entraînement nettoie les états de vis
   assertTrue(tabs.studio.classList.contains('stage-0'), 'les classes Studio restent sur leur propre racine');
 });
 
+// [Claude] — 2026-09-24 — « Nouvel exercice » (#new-exercise-btn) a été remplacé
+// le 23/09, au même endroit, par « Bibliothèque » (#exercise-library-btn, choix
+// d'un exercice ; commits d975709 et 66eeaf6 qui retirent aussi son gestionnaire).
 runTest('D2.4 — les contrôles fonctionnels Entraînement restent présents', () => {
-  for (const id of ['practice-exercise-panel', 'new-exercise-btn', 'exercise-target', 'pedagogy-panel', 'pedagogy-content']) {
+  for (const id of ['practice-exercise-panel', 'exercise-library-btn', 'exercise-target', 'pedagogy-panel', 'pedagogy-content']) {
     assertTrue(indexHtml.includes(`id="${id}"`), `contrôle Entraînement manquant : ${id}`);
   }
 });
@@ -142,7 +145,11 @@ runTest('D2.5 — résultat d’accord et notes restent dans la scène Entraîne
   const parents = nearestParentIds(indexHtml);
   assertEqual(parents.get('chord-display'), 'practice-center', 'accord déplacé hors de practice-center');
   assertEqual(parents.get('notes-display'), 'practice-center', 'notes déplacées hors de practice-center');
-  assertEqual(parents.get('practice-center'), 'practice-tab', 'scène déplacée hors de practice-tab');
+  // [Claude] — 2026-09-24 — La refonte Astra (étape 3, e0ab39b) a glissé
+  // l'enveloppe #practice-body entre la scène et l'onglet : la scène reste
+  // dans #practice-tab, un niveau plus bas.
+  assertEqual(parents.get('practice-center'), 'practice-body', 'scène déplacée hors de practice-body');
+  assertEqual(parents.get('practice-body'), 'practice-tab', 'enveloppe déplacée hors de practice-tab');
 });
 
 runTest('D2.6 — le clavier reste développé pendant les changements d’onglet', () => {

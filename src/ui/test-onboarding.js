@@ -234,7 +234,7 @@ runTest("E. Moteur — le stockage indisponible n'est pas une erreur", () => {
 runTest("F. Câblage — point d'entrée permanent dans l'en-tête", () => {
   const html = read('src/index.html');
   assert(html.includes('id="onboarding-help-btn"'), 'le bouton « ? » existe');
-  assert(html.includes('aria-label="Ouvrir le tutoriel"'), 'il est correctement étiqueté');
+  assert(html.includes('aria-label="Ouvrir le didacticiel"'), 'il est correctement étiqueté');
 
   const main = read('src/main.js');
   assert(main.includes('initOnboarding()'), 'le tutoriel est initialisé au démarrage');

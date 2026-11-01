@@ -48,7 +48,9 @@ export function buildVideoAnalysis(params) {
     sourceFormat = FORMATS.V2N;
   }
 
-  const segments = mergeSameLabel(
+  // [Claude] — 2026-10-14 — Une grille déjà faite (rendu « éclair », flash-notes.js) remplace le
+  // regroupement image par image, qui ne trouvait pas d'accord dans des touches allumées 0,2 s.
+  const segments = Array.isArray(params.segments) ? params.segments : mergeSameLabel(
     labelSegments(
       groupSegments(sourceSamples || [], { ...options, sampleInterval: sourceInterval }),
       options,

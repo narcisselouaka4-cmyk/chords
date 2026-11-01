@@ -1,0 +1,242 @@
+/* [Claude] — 2026-10-14 — Le métronome de Pédagogie IA (src/ui/components/metronome-menu.js).
+   Même famille que le réglage de vitesse (speed-menu.css) : bouton sobre + panneau popover.
+   Jetons --tr-* : sombre et clair. */
+
+.metronome-menu { display: inline-flex; flex-shrink: 0; }
+
+.metronome-menu .metronome-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 8px 3px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.metronome-menu .metronome-menu-btn svg { color: var(--tr-muted); }
+.metronome-menu .metronome-menu-value { color: var(--tr-secondary); font-variant-numeric: tabular-nums; font-weight: 550; }
+.metronome-menu .metronome-menu-btn:hover,
+.metronome-menu .metronome-menu-btn[aria-expanded="true"] { border-color: var(--tr-accent); }
+.metronome-menu[data-running="true"] .metronome-menu-btn {
+  border-color: var(--tr-accent);
+  background: color-mix(in srgb, var(--tr-accent) 14%, var(--tr-surface));
+}
+.metronome-menu[data-running="true"] .metronome-menu-btn svg { color: var(--tr-accent); }
+.metronome-menu .metronome-menu-btn:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+
+.metronome-menu .metronome-menu-panel {
+  position: fixed;
+  inset: auto;
+  width: 300px;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 38%), 0 2px 6px rgb(0 0 0 / 20%);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: visible;
+}
+:root[data-theme='light'] .metronome-menu .metronome-menu-panel {
+  box-shadow: 0 16px 40px rgb(39 35 48 / 14%), 0 2px 6px rgb(39 35 48 / 8%);
+}
+.metronome-menu .metronome-menu-panel > * + * { margin-top: 10px; }
+
+.metronome-menu .metronome-menu-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.metronome-menu .metronome-menu-title { color: var(--tr-secondary); font-size: 11.5px; font-weight: 600; letter-spacing: .02em; }
+.metronome-menu .metronome-menu-start {
+  min-height: 28px;
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--tr-button, var(--tr-accent));
+  color: var(--tr-button-text, #fff);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.metronome-menu .metronome-menu-start.is-on { background: color-mix(in srgb, var(--tr-accent) 18%, var(--tr-surface)); color: var(--tr-text); box-shadow: inset 0 0 0 1px var(--tr-accent); }
+.metronome-menu .metronome-menu-start:hover { filter: brightness(1.08); }
+
+/* Les voyants des temps */
+.metronome-menu .metronome-menu-dots { display: flex; justify-content: center; gap: 10px; min-height: 12px; }
+.metronome-menu .metronome-menu-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--tr-border);
+  background: transparent;
+  transition: background-color .06s, border-color .06s, transform .06s;
+}
+.metronome-menu .metronome-menu-dot.is-first { width: 13px; height: 13px; margin-top: -1px; border-color: var(--tr-muted); }
+.metronome-menu .metronome-menu-dot.is-on { background: var(--tr-accent); border-color: var(--tr-accent); transform: scale(1.25); }
+
+/* Le tempo */
+.metronome-menu .metronome-menu-bpm { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.metronome-menu .metronome-menu-step {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--tr-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+}
+.metronome-menu .metronome-menu-step:hover { border-color: var(--tr-accent); }
+.metronome-menu .metronome-menu-step[aria-disabled="true"] { opacity: .4; }
+.metronome-menu .metronome-menu-numberwrap { display: flex; align-items: baseline; gap: 5px; }
+.metronome-menu .metronome-menu-number {
+  width: 84px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--tr-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 34px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.metronome-menu .metronome-menu-number::-webkit-inner-spin-button,
+.metronome-menu .metronome-menu-number::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.metronome-menu .metronome-menu-number:focus { outline: none; border-bottom-color: var(--tr-accent); }
+.metronome-menu .metronome-menu-unit { color: var(--tr-muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; }
+
+.metronome-menu .metronome-menu-range { width: 100%; margin: 0; accent-color: var(--tr-accent); }
+
+.metronome-menu .metronome-menu-chips { display: flex; gap: 6px; justify-content: center; }
+.metronome-menu .metronome-menu-chip {
+  min-width: 56px;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.metronome-menu .metronome-menu-chip:hover { color: var(--tr-text); border-color: var(--tr-accent); }
+.metronome-menu .metronome-menu-chip.is-tap { color: var(--tr-text); }
+.metronome-menu .metronome-menu-chip[aria-disabled="true"] { opacity: .4; }
+.metronome-menu .metronome-menu-chip:active { background: color-mix(in srgb, var(--tr-accent) 18%, transparent); }
+
+/* Chercher dans la vidéo */
+.metronome-menu .metronome-menu-detectrow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding-top: 10px; border-top: 1px solid var(--tr-border); }
+.metronome-menu .metronome-menu-detect {
+  min-height: 28px;
+  padding: 3px 11px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: var(--tr-inset);
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.metronome-menu .metronome-menu-detect:hover:not(:disabled) { border-color: var(--tr-accent); }
+.metronome-menu .metronome-menu-detect:disabled { opacity: .65; cursor: progress; }
+.metronome-menu .metronome-menu-found { display: inline-flex; align-items: center; gap: 8px; color: var(--tr-secondary); font-size: 11.5px; }
+.metronome-menu .metronome-menu-found[hidden] { display: none; }
+.metronome-menu .metronome-menu-found-text { font-weight: 650; font-variant-numeric: tabular-nums; }
+.metronome-menu .metronome-menu-found-text.is-sure { color: var(--tr-accent); }
+.metronome-menu .metronome-menu-found-text.is-unsure { color: var(--tr-muted); }
+.metronome-menu .metronome-menu-use {
+  padding: 2px 8px;
+  border: 1px solid var(--tr-accent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tr-accent);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+/* Mesure, volume */
+.metronome-menu .metronome-menu-row { display: flex; align-items: center; gap: 10px; }
+.metronome-menu .metronome-menu-label-row { flex: 0 0 52px; color: var(--tr-secondary); font-size: 11.5px; }
+.metronome-menu .metronome-menu-bars { display: grid; grid-template-columns: repeat(4, 1fr); flex: 1; gap: 2px; padding: 2px; border: 1px solid var(--tr-border); border-radius: 8px; background: var(--tr-inset); }
+.metronome-menu .metronome-menu-bar {
+  min-height: 24px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.metronome-menu .metronome-menu-bar:hover { color: var(--tr-text); }
+.metronome-menu .metronome-menu-bar[aria-pressed="true"] { background: var(--tr-surface); color: var(--tr-text); box-shadow: 0 0 0 1px var(--tr-accent) inset; }
+.metronome-menu .metronome-menu-range.is-volume { flex: 1; }
+
+/* Suivre la vidéo */
+.metronome-menu .metronome-menu-follow { display: flex; align-items: flex-start; gap: 9px; padding-top: 10px; border-top: 1px solid var(--tr-border); cursor: pointer; }
+.metronome-menu .metronome-menu-follow input { margin: 2px 0 0; accent-color: var(--tr-accent); }
+.metronome-menu .metronome-menu-follow-text { display: flex; flex-direction: column; gap: 1px; }
+.metronome-menu .metronome-menu-follow-text > span { color: var(--tr-text); font-weight: 600; }
+.metronome-menu .metronome-menu-follow-text small { color: var(--tr-muted); font-size: 11px; }
+.metronome-menu .metronome-menu-anchorrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.metronome-menu .metronome-menu-anchorrow[hidden],
+.metronome-menu .metronome-menu-hint[hidden] { display: none; }
+.metronome-menu .metronome-menu-anchor {
+  flex: 1;
+  min-height: 28px;
+  border: 1px solid var(--tr-accent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--tr-accent) 12%, transparent);
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.metronome-menu .metronome-menu-anchor:hover { background: color-mix(in srgb, var(--tr-accent) 22%, transparent); }
+.metronome-menu .metronome-menu-nudge {
+  min-height: 28px;
+  padding: 2px 8px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.metronome-menu .metronome-menu-nudge:hover { color: var(--tr-text); border-color: var(--tr-accent); }
+.metronome-menu .metronome-menu-hint { margin: 0; color: var(--tr-muted); font-size: 11px; line-height: 1.45; }
+
+.metronome-menu :is(button, input):focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .metronome-menu .metronome-menu-dot { transition: none; }
+}

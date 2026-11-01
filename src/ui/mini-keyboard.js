@@ -1,6 +1,6 @@
 // [OpenCode] — 2026-07-04 — Mini-clavier SVG pédagogique pour un accord.
 // Affiche environ 2 octaves (C4–B5 par défaut), touches blanches alignées,
-// touches noires positionnées réalistes entre les blanches, notes actives en rouge.
+// touches noires positionnées réalistes entre les blanches, notes actives en couleur.
 // Retourne aussi la liste textuelle des notes pour affichage en dessous.
 
 const WHITE_WIDTH = 20;
@@ -52,10 +52,42 @@ function blackKeyX(midi, startMidi) {
   return baseX + offsets[pc];
 }
 
+// Dégradés des touches.
+// [Claude] — 2026-10-09 — Narcisse : le mini-clavier de « Accord à l'écoute » (Analyse) était
+// « totalement cassé » : touches noires transparentes, notes jouées sans couleur. Les dégradés
+// portaient les MÊMES id dans tous les mini-claviers de la page (« un id répété désigne le même
+// rendu », pensait-on). Mais `url(#id)` désigne le PREMIER élément de ce nom dans le document ;
+// quand ce premier mini-clavier est dans un panneau caché (display:none), Chromium ne peint pas
+// le dégradé, et toutes les touches qui y renvoient restent vides. Chaque SVG a donc ses propres
+// id (suffixe unique).
+const vertical = (id, top, bottom) => `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient>`;
+const horizontal = (id, left, right) => `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${left}"/><stop offset="0.8" stop-color="${right}"/></linearGradient>`;
+let gradientSerial = 0;
+function gradients(suffix) {
+  return `<defs>${[
+    vertical(`mk-off-w${suffix}`, '#fdfcfe', '#f0edf3'),
+    horizontal(`mk-off-b${suffix}`, '#3f3c43', '#212027'),
+    vertical(`mk-on-w${suffix}`, 'color-mix(in srgb, var(--vk-accent-deep) 55%, #ffffff)', 'color-mix(in srgb, var(--vk-accent-deep) 85%, #ffffff)'),
+    horizontal(`mk-on-b${suffix}`, 'color-mix(in srgb, var(--vk-accent-deep) 80%, #000000)', 'color-mix(in srgb, var(--vk-accent-deep) 55%, #000000)'),
+    // [Claude] — 2026-10-13 — Mains : couleurs propres, jamais confondues avec celle de l'application
+    // (ui/hand-colors.js pose --hand-lh / --hand-rh).
+    vertical(`mk-lh-w${suffix}`, 'color-mix(in srgb, var(--hand-lh, #a583e2) 55%, #ffffff)', 'var(--hand-lh, #a583e2)'),
+    horizontal(`mk-lh-b${suffix}`, 'color-mix(in srgb, var(--hand-lh, #a583e2) 85%, #000000)', 'color-mix(in srgb, var(--hand-lh, #a583e2) 55%, #000000)'),
+    vertical(`mk-rh-w${suffix}`, 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 55%, #ffffff)', 'var(--hand-rh, #8ccdb7)'),
+    horizontal(`mk-rh-b${suffix}`, 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 85%, #000000)', 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 55%, #000000)'),
+    vertical(`mk-add-w${suffix}`, '#f6ddb0', '#e8b86a'),
+    horizontal(`mk-add-b${suffix}`, '#e0aa55', '#a8742a'),
+  ].join('')}</defs>`;
+}
+
 export function generateMiniKeyboard(activeNotes = [], options = {}) {
   const start = options.startMidi ?? START_MIDI;
   const end = options.endMidi ?? END_MIDI;
   const activeSet = new Set(activeNotes.map((n) => (typeof n === 'number' ? n : null)).filter(Boolean));
+  const leftHandSet = new Set((options.leftHand || []).map((n) => (typeof n === 'number' ? n : null)).filter(Boolean));
+  const rightHandSet = new Set((options.rightHand || []).map((n) => (typeof n === 'number' ? n : null)).filter(Boolean));
+  // Notes ajoutées (doublures d'octave) : couleur distincte.
+  const addedSet = new Set((options.added || []).filter((n) => typeof n === 'number'));
 
   // S'assurer que start est une note blanche pour l'alignement
   let firstWhite = start;
@@ -74,14 +106,40 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
 
   let markup = '';
 
+  function activeClasses(midi) {
+    const classes = ['mini-key'];
+    if (activeSet.has(midi)) {
+      classes.push('is-active');
+      if (addedSet.has(midi)) classes.push('is-added');
+      else if (leftHandSet.has(midi)) classes.push('is-lh');
+      else if (rightHandSet.has(midi)) classes.push('is-rh');
+    }
+    return classes.join(' ');
+  }
+
+  // [Claude] — 2026-09-24 — Style Astra (maquette .tr-mini-keyboard) : touches
+  // nacrées / anthracite en dégradé ; notes jouées en violet d'accent, main
+  // droite en vert sauge (--tr-green), notes ajoutées en ambre adouci.
+  function tone(midi) {
+    if (!activeSet.has(midi)) return 'off';
+    if (addedSet.has(midi)) return 'add';
+    if (rightHandSet.has(midi)) return 'rh';
+    if (leftHandSet.has(midi)) return 'lh';
+    return 'on'; // note jouée sans main précisée : couleur de l'application
+  }
+  const suffix = `-${++gradientSerial}`;
+  const fillOf = (midi) => `url(#mk-${tone(midi)}-${isBlackKey(midi) ? 'b' : 'w'}${suffix})`;
+  const STROKES = {
+    w: { off: '#bdb7c5', on: 'var(--vk-accent-deep)', lh: 'color-mix(in srgb, var(--hand-lh, #a583e2) 75%, #000000)', rh: 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 70%, #000000)', add: '#c8923f' },
+    b: { off: '#141318', on: 'color-mix(in srgb, var(--vk-accent-deep) 60%, #000000)', lh: 'color-mix(in srgb, var(--hand-lh, #a583e2) 50%, #000000)', rh: 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 50%, #000000)', add: '#9a6a22' },
+  };
+
   // Touches blanches
   whites.forEach((midi, index) => {
     const x = index * WHITE_WIDTH;
     const active = activeSet.has(midi);
-    const fill = active ? 'var(--mini-key-active, #ef4444)' : '#ffffff';
-    const stroke = active ? '#991b1b' : '#9ca3af';
     const title = active ? ` title="${midiToNoteName(midi, true, false)}"` : '';
-    markup += `<rect data-midi="${midi}" x="${x}" y="0" width="${WHITE_WIDTH}" height="${WHITE_HEIGHT}" rx="${WHITE_RADIUS}" fill="${fill}" stroke="${stroke}" stroke-width="${active ? 1.5 : 0.5}"${title}/>`;
+    markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="0" width="${WHITE_WIDTH}" height="${WHITE_HEIGHT}" rx="${WHITE_RADIUS}" fill="${fillOf(midi)}" stroke="${STROKES.w[tone(midi)]}" stroke-width="${active ? 1 : 0.6}"${title}/>`;
   });
 
   // Touches noires
@@ -90,13 +148,11 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     const x = blackKeyX(midi, firstWhite);
     if (x < 0 || x + BLACK_WIDTH > width) continue;
     const active = activeSet.has(midi);
-    const fill = active ? 'var(--mini-key-active, #ef4444)' : '#1f2937';
-    const stroke = active ? '#991b1b' : '#000000';
     const title = active ? ` title="${midiToNoteName(midi, true, false)}"` : '';
-    markup += `<rect data-midi="${midi}" x="${x}" y="0" width="${BLACK_WIDTH}" height="${BLACK_HEIGHT}" rx="${BLACK_RADIUS}" fill="${fill}" stroke="${stroke}" stroke-width="${active ? 1.5 : 0.5}"${title}/>`;
+    markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="-1" width="${BLACK_WIDTH}" height="${BLACK_HEIGHT}" rx="${BLACK_RADIUS}" fill="${fillOf(midi)}" stroke="${STROKES.b[tone(midi)]}" stroke-width="0.8"${title}/>`;
   }
 
-  const svg = `\n<svg class="mini-keyboard" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">${markup}</svg>\n`;
+  const svg = `\n<svg class="mini-keyboard" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">${gradients(suffix)}${markup}</svg>\n`;
   const noteNames = activeNotes
     .filter((n) => typeof n === 'number')
     .sort((a, b) => a - b)
@@ -104,15 +160,34 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
   return { svg, noteNames };
 }
 
-export function miniKeyboardForNotes(activeNotes, centerMidi = 60) {
-  // Choisit une fenêtre de 2 octaves parmi C3–B4 (48–71) ou C4–B5 (60–83)
-  // selon la tessiture des notes, comme demandé par l'interface.
+export function miniKeyboardForNotes(activeNotes, options = {}) {
+  // Fenêtre dimensionnée sur l'étendue réelle des notes actives (avec une
+  // marge d'une touche de part et d'autre), et non plus une fenêtre fixe de
+  // 24 demi-tons : un voicing réel (main gauche + main droite) peut dépasser
+  // 2 octaves (ex. Sol#2 à Fa#5 = 34 demi-tons observés), et les notes hors
+  // fenêtre n'étaient tout simplement jamais dessinées. Le SVG s'élargit en
+  // conséquence ; le viewBox + preserveAspectRatio du côté CSS gèrent déjà la
+  // mise à l'échelle.
+  // Le deuxième argument peut être un nombre (ancien centerMidi) ou un objet
+  // d'options { centerMidi, leftHand, rightHand, startMidi, endMidi }.
+  const opts = typeof options === 'number' ? { centerMidi: options } : options;
+  const startMidiOverride = opts.startMidi ?? (opts.centerMidi != null && opts.centerMidi < 60 ? 48 : undefined);
+  const kbOptions = {
+    leftHand: opts.leftHand,
+    rightHand: opts.rightHand,
+    added: opts.added,
+  };
   if (!Array.isArray(activeNotes) || activeNotes.length === 0) {
-    return { svg: generateMiniKeyboard([], { startMidi: 60, endMidi: 83 }).svg, noteNames: [] };
+    const fallbackStart = startMidiOverride ?? 60;
+    return {
+      svg: generateMiniKeyboard([], { ...kbOptions, startMidi: fallbackStart, endMidi: opts.endMidi ?? fallbackStart + 23 }).svg,
+      noteNames: [],
+    };
   }
   const min = Math.min(...activeNotes);
   const max = Math.max(...activeNotes);
-  // Si au moins une note est en dessous de C4, on descend à C3–B4
-  const startMidi = min < 60 ? 48 : 60;
-  return generateMiniKeyboard(activeNotes, { startMidi, endMidi: startMidi + 23 });
+  const MARGIN = 2;
+  const finalStart = startMidiOverride ?? Math.max(21, min - MARGIN);
+  const finalEnd = opts.endMidi ?? Math.max(finalStart + 23, Math.min(108, max + MARGIN));
+  return generateMiniKeyboard(activeNotes, { ...kbOptions, startMidi: finalStart, endMidi: finalEnd });
 }

@@ -13,7 +13,7 @@ import {
 } from '../recorder/studio-storage.js';
 import { importToLibrary } from './media-library.js';
 import { createStemMixer, dbToGain } from '../audio/stem-mixer.js';
-import { separateStems, getStems, STEMS } from '../audio/stem-separator.js';
+import { separateStems, cancelSeparation, getStems, STEMS } from '../audio/stem-separator.js';
 import { createPitchShifter } from '../audio/pitch-shifter.js';
 import { getAudioContext, connectOutput as connectSynthOutput } from '../audio/simple-synth.js';
 import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
@@ -21,6 +21,10 @@ import { formatMediaDuration, isValidMediaDuration } from './media-format.js';
 import { buildFileContextText } from './file-context.js';
 import { applyStudioSidebarState } from './studio-view-state.js';
 import { getSkin } from './refonte/skin-manager.js';
+import { notify } from './components/app-notify.js';
+import { createTrackWheel } from './components/track-wheel.js';
+import { effectiveGain, encodeWav, transcriptionToEvents, exportFileName, renderMix } from './studio-export.js';
+import { buildMidiFile } from '../recorder/serializer.js';
 
 /**
  * Lit un fichier audio via IPC et retourne un ArrayBuffer brut.
@@ -75,6 +79,14 @@ let playerAudio = null;
 let audioBlobUrl = null;
 let videoBlobUrl = null;
 let syncRafId = null;
+/** Vidéo : dérive tolérée avant un recalage (s), et délai minimal entre deux recalages (ms). */
+const VIDEO_DRIFT_TOLERANCE = 0.12;
+const VIDEO_RESYNC_COOLDOWN_MS = 800;
+let lastVideoResyncAt = 0;
+/** Barre de lecture tenue par l'utilisateur : la boucle n'écrase pas sa position. */
+let isScrubbing = false;
+/** Largeur de la waveform, tenue à jour par un ResizeObserver (pas de mesure à chaque image). */
+let waveformWidth = 0;
 
 // AudioContext partagé pour le Studio (pitch-shift via MediaElementSourceNode)
 let studioAudioCtx = null;
@@ -93,13 +105,20 @@ let html5AudioReadyPromise = null;
 let html5AudioResolve = null;
 
 // [Claude] — 2026-07-07 — État du Screen Recorder intégré au Studio.
-let isLeftPanelCollapsed = false;
+// [Claude] — 2026-10-13 — Replié par défaut dès qu'un morceau est ouvert (la vidéo gagne la place) ;
+// le choix du pianiste est gardé d'une ouverture à l'autre.
+const LIBRARY_COLLAPSED_KEY = 'pjc.studio.libraryCollapsed';
+let isLeftPanelCollapsed = (() => { try { return localStorage.getItem(LIBRARY_COLLAPSED_KEY) !== '0'; } catch { return true; } })();
 let isRecording = false;
 let countdownTimeout = null;
 
 const els = {
   importBtn: document.getElementById('studio-import-btn'),
   trackList: document.getElementById('studio-track-list'),
+  // [Refonte Studio 02/10] — écran d'accueil de l'étape 0.
+  wheelRoot: document.getElementById('studio-wheel'),
+  heroImportBtn: document.getElementById('studio-hero-import-btn'),
+  heroLibraryBtn: document.getElementById('studio-hero-library-btn'),
   studioCenter: document.querySelector('.studio-center'),
   playerWrap: document.getElementById('studio-player-wrap'),
   playerVideoContainer: document.getElementById('studio-video-container'),
@@ -131,8 +150,8 @@ const els = {
   stageOverlay: document.getElementById('studio-stage-overlay'),
   processingOverlay: document.getElementById('studio-processing-overlay'),
   processingLabel: document.getElementById('studio-processing-label'),
+  processingCancel: document.getElementById('studio-processing-cancel'),
   processingBar: document.getElementById('studio-processing-bar'),
-  readyToast: document.getElementById('studio-ready-toast'),
   stemsList: document.getElementById('studio-stems-list'),
   studioStatus: document.getElementById('studio-status-text'),
   waveformWrap: document.getElementById('studio-waveform-wrap'),
@@ -141,6 +160,8 @@ const els = {
   playhead: document.getElementById('studio-playhead'),
   handleStart: document.getElementById('studio-handle-start'),
   handleEnd: document.getElementById('studio-handle-end'),
+  handleRail: document.getElementById('studio-handle-rail'),
+  gripStart: document.getElementById('studio-handle-grip-start'),
   regionInfo: document.getElementById('studio-region-info'),
   resetRegionBtn: document.getElementById('studio-reset-region'),
   confirmRegionBtn: document.getElementById('studio-confirm-region'),
@@ -231,8 +252,46 @@ export function initStudioTab() {
   });
 }
 
+// [Refonte Studio 02/10] — Écran d'accueil de l'étape 0.
+// [Claude] — 2026-10-13 — « Reprendre un morceau importé » ouvre la ROUE des morceaux (track-wheel.js) :
+// les titres en demi-cercle, qu'on fait glisser, avec une recherche à côté. Elle ne sert qu'à l'étape 0 ;
+// une fois un morceau chargé, la liste est le panneau « Musiques importées » de gauche (autre animation).
+// Les deux barres du haut (« Musiques importées », « Importer un fichier ») sont retirées : elles
+// doublonnaient les deux boutons du milieu.
+let trackWheel = null;
+let wheelItems = [];
+
+function setStudioLibraryOpen(open, { immediate = false } = {}) {
+  const tab = document.getElementById('studio-tab');
+  if (!tab || !trackWheel) return;
+  if (open && studioStage !== 0) return;
+  tab.classList.toggle('wheel-open', open);
+  els.heroLibraryBtn?.setAttribute('aria-expanded', String(open));
+  if (open) trackWheel.open(wheelItems); else trackWheel.close({ immediate });
+}
+
+function bindStudioHome() {
+  els.heroImportBtn?.addEventListener('click', () => importFile());
+
+  trackWheel = createTrackWheel({
+    root: els.wheelRoot,
+    onOpen: (id) => { setStudioLibraryOpen(false, { immediate: true }); loadTrack(id); },
+    onRename: (id, title) => handleRenameTrack(id, title),
+    onDelete: (id, title) => handleDeleteTrack(id, title),
+    onClose: () => setStudioLibraryOpen(false),
+  });
+  els.heroLibraryBtn?.setAttribute('aria-controls', 'studio-wheel');
+  els.heroLibraryBtn?.setAttribute('aria-expanded', 'false');
+  els.heroLibraryBtn?.addEventListener('click', () => setStudioLibraryOpen(!trackWheel?.isOpen()));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && trackWheel?.isOpen()) setStudioLibraryOpen(false);
+  });
+}
+
 function bindPlayer() {
   els.importBtn?.addEventListener('click', () => importFile());
+  bindStudioHome();
 
   els.playBtn?.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -265,19 +324,44 @@ function bindPlayer() {
   els.stopBtn?.addEventListener('click', () => stop());
 
   els.prevBtn?.addEventListener('click', () => {
-    const target = regionConfirmed ? regionStart : 0;
+    // [Claude] — 2026-10-09 — « affecte aussi le bouton "Revenir au début" » : comme au lâcher
+    // d'un marqueur, dès qu'une région est tracée (confirmée ou non), on revient à son début.
+    const target = regionEnd !== null ? regionStart : 0;
     seek(target);
     updateProgressUI(target, getEffectiveDuration());
     updatePlayhead(target, getEffectiveDuration());
   });
 
   els.resetRegionBtn?.addEventListener('click', () => resetRegion());
+  els.processingCancel?.addEventListener('click', () => cancelRegionProcessing());
+  bindWaveToggle();
 
+  // [Claude] — 2026-10-09 — Glisser la barre de lecture faisait un saut à CHAQUE petit
+  // déplacement (des dizaines par seconde) : à chaque fois toutes les pistes et la vidéo
+  // repartaient — c'est là que naissaient les micro-latences « quand je modifie le lecteur ».
+  // Pendant le glisser, seuls le temps affiché et le curseur suivent ; le saut se fait au lâcher.
+  const progressTime = () => (Number(els.progress.value) / 100) * (getTotalDuration() || 1);
+  els.progress?.addEventListener('pointerdown', () => { isScrubbing = true; });
   els.progress?.addEventListener('input', () => {
     // La barre de progression reste toujours calée sur la durée TOTALE du fichier.
-    const duration = getTotalDuration() || 1;
-    const time = (Number(els.progress.value) / 100) * duration;
+    const time = progressTime();
+    if (isScrubbing && isPlaying) {
+      updateProgressUI(time, getEffectiveDuration());
+      updatePlayhead(time, getEffectiveDuration());
+      return;
+    }
     seek(time);
+  });
+  els.progress?.addEventListener('change', () => {
+    const wasScrubbing = isScrubbing;
+    isScrubbing = false;
+    if (wasScrubbing && isPlaying) seek(progressTime());
+  });
+  window.addEventListener('pointerup', () => {
+    // Lâcher hors de la barre : `change` peut ne pas venir.
+    if (!isScrubbing) return;
+    isScrubbing = false;
+    if (isPlaying) seek(progressTime());
   });
 
   els.volume?.addEventListener('input', () => {
@@ -347,11 +431,124 @@ function bindPlayer() {
 function bindScreenRecorder() {
   els.collapseLeftBtn?.addEventListener('click', () => toggleLeftPanel());
   els.collapseTabBtn?.addEventListener('click', () => toggleLeftPanel());
+  document.getElementById('studio-stems-collapse')?.addEventListener('click', () => toggleStemsPanel());
+  // Dans la rangée au-dessus du lecteur, « Export » s'ouvre en petit menu : un clic ailleurs (ou Échap) le ferme.
+  document.addEventListener('click', (e) => {
+    const ex = document.getElementById('studio-export-section');
+    if (ex?.open && ex.closest('.studio-controls-lecture') && !ex.contains(e.target)) ex.open = false;
+  });
+  document.addEventListener('keydown', (e) => {
+    const ex = document.getElementById('studio-export-section');
+    if (e.key === 'Escape' && ex?.open && ex.closest('.studio-controls-lecture')) ex.open = false;
+  });
+  document.getElementById('studio-export-wav-btn')?.addEventListener('click', () => exportMixWav());
+  document.getElementById('studio-export-midi-btn')?.addEventListener('click', () => exportPianoMidi());
+  document.getElementById('studio-stems-expand')?.addEventListener('click', () => toggleStemsPanel());
+  applyStemsCollapsed(stemsCollapsed, false);
   els.recordBtn?.addEventListener('click', () => toggleRecording());
+}
+
+// [Claude] — 2026-10-13 — « Pistes séparées » se replie en miroir de « Musiques importées » : vers le
+// haut et vers la droite, en un rond (icône de console) ; « Lecture » et « Export » remontent vers le
+// milieu de la colonne. Les déplacements sont animés (technique FLIP : on mesure avant / après le
+// changement, puis on anime l'écart), la taille du panneau aussi. Choix gardé.
+const STEMS_COLLAPSED_KEY = 'pjc.studio.stemsCollapsed';
+let stemsCollapsed = (() => { try { return localStorage.getItem(STEMS_COLLAPSED_KEY) === '1'; } catch { return false; } })();
+const FLIP_EASE = 'cubic-bezier(.65, 0, .35, 1)';
+
+function applyStemsCollapsed(collapsed, animate = true) {
+  const section = els.stemsSection;
+  const sidebar = section?.closest('.studio-sidebar.right');
+  if (!section || !sidebar) return;
+  const tab = document.getElementById('studio-tab');
+  const center = els.studioCenter;
+  const dock = document.getElementById('studio-controls-lecture');
+  const playback = document.getElementById('studio-playback-section');
+  const exportSection = document.getElementById('studio-export-section');
+  const movers = [playback, exportSection].filter(Boolean);
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const before = animate && !reduce ? new Map([section, ...movers, center].filter(Boolean).map((el) => [el, el.getBoundingClientRect()])) : null;
+  const dockH0 = dock ? dock.getBoundingClientRect().height : 0;
+
+  // Les sections « Lecture » et « Export » changent de maison : la colonne de droite quand les pistes sont
+  // déployées, la rangée au-dessus du lecteur quand elles sont repliées. Ce sont les MÊMES éléments
+  // (déplacés, pas copiés) : leurs boutons et leurs réglages restent branchés.
+  if (dock && playback && exportSection) {
+    if (collapsed) {
+      dock.append(playback, exportSection);
+    } else {
+      sidebar.querySelector('.studio-right-panel')?.appendChild(playback);
+      sidebar.appendChild(exportSection);
+      exportSection.open = false;
+    }
+  }
+  section.classList.toggle('is-collapsed', collapsed);
+  sidebar.classList.toggle('stems-collapsed', collapsed);
+  tab?.classList.toggle('stems-collapsed', collapsed);
+  document.getElementById('studio-stems-expand')?.setAttribute('tabindex', collapsed ? '0' : '-1');
+  if (!before) return;
+
+  const a = before.get(section);
+  const b = section.getBoundingClientRect();
+  if (a.width && b.width) {
+    section.animate([
+      { width: `${a.width}px`, height: `${a.height}px`, transform: `translate(${a.right - b.right}px, ${a.top - b.top}px)`, borderRadius: collapsed ? '14px' : '23px' },
+      { width: `${b.width}px`, height: `${b.height}px`, transform: 'none', borderRadius: collapsed ? '23px' : '14px' },
+    ], { duration: 500, easing: FLIP_EASE });
+  }
+  // La colonne centrale (vidéo, onde, lecteur) glisse vers le milieu de la page — ou en revient —, et
+  // retrouve sa largeur si elle change (bibliothèque repliée) ; la forme d'onde est redessinée à la fin.
+  const c0 = center && before.get(center);
+  if (c0) {
+    const c1 = center.getBoundingClientRect();
+    const dx = c0.left - c1.left;
+    if (Math.abs(dx) > 1 || Math.abs(c0.width - c1.width) > 1) {
+      center.animate([
+        { width: `${c0.width}px`, transform: `translateX(${dx}px)` },
+        { width: `${c1.width}px`, transform: 'none' },
+      ], { duration: 500, easing: FLIP_EASE });
+    }
+    setTimeout(() => { if (waveformData) renderWaveform(); }, 560);
+  }
+  // La rangée au-dessus du lecteur s'ouvre (ou se referme) en hauteur : la vidéo cède la place
+  // progressivement au lieu de sauter. Les deux sections voyagent depuis / vers leur ancienne place.
+  if (dock) {
+    const dockH1 = dock.getBoundingClientRect().height;
+    if (collapsed && dockH1 > 0) {
+      dock.classList.add('is-animating');
+      dock.animate([{ height: '0px', opacity: 0, paddingBottom: '0px' }, { height: `${dockH1}px`, opacity: 1, paddingBottom: getComputedStyle(dock).paddingBottom }], { duration: 500, easing: FLIP_EASE })
+        .finished.then(() => dock.classList.remove('is-animating'), () => dock.classList.remove('is-animating'));
+    } else if (!collapsed && dockH0 > 0) {
+      // Vide, la rangée n'a plus de hauteur : on la garde le temps de la refermer en douceur.
+      dock.classList.add('is-leaving');
+      dock.style.height = `${dockH0}px`;
+      dock.animate([{ height: `${dockH0}px`, opacity: 1 }, { height: '0px', opacity: 0, paddingBottom: '0px' }], { duration: 500, easing: FLIP_EASE })
+        .finished.then(() => { dock.classList.remove('is-leaving'); dock.style.height = ''; }, () => { dock.classList.remove('is-leaving'); dock.style.height = ''; });
+    }
+  }
+  for (const el of movers) {
+    const f = before.get(el);
+    const l = el.getBoundingClientRect();
+    const dx = f.left - l.left; const dy = f.top - l.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+    el.animate(
+      [{ transform: `translate(${dx}px, ${dy}px)`, opacity: collapsed ? 0.15 : 1 }, { transform: 'none', opacity: 1 }],
+      { duration: 500, easing: FLIP_EASE },
+    );
+  }
+}
+
+function toggleStemsPanel() {
+  stemsCollapsed = !stemsCollapsed;
+  try { localStorage.setItem(STEMS_COLLAPSED_KEY, stemsCollapsed ? '1' : '0'); } catch { /* stockage indisponible */ }
+  applyStemsCollapsed(stemsCollapsed);
 }
 
 function toggleLeftPanel() {
   setLeftPanelCollapsed(!isLeftPanelCollapsed);
+  try { localStorage.setItem(LIBRARY_COLLAPSED_KEY, isLeftPanelCollapsed ? '1' : '0'); } catch { /* stockage indisponible */ }
+  // La colonne centrale change de largeur pendant l'animation : la forme d'onde est redessinée à la fin.
+  setTimeout(() => { if (waveformData) renderWaveform(); }, 560);
 }
 
 function setLeftPanelCollapsed(collapsed) {
@@ -360,6 +557,14 @@ function setLeftPanelCollapsed(collapsed) {
     collapseButton: els.collapseLeftBtn,
     expandButton: els.collapseTabBtn,
   }, studioStage, collapsed);
+  document.getElementById('studio-tab')?.classList.toggle('lib-collapsed', isLeftPanelCollapsed);
+  updateCollapseCount();
+}
+
+/** Nombre de morceaux, en pastille sur le rond « Musiques importées ». */
+function updateCollapseCount() {
+  const count = document.getElementById('studio-collapse-count');
+  if (count) { count.textContent = String(tracks.length || ''); count.hidden = !tracks.length; }
 }
 
 // [Refonte v2/Global] — Déplace les éléments du Studio entre leurs deux positions
@@ -419,11 +624,21 @@ function toggleRecording() {
   }
 }
 
+// [Claude] — 2026-10-13 — Mode enregistrement (Narcisse) : pendant le compte à rebours et
+// l'enregistrement, tout disparaît sauf la vidéo et le lecteur (plus le nom du fichier, le nom et le
+// logo de l'application), centrés à l'écran : panneaux, pistes, Lecture, Export, boutons de région,
+// forme d'onde, onglets, réglages, clavier MIDI. La classe est sur <html> : studio.css s'en charge.
+function setRecordingMode(on) {
+  document.documentElement.classList.toggle('studio-rec-mode', Boolean(on));
+  // Le lecteur change de taille : la forme d'onde (masquée) sera redessinée au retour.
+  if (!on) setTimeout(() => { if (waveformData) renderWaveform(); }, 60);
+}
+
 function startRecordingSequence() {
   if (isRecording || !window.electronAPI?.studio?.getWindowSource) return;
 
-  // Libérer l'espace visuel avant le record.
-  if (!isLeftPanelCollapsed) toggleLeftPanel();
+  // Libérer l'espace visuel avant le record : le mode enregistrement ne garde que la vidéo et le lecteur.
+  setRecordingMode(true);
 
   runCountdown(3, () => {
     startCapture();
@@ -540,6 +755,7 @@ async function startCapture() {
     els.recordBtn?.classList.add('recording');
     if (els.recordingIndicator) els.recordingIndicator.style.display = 'flex';
     setStatus('Enregistrement vidéo en cours... (R pour arrêter)');
+    startMidiTake();
   } catch (err) {
     console.error('[Studio] startCapture failed:', err);
     setStatus(`Erreur de capture : ${err.message}`);
@@ -574,8 +790,39 @@ async function finalizeRecording() {
   }
 }
 
+// [Claude] — 2026-09-24 — Le jeu MIDI enregistré avec la vidéo devient une session
+// (Narcisse : « que la prise soit automatiquement enregistrée dans le sous-onglet
+// Session » : la retrouver à l'arrêt, la réécouter seule, l'analyser). La prise
+// elle-même est tenue par recording-tab.js, qui reçoit déjà toutes les notes.
+let midiTakeActive = false;
+
+function startMidiTake() {
+  midiTakeActive = true;
+  document.dispatchEvent(new CustomEvent('studio-take-start', {
+    detail: { trackName: currentTrack?.metadata?.name || '', position: getStudioCurrentTime() },
+  }));
+}
+
+function stopMidiTake() {
+  if (!midiTakeActive) return;
+  midiTakeActive = false;
+  document.dispatchEvent(new CustomEvent('studio-take-stop'));
+}
+
+// Prise sauvegardée (ou vide) : on le dit sous le message de la vidéo.
+document.addEventListener('studio-take-saved', (e) => {
+  const detail = e.detail || {};
+  let message = '';
+  if (detail.sessionId) message = `Jeu MIDI enregistré dans Session MIDI : « ${detail.name} » (${detail.noteCount} notes, ${detail.chordCount} accords).`;
+  else if (detail.error) message = `Jeu MIDI non enregistré : ${detail.error}`;
+  if (!message) return;
+  const previous = els.studioStatus?.textContent || '';
+  setStatus(previous && !previous.startsWith('Jeu MIDI') ? `${previous} — ${message}` : message);
+});
+
 function cleanupRecording() {
   isRecording = false;
+  stopMidiTake();
   if (screenRecordRecorder?.state !== 'inactive') {
     try { screenRecordRecorder?.stop(); } catch (_) {}
   }
@@ -594,6 +841,7 @@ function cleanupRecording() {
   }
 
   screenRecordChunks = [];
+  setRecordingMode(false);
   els.recordBtn?.classList.remove('recording');
   if (els.recordingIndicator) els.recordingIndicator.style.display = 'none';
 
@@ -717,8 +965,27 @@ function syncVideoAndCursor() {
 
       // On force un resync par currentTime si la dérive dépasse le seuil,
       // sinon on laisse la vidéo avancer à son propre rythme naturel.
-      if (absDrift > 0.15 || playerVideo.paused) {
-        playerVideo.currentTime = realTime;
+      // [Claude] — 2026-10-09 — « Micro-latences » de la vidéo : chaque recalage est un saut qui
+      // fige l'image le temps de décoder. Avant, on recalait à chaque image dès que la vidéo
+      // était en pause ou en train de sauter (seeking) — d'où des sauts en rafale, qui
+      // relançaient la dérive. Désormais : jamais pendant un saut, au plus un toutes les 0,8 s,
+      // et une vidéo arrêtée pendant la lecture est relancée au lieu d'être recalée en boucle.
+      const now = performance.now();
+      // Son relancé (saut, première transposition) mais pas encore audible : la vidéo attend,
+      // posée sur la bonne image, au lieu de partir devant puis d'être recalée.
+      const warmup = mixer?.hasStems() ? mixer.getWarmupRemaining() : 0;
+      if (warmup > 0) {
+        if (!playerVideo.paused) playerVideo.pause();
+        if (!playerVideo.seeking && Math.abs(drift) > 0.04) playerVideo.currentTime = realTime;
+      } else {
+        if (!playerVideo.seeking && now - lastVideoResyncAt > VIDEO_RESYNC_COOLDOWN_MS
+            && absDrift > VIDEO_DRIFT_TOLERANCE) {
+          playerVideo.currentTime = realTime;
+          lastVideoResyncAt = now;
+        }
+        if (playerVideo.paused && isPlaying && !playerVideo.ended) {
+          playerVideo.play().catch(() => {});
+        }
       }
       // Garder playbackRate à 1.0 en permanence pour éviter toute dérive induite.
       if (playerVideo.playbackRate !== 1.0) {
@@ -735,9 +1002,11 @@ function syncVideoAndCursor() {
       }
     }
 
-    // Affichage UI en temps absolu sur la timeline globale.
-    updateProgressUI(realTime, duration);
-    updatePlayhead(realTime, duration);
+    // Affichage UI en temps absolu sur la timeline globale (sauf pendant le glisser de la barre).
+    if (!isScrubbing) {
+      updateProgressUI(realTime, duration);
+      updatePlayhead(realTime, duration);
+    }
   } catch (e) {
     console.warn('[Studio] syncVideoAndCursor error:', e);
   }
@@ -768,36 +1037,101 @@ function bindStems() {
 // Les stems sont toujours chargés dans l'AudioContext partagé quand disponibles.
 
 const MAX_REGION_DURATION = 300; // 5 minutes maximum
+/** Marqueur de fin lâché : la lecture se place 3 s avant la fin de la région. */
+const END_PREVIEW_SECONDS = 3;
 
 function setCropControlsEnabled(enabled) {
   if (els.separateBtn) els.separateBtn.disabled = !enabled;
   console.log('[Studio] separate enabled:', enabled);
 }
 
+/**
+ * [Claude] — 2026-10-09 — Pendant le chargement d'un morceau ou le traitement d'une région, la
+ * région ne se touche pas (Narcisse : « pendant le traitement audio, les boutons Confirmer la
+ * région, Réinitialiser la région et Revenir à la timeline entière sont interactifs, ce qui
+ * n'est pas censé être le cas »). La barre de région passe au-dessus du voile de chargement.
+ */
+// [Claude] — 2026-10-13 — « Masquer l'onde » (Narcisse : pouvoir masquer la forme d'onde). Le choix
+// est gardé d'une ouverture à l'autre. À l'étape 1, la forme d'onde reste visible quoi qu'il arrive :
+// c'est sur elle qu'on trace la région (le bouton y est grisé).
+const WAVE_HIDDEN_KEY = 'pjc.studio.waveHidden';
+let waveHidden = false;
+function applyWaveHidden() {
+  const tab = document.getElementById('studio-tab');
+  tab?.classList.toggle('wave-hidden', waveHidden);
+  const btn = document.getElementById('studio-wave-toggle');
+  if (!btn) return;
+  btn.setAttribute('aria-pressed', String(waveHidden));
+  btn.title = waveHidden ? 'Afficher la forme d\'onde' : 'Masquer la forme d\'onde';
+  const label = btn.querySelector('span');
+  if (label) label.textContent = waveHidden ? 'Afficher l\'onde' : 'Masquer l\'onde';
+  btn.disabled = studioStage === 1;
+}
+function bindWaveToggle() {
+  try { waveHidden = localStorage.getItem(WAVE_HIDDEN_KEY) === '1'; } catch { /* stockage indisponible */ }
+  applyWaveHidden();
+  document.getElementById('studio-wave-toggle')?.addEventListener('click', () => {
+    waveHidden = !waveHidden;
+    try { localStorage.setItem(WAVE_HIDDEN_KEY, waveHidden ? '1' : '0'); } catch { /* idem */ }
+    applyWaveHidden();
+    // Réaffichée, la forme d'onde est redessinée à sa vraie taille (masquée, son canvas valait 0 px).
+    if (!waveHidden) setTimeout(() => { if (waveformData) renderWaveform(); }, 320);
+  });
+}
+
+function regionLocked() {
+  return isLoadingTrack || isProcessing;
+}
+
 function updateCropButtons() {
   if (!els.confirmRegionBtn || !els.backRegionBtn) return;
+  const locked = regionLocked();
   if (regionConfirmed) {
     els.confirmRegionBtn.style.display = 'none';
     els.confirmRegionBtn.disabled = true;
     els.backRegionBtn.style.display = 'inline-flex';
   } else if (regionEnd !== null) {
     els.confirmRegionBtn.style.display = 'inline-flex';
-    els.confirmRegionBtn.disabled = false;
+    els.confirmRegionBtn.disabled = locked;
     els.backRegionBtn.style.display = 'none';
   } else {
     els.confirmRegionBtn.style.display = 'inline-flex';
     els.confirmRegionBtn.disabled = true;
     els.backRegionBtn.style.display = 'none';
   }
+  els.backRegionBtn.disabled = locked;
+  if (els.resetRegionBtn) els.resetRegionBtn.disabled = locked;
+}
+
+// [Claude] — 2026-10-09 — Narcisse : « pour tous les fichiers de moins de 5 min, pas besoin de
+// demander de sélectionner une région à travailler : que la séparation se fasse directement ».
+// Une seule tentative automatique par morceau et par séance : si elle échoue, l'étape 1 reste
+// (« Confirmer la région » relance), sans relancer plusieurs minutes de calcul à chaque ouverture.
+const autoSeparationTried = new Set();
+
+async function separateShortTrackDirectly(trackId) {
+  if (!currentTrack || currentTrack.id !== trackId || regionConfirmed || regionLocked()) return;
+  const total = getTotalDuration();
+  if (!(total > 0 && total <= MAX_REGION_DURATION) || autoSeparationTried.has(trackId)) return;
+  const stemPaths = await getStems(trackId);
+  if (Object.values(stemPaths || {}).some(Boolean)) return;
+  if (!currentTrack || currentTrack.id !== trackId) return;
+  autoSeparationTried.add(trackId);
+  regionStart = 0;
+  regionEnd = total;
+  renderWaveform();
+  updateRegionUI();
+  confirmRegion();
 }
 
 function confirmRegion() {
-  if (regionEnd === null) return;
+  if (regionEnd === null || regionLocked()) return;
   // Lancer le traitement asynchrone de la région (extraction + séparation en tâche de fond)
   startRegionProcessing();
 }
 
 async function backRegion() {
+  if (regionLocked()) return;
   regionConfirmed = false;
   // Revenir au mode fichier entier : les stems séparés ne sont plus la source active.
   // On arrête tout et on recharge le fichier original pour que le son suive la nouvelle région.
@@ -827,6 +1161,7 @@ async function backRegion() {
 }
 
 async function resetRegion() {
+  if (regionLocked()) return;
   const totalDuration = getTotalDuration();
   regionStart = 0;
   // Réinitialiser la région à la plage maximale autorisée (5 min) par défaut,
@@ -895,6 +1230,8 @@ function bindWaveform() {
   }
 
   wrap.addEventListener('mousedown', (e) => {
+    // [Claude] — 2026-10-09 — Pas de région à modifier pendant un chargement ou un traitement.
+    if (regionLocked()) return;
     // ABSOLUTE TIMELINE : le clic sur la waveform modifie audio.currentTime de
     // manière absolue sur le fichier entier, sans jamais toucher aux limiteurs.
     const time = timeAtX(e.clientX);
@@ -919,9 +1256,10 @@ function bindWaveform() {
     const startX = getHandleX(regionStart);
     const endX = regionEnd !== null ? getHandleX(regionEnd) : rect.width;
 
-    if (Math.abs(x - startX) < 10) {
+    // Zone de prise élargie (12 px de part et d'autre) : le marqueur est fin.
+    if (Math.abs(x - startX) < 12) {
       isDraggingHandle = 'start';
-    } else if (Math.abs(x - endX) < 10) {
+    } else if (Math.abs(x - endX) < 12) {
       isDraggingHandle = 'end';
     } else {
       isDraggingHandle = null;
@@ -931,7 +1269,9 @@ function bindWaveform() {
 
   window.addEventListener('mousemove', (e) => {
     if (regionConfirmed) return;
-    if (!waveformData) return;
+    // [Claude] — 2026-10-09 — La région se trace dès que la durée est connue, même si la waveform
+    // n'a pas pu être dessinée (avant : sans waveform, aucune région possible — capture de Narcisse).
+    if (!getTotalDuration()) return;
     const rect = els.waveformWrap.getBoundingClientRect();
     const duration = getTotalDuration();
     const time = timeAtX(e.clientX);
@@ -980,21 +1320,48 @@ function bindWaveform() {
     updateCropButtons();
   });
 
+  // [Claude] — 2026-10-09 — Narcisse : « quand on choisit sa région, au lieu de déplacer le
+  // lecteur à la main pour se positionner pile sur le marqueur, que l'app le fasse ». Au lâcher :
+  // marqueur de début ou région déplacée → la lecture se place au début de la région ; marqueur
+  // de fin → 3 s avant la fin, pour entendre où la région s'arrête. Une lecture en cours continue
+  // de là.
   window.addEventListener('mouseup', () => {
     if (regionConfirmed) return;
     if (isDraggingHandle) {
+      const handle = isDraggingHandle;
       isDraggingHandle = null;
-      if (regionConfirmed && transpose !== 0) runPitchShift();
+      if (handle === 'end' && regionEnd !== null) seek(Math.max(regionStart, regionEnd - END_PREVIEW_SECONDS));
+      else seek(regionStart);
     }
     if (isDraggingRegion) {
       isDraggingRegion = false;
-      if (regionConfirmed && transpose !== 0) runPitchShift();
+      seek(regionStart);
     }
   });
 
-  wrap.addEventListener('dblclick', () => {
-    if (!regionConfirmed) resetRegion();
+  // [Claude] — 2026-10-09 — Plus de réinitialisation de la région au double-clic sur la waveform
+  // (Narcisse : « cela ne doit pas arriver ») ; le bouton ↺ reste là pour ça.
+
+  // Poignée du début de région, au-dessus de la waveform : un glisser qui commence dessus
+  // déplace le marqueur de début (même suite que le marqueur dans la waveform).
+  els.gripStart?.addEventListener('mousedown', (e) => {
+    if (regionLocked() || regionConfirmed || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isDraggingHandle = 'start';
   });
+
+  // [Claude] — 2026-10-09 — Une waveform dessinée pendant que son cadre est caché (chargement)
+  // garde une largeur de 1 px : on redessine dès que le cadre prend sa vraie taille.
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => {
+      waveformWidth = wrap.getBoundingClientRect().width;
+      if (!waveformWidth) return;
+      renderWaveform();
+      updateRegionUI();
+      updatePlayhead(getStudioCurrentTime(), getEffectiveDuration());
+    }).observe(wrap);
+  }
 }
 
 function getTotalDuration() {
@@ -1014,21 +1381,30 @@ function getTotalDuration() {
 }
 
 function getHandleX(time) {
-  if (!els.waveformWrap || !waveformData) return 0;
+  if (!els.waveformWrap) return 0;
   const rect = els.waveformWrap.getBoundingClientRect();
   const duration = getTotalDuration() || 1;
   return (time / duration) * rect.width;
 }
 
 function updateRegionUI() {
-  if (!els.region || !els.handleStart || !els.handleEnd || !waveformData) return;
+  if (!els.region || !els.handleStart || !els.handleEnd) return;
   const rect = els.waveformWrap.getBoundingClientRect();
   const duration = getTotalDuration();
+  // Waveform cachée (largeur nulle) ou durée inconnue : on attend, sinon les marqueurs
+  // s'empilent au bord gauche. Le ResizeObserver de bindWaveform redessine ensuite.
+  if (!rect.width || !duration) return;
   const startX = getHandleX(regionStart);
   const endX = regionEnd !== null ? getHandleX(regionEnd) : rect.width;
   els.region.style.left = `${startX}px`;
   els.region.style.width = `${Math.max(0, endX - startX)}px`;
 
+  if (els.gripStart) {
+    els.gripStart.style.display = regionConfirmed ? 'none' : '';
+    // Le rail a la largeur de la waveform ; on rattrape sa bordure (clientLeft). Au tout début,
+    // la flèche (16 px de large, centrée) serait à moitié coupée : on la garde entière.
+    els.gripStart.style.left = `${Math.max(8, startX + (els.waveformWrap.clientLeft || 0))}px`;
+  }
   if (regionConfirmed) {
     els.handleStart.style.display = 'none';
     els.handleEnd.style.display = 'none';
@@ -1058,11 +1434,14 @@ function updateRegionUI() {
 
 function updatePlayhead(current, duration) {
   if (!els.playhead || !duration) return;
-  const rect = els.waveformWrap?.getBoundingClientRect();
-  if (!rect || rect.width <= 0) return;
+  // [Claude] — 2026-10-09 — Appelée à chaque image : la largeur vient du ResizeObserver
+  // (getBoundingClientRect forçait un recalcul de mise en page de toute la fenêtre à chaque
+  // image, juste après l'écriture du temps affiché).
+  const width = waveformWidth || els.waveformWrap?.getBoundingClientRect().width || 0;
+  if (width <= 0) return;
   // ABSOLUTE TIMELINE : le curseur se déplace sur TOUTE la waveform globale.
   const pct = Math.max(0, Math.min(1, current / duration));
-  els.playhead.style.left = `${pct * rect.width}px`;
+  els.playhead.style.left = `${pct * width}px`;
 }
 
 function bindCropButtons() {
@@ -1098,7 +1477,7 @@ async function importFile() {
 
     if (!isSupportedFormat(filePath)) {
       setStatus('Format non supporté');
-      alert(`Format non supporté\n\nFormats acceptés : ${SUPPORTED_FORMATS.join(', ').toUpperCase()}`);
+      notify({ id: 'studio-format', tone: 'error', title: 'Format non supporté', message: `Formats acceptés : ${SUPPORTED_FORMATS.join(', ').toUpperCase()}`, duration: 10000 });
       return;
     }
 
@@ -1191,7 +1570,21 @@ async function refreshTrackList() {
   }
 }
 
+let selectedTrackId = null;
+
+/** Sélectionne une carte de « Musiques importées » (sans charger le morceau). */
+function selectLibraryTrack(id) {
+  selectedTrackId = selectedTrackId === id ? null : id;
+  for (const item of els.trackList?.querySelectorAll('.studio-track-item') || []) {
+    item.classList.toggle('is-selected', item.dataset.id === selectedTrackId);
+  }
+}
+
 function renderTrackList(tracks) {
+  setTimeout(updateCollapseCount, 0);
+  // La roue de l'accueil (étape 0) montre les mêmes morceaux ; ouverte, elle se met à jour sur place.
+  wheelItems = tracks.map((t) => ({ id: t.id, title: (t.metadata && t.metadata.name) || t.id }));
+  trackWheel?.setItems(wheelItems);
   if (!els.trackList) return;
   els.trackList.innerHTML = '';
 
@@ -1207,32 +1600,35 @@ function renderTrackList(tracks) {
 
     const metadata = track.metadata || {};
     const displayName = metadata.name || track.id;
-    const source = metadata.sourcePath ? metadata.sourcePath.split('/').pop() || metadata.sourcePath.split('\\').pop() : track.id;
-    const ext = metadata.sourcePath ? getFileExtension(metadata.sourcePath).toUpperCase() : '';
-
-    // La ligne de détail ne répète jamais le titre affiché juste au-dessus.
-    // Elle ne montre le nom du fichier source que s'il diffère réellement du
-    // titre — c'est-à-dire après un renommage. Sinon, format et durée suffisent.
-    const sourceDiffers = source && source !== displayName;
-    const metaLine = sourceDiffers
-      ? `${escapeHtml(source)} · ${formatDuration(metadata.duration || 0)}`
-      : `${ext ? `${ext} · ` : ''}${formatDuration(metadata.duration || 0)}`;
-
+    // [Claude] — 2026-10-14 — Plus de ligne grise « MP3 · 00:00 » sous le nom (Narcisse : « j'en ai marre
+    // de voir ça ») : le titre suffit.
     const info = document.createElement('div');
     info.className = 'studio-track-info';
     info.innerHTML = `
       <div class="studio-track-name">${escapeHtml(displayName)}</div>
-      <div class="studio-track-meta">${metaLine}</div>
     `;
-    info.addEventListener('click', () => loadTrack(track.id));
+    // [Claude] — 2026-10-14 — Un clic SÉLECTIONNE le morceau ; il ne le charge plus (un clic par mégarde
+    // changeait de morceau). Le bouton « Charger ce morceau » de la carte sélectionnée confirme.
+    item.dataset.id = track.id;
+    if (selectedTrackId === track.id) item.classList.add('is-selected');
+    info.tabIndex = 0;
+    info.addEventListener('click', () => selectLibraryTrack(track.id));
+    info.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectLibraryTrack(track.id); }
+    });
 
     const actions = document.createElement('div');
     actions.className = 'studio-track-actions';
     actions.innerHTML = `
+      <button class="studio-track-load" type="button">Charger ce morceau</button>
       <button class="studio-track-rename" title="Renommer">✏️</button>
       <button class="studio-track-delete" title="Supprimer">🗑️</button>
     `;
 
+    actions.querySelector('.studio-track-load').addEventListener('click', (e) => {
+      e.stopPropagation();
+      loadTrack(track.id);
+    });
     actions.querySelector('.studio-track-rename').addEventListener('click', (e) => {
       e.stopPropagation();
       handleRenameTrack(track.id, metadata.name || track.id);
@@ -1879,6 +2275,10 @@ function updateStudioStage(stage) {
     tab.classList.add(`stage-${stage}`);
   }
 
+  updateCropButtons();
+  applyWaveHidden();
+  updateExportButtons();
+
   if (els.stageOverlay) {
     // Masquer les instructions de ciblage tant que le morceau n'est pas chargé :
     // montrer les consignes "écoutez + tracez" pendant l'extraction donnerait
@@ -1892,14 +2292,16 @@ function updateStudioStage(stage) {
   if (els.processingOverlay && !isLoadingTrack) {
     els.processingOverlay.style.display = stage === 2 ? 'flex' : 'none';
   }
-  if (els.readyToast) {
-    els.readyToast.style.display = 'none';
-  }
+  // « Annuler » : seulement pour le traitement d'une région, pas pour le chargement du morceau
+  // (même voile).
+  if (els.processingCancel) els.processingCancel.hidden = !(stage === 2 && !isLoadingTrack);
 
   // Stage 0 : aucun morceau sélectionné. Seule la liste de tracks est visible.
   const stage0 = stage === 0;
   if (els.playerWrap) els.playerWrap.style.display = stage0 ? 'none' : '';
   if (els.waveformWrap) els.waveformWrap.style.display = stage0 ? 'none' : '';
+  if (els.handleRail) els.handleRail.style.display = stage0 ? 'none' : '';
+  if (els.gripStart && (stage0 || regionConfirmed)) els.gripStart.style.display = 'none';
   if (els.regionInfo) els.regionInfo.style.display = stage0 ? 'none' : '';
   if (els.studioCenter) els.studioCenter.style.display = stage0 ? 'none' : '';
   if (els.centerHeader) els.centerHeader.style.display = stage0 ? 'none' : '';
@@ -1918,10 +2320,6 @@ function updateStudioStage(stage) {
 
   // [Refonte v2/Global] — visibilité des zones spécifiques au skin.
   applyStudioSkinStageVisibility(getSkin(), stage);
-
-  if (stage === 3) {
-    showReadyToast();
-  }
 }
 
 let waveformProgressCleanup = null;
@@ -1981,12 +2379,22 @@ function failTrackLoading(message) {
   }
 }
 
-function showReadyToast() {
-  if (!els.readyToast) return;
-  els.readyToast.style.display = 'block';
-  setTimeout(() => {
-    if (els.readyToast) els.readyToast.style.display = 'none';
-  }, 4000);
+// [Claude] — 2026-10-13 — « Le morceau est prêt » : Narcisse l'a vu (1) trop tôt, pendant un
+// chargement, (2) deux fois, (3) seulement dans le Studio. Causes : l'ancien message partait à chaque
+// passage à l'étape 3 — refreshStems() y passe une fois, finishRegionProcessing() une seconde, et la
+// simple réouverture d'un morceau déjà séparé (pendant son chargement) aussi. Désormais il ne part
+// qu'une fois, à la vraie fin d'une séparation (pistes chargées, lecteur prêt), et c'est une
+// notification de l'application : visible depuis n'importe quel onglet, avec « Ouvrir le Studio »
+// quand on est ailleurs.
+function notifySeparationReady() {
+  const name = currentTrack?.metadata?.name || currentTrack?.id || 'Le morceau';
+  const inStudio = document.querySelector('.tab-btn[data-tab="studio"]')?.classList.contains('active');
+  notify({
+    id: 'studio-ready',
+    title: 'Pistes séparées',
+    message: `« ${name} » est prêt dans le Studio.`,
+    action: inStudio ? null : { label: 'Ouvrir le Studio', onClick: () => document.querySelector('.tab-btn[data-tab="studio"]')?.click() },
+  });
 }
 
 function setProcessingProgress(label, percent) {
@@ -2012,11 +2420,14 @@ async function startRegionProcessing() {
   const jobId = `job_${Date.now()}`;
   processingJobId = jobId;
   isProcessing = true;
+  updateCropButtons();
 
   try {
     // 1. Extraire la région audio (WAV) pour Demucs
     setProcessingProgress('Découpage de la région audio...', 10);
     const regionPath = await getRegionTrimmedPath();
+    // Annulé pendant le découpage : ne pas enregistrer la région comme confirmée.
+    if (processingJobId !== jobId) return;
 
     // 2. Sauvegarder la région dans les métadonnées
     await saveMetadata(currentTrack.id, {
@@ -2039,6 +2450,10 @@ async function startRegionProcessing() {
       },
     );
 
+    // [Claude] — 2026-10-09 — Une séparation qui échoue est dite, et le lecteur garde le son
+    // original (avant : des bips de 2 s remplaçaient les pistes, sans un mot).
+    if (!separationResult?.success) throw new Error(separationFailureText(separationResult));
+
     await refreshStems();
 
     if (processingJobId !== jobId) return;
@@ -2055,7 +2470,27 @@ async function startRegionProcessing() {
     setProcessingProgress(`Erreur : ${err.message}`, 0);
     setStatus(`Erreur de préparation : ${err.message}`);
     finishRegionProcessing(false);
+    // Hors du Studio, l'échec doit se voir aussi (le message d'erreur vit dans le Studio).
+    if (!document.querySelector('.tab-btn[data-tab="studio"]')?.classList.contains('active')) {
+      notify({
+        id: 'studio-ready', tone: 'error', title: 'Séparation interrompue',
+        message: err.message,
+        action: { label: 'Ouvrir le Studio', onClick: () => document.querySelector('.tab-btn[data-tab="studio"]')?.click() },
+      });
+    }
   }
+}
+
+/**
+ * [Claude] — 2026-10-09 — Pourquoi la séparation a échoué, en clair (la ligne d'erreur de
+ * Demucs suit).
+ */
+function separationFailureText(result) {
+  const detail = String(result?.error || '').trim();
+  if (/torchcodec/i.test(detail)) {
+    return `la séparation n'a pas pu enregistrer les pistes (torchaudio demande torchcodec). ${detail}`;
+  }
+  return detail ? `la séparation a échoué. ${detail}` : 'la séparation n\'a retourné aucune piste';
 }
 
 function finishRegionProcessing(success) {
@@ -2071,6 +2506,7 @@ function finishRegionProcessing(success) {
     updateProgressUI(regionStart, getEffectiveDuration());
     updatePlayhead(regionStart, getEffectiveDuration());
     if (transpose !== 0) runPitchShift();
+    notifySeparationReady();
   } else {
     updateStudioStage(1);
     regionConfirmed = false;
@@ -2078,14 +2514,33 @@ function finishRegionProcessing(success) {
   }
 }
 
-function cancelRegionProcessing() {
-  if (!isProcessing) return;
+// [Claude] — 2026-10-09 — Narcisse : « l'utilisateur peut vouloir se rétracter de son choix, mais
+// il doit attendre la longue fin du chargement… une option Annuler qui annule le chargement et
+// revient à l'étape de la sélection de région ». La séparation est arrêtée (Demucs tué), la région
+// tracée est gardée telle quelle, à modifier puis reconfirmer.
+async function cancelRegionProcessing() {
+  if (!isProcessing || !currentTrack) return;
+  const track = currentTrack;
   processingJobId = null;
   isProcessing = false;
-  updateStudioStage(1);
   regionConfirmed = false;
+  pendingRegion = null;
+  setProcessingProgress('', 0);
+  updateStudioStage(1);
+  updateRegionUI();
   updateCropButtons();
-  setStatus('Préparation annulée');
+  seek(regionStart);
+  setStatus('Préparation annulée : modifiez la région puis confirmez de nouveau.');
+  try {
+    await cancelSeparation(track.id);
+  } catch (err) {
+    console.warn('[Studio] cancelSeparation failed:', err);
+  }
+  // La région enregistrée redevient « à confirmer » (sinon, à la réouverture, elle serait
+  // restaurée comme confirmée).
+  const metadata = { ...track.metadata, region: { start: regionStart, end: regionEnd, confirmed: false } };
+  track.metadata = metadata;
+  try { await saveMetadata(track.id, metadata); } catch (err) { console.warn('[Studio] saveMetadata failed:', err); }
 }
 
 export async function loadTrack(trackId) {
@@ -2107,7 +2562,6 @@ export async function loadTrack(trackId) {
     }
     if (els.waveformWrap) els.waveformWrap.style.display = 'none';
     if (els.regionInfo) els.regionInfo.style.display = 'none';
-    if (els.readyToast) els.readyToast.style.display = 'none';
     const metadata = await loadMetadata(trackId);
     currentTrack = { id: trackId, metadata };
     trackName = metadata?.name || trackId;
@@ -2203,7 +2657,13 @@ export async function loadTrack(trackId) {
     if (metadata?.region?.confirmed) {
       regionStart = metadata.region.start;
       regionEnd = metadata.region.end;
-      regionConfirmed = true;
+      // [Claude] — 2026-10-09 — Sans pistes (séparation ratée, anciens bips écartés), la région
+      // gardée n'est plus « confirmée » : l'étape 1 propose de nouveau « Confirmer la région ».
+      // Avant, l'étape 1 s'ouvrait avec une région confirmée : « Confirmer » caché et « ↩ »
+      // grisé, impossible d'en sortir (capture de Narcisse).
+      const stemPaths = await getStems(trackId);
+      const hasStems = Object.values(stemPaths).some(Boolean);
+      regionConfirmed = hasStems;
       renderWaveform();
       updateRegionUI();
       updateCropButtons();
@@ -2211,8 +2671,6 @@ export async function loadTrack(trackId) {
       stop();
       seek(regionStart);
       // Si les stems existent déjà, on passe directement à l'étape 3
-      const stemPaths = await getStems(trackId);
-      const hasStems = Object.values(stemPaths).some(Boolean);
       if (hasStems) {
         updateStudioStage(3);
         setTransposeControlsEnabled(true);
@@ -2242,6 +2700,7 @@ export async function loadTrack(trackId) {
     await generateWaveformBlocking(wavPath, metadata?.originalPath);
 
     finishTrackLoading(trackName);
+    await separateShortTrackDirectly(trackId);
   } catch (err) {
     console.error('Failed to load track:', err);
     failTrackLoading(`Erreur de chargement : ${err.message}`);
@@ -2260,10 +2719,19 @@ export async function loadTrack(trackId) {
 // transport n'est débloqué que lorsque l'audio ET la waveform sont prêts.
 // Un timeout de 15s évite un blocage infini si le worker Python est coincé.
 async function generateWaveformBlocking(preferredWavPath, fallbackOriginalPath) {
-  if (!window.electronAPI?.studio?.generateWaveform) return;
-
   const trackId = currentTrack?.id;
   currentWaveformTrackId = trackId;
+
+  // [Claude] — 2026-10-09 — Narcisse : « bug au niveau de la waveform » (waveform vide sur un
+  // MP4 de 7:47, aucune région traçable). Le calcul passait uniquement par Python, coupé au bout
+  // de 15 s. Le son est déjà décodé pour la lecture : les crêtes en sont tirées tout de suite,
+  // sans Python ni délai. Python ne sert plus que si ce son décodé manque (M4A).
+  const decoded = peaksFromAudioBuffer(masterAudioBuffer);
+  if (decoded) {
+    applyWaveformData(decoded);
+    return;
+  }
+  if (!window.electronAPI?.studio?.generateWaveform) return;
 
   const cleanupProgress = () => {
     if (waveformProgressCleanup) {
@@ -2293,7 +2761,9 @@ async function generateWaveformBlocking(preferredWavPath, fallbackOriginalPath) 
 
   const timeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const data = await Promise.race([
-    (async () => tryGenerate(preferredWavPath) || await tryGenerate(fallbackOriginalPath))(),
+    // (await …) : avant, la promesse elle-même était « vraie » et le repli sur l'original
+    // ne se faisait jamais.
+    (async () => (await tryGenerate(preferredWavPath)) || await tryGenerate(fallbackOriginalPath))(),
     timeout(15000),
   ]);
   cleanupProgress();
@@ -2302,16 +2772,46 @@ async function generateWaveformBlocking(preferredWavPath, fallbackOriginalPath) 
   if (currentTrack?.id !== trackId || currentWaveformTrackId !== trackId) return;
 
   if (data) {
-    waveformData = data;
-    renderWaveform();
-    updateRegionUI();
-    updatePlayhead(getStudioCurrentTime(), getEffectiveDuration());
-    // Lot B — la waveform apporte souvent la durée avant le lecteur HTML5 :
-    // rafraîchir le timer dès que la waveform est prête.
-    refreshMediaDurationDisplay();
+    applyWaveformData(data);
   } else {
     console.warn('[Studio] waveform generation timed out or failed');
   }
+}
+
+function applyWaveformData(data) {
+  waveformData = data;
+  renderWaveform();
+  updateRegionUI();
+  updatePlayhead(getStudioCurrentTime(), getEffectiveDuration());
+  // Lot B — la waveform apporte souvent la durée avant le lecteur HTML5 :
+  // rafraîchir le timer dès que la waveform est prête.
+  refreshMediaDurationDisplay();
+}
+
+/**
+ * Crêtes de la waveform tirées d'un AudioBuffer déjà décodé : même forme que le calcul Python
+ * (`generate_waveform` d'audio-processor.py) — 400 crêtes, maximum absolu de chaque bloc.
+ */
+export function peaksFromAudioBuffer(buffer, numPeaks = 400) {
+  if (!buffer || !(buffer.length > 0) || !(buffer.numberOfChannels > 0)) return null;
+  const channels = [];
+  for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
+  const block = Math.max(1, Math.floor(buffer.length / numPeaks));
+  const peaks = [];
+  for (let i = 0; i < numPeaks; i++) {
+    const start = i * block;
+    const end = Math.min(start + block, buffer.length);
+    let peak = 0;
+    for (let j = start; j < end; j++) {
+      // Mono comme en Python : moyenne des canaux.
+      let sum = 0;
+      for (const data of channels) sum += data[j];
+      const v = Math.abs(sum / channels.length);
+      if (v > peak) peak = v;
+    }
+    peaks.push(Math.round(peak * 10000) / 10000);
+  }
+  return { duration: Math.round(buffer.duration * 1000) / 1000, peaks };
 }
 
 function renderWaveform() {
@@ -2388,7 +2888,7 @@ async function runPitchShift() {
       mixer.setDetune(transpose);
       if (els.transposeStatus) {
         els.transposeStatus.textContent = transpose !== 0
-          ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
+          ? `${transpose > 0 ? '+' : '−'}${Math.abs(transpose)} demi‑ton${Math.abs(transpose) > 1 ? 's' : ''}`
           : '';
       }
     } catch (err) {
@@ -2403,7 +2903,7 @@ async function runPitchShift() {
     await masterPlayer.setPitch(transpose);
     if (els.transposeStatus) {
       els.transposeStatus.textContent = transpose !== 0
-        ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
+        ? `${transpose > 0 ? '+' : '−'}${Math.abs(transpose)} demi‑ton${Math.abs(transpose) > 1 ? 's' : ''}`
         : '';
     }
   }
@@ -2502,8 +3002,10 @@ export async function play() {
     // Convertir le temps absolu en temps local dans la région extraite.
     const localTime = Math.max(0, Math.min(getRegionDuration(), resumeTime - regionStart));
     mixer.seek(localTime);
-    mixer.play();
+    // [Claude] — 2026-10-09 — Transposition posée AVANT de lancer : avant, setDetune relançait
+    // aussitôt toutes les pistes (un deuxième départ, et un trou, à chaque Play).
     if (transpose !== 0) mixer.setDetune(transpose);
+    mixer.play();
   } else if (html5Audio) {
     // Le seek HTML5 audio est asynchrone : on attend explicitement avant de lancer play().
     html5Audio.volume = dbToGain(Number(els.volume?.value) || 0);
@@ -2601,6 +3103,7 @@ async function refreshStems() {
   if (hasStems) {
     storeOriginalStems(blobUrls, stemPaths);
     await mixer.loadStems(stemPaths);
+    updateExportButtons();
     if (transpose !== 0) mixer.setDetune(transpose);
     // Si la région était déjà confirmée, on passe automatiquement à l'étape 3
     if (regionConfirmed && studioStage !== 3) {
@@ -2615,8 +3118,13 @@ async function refreshStems() {
 }
 
 function updateSeparateButton(hasStems) {
-  const globalText = hasStems ? 'Réanalyser le fichier' : '🎚 Séparer les pistes';
-  const v2Text = hasStems ? 'Réanalyser le fichier' : '🎚 Séparer les pistes';
+  // [Claude] — 2026-10-13 — Une fois les pistes là, « Réanalyser le fichier » était en tête du panneau
+  // (Atelier) ou dans l'en-tête du lecteur (Scène) : la place d'une action principale, pour une
+  // action rare. Il devient « Refaire la séparation », discret, sous la liste des pistes, au même
+  // endroit dans les deux habillages (studio.css : .studio-separate-done). Avant la séparation, le
+  // bouton « Séparer les pistes » garde sa place d'action principale.
+  const globalText = hasStems ? '↻ Refaire la séparation' : '🎚 Séparer les pistes';
+  const v2Text = globalText;
   const title = hasStems
     ? 'Relancer la séparation des pistes à partir du fichier original'
     : 'Séparer les pistes (basse, batterie, voix, autres, piano) avec Demucs';
@@ -2733,6 +3241,111 @@ function formatDb(db) {
 }
 
 
+// ── Export (studio-export.js) ──────────────────────────────────────────────
+let exportBusy = false;
+function updateExportButtons() {
+  const wav = document.getElementById('studio-export-wav-btn');
+  const midi = document.getElementById('studio-export-midi-btn');
+  const ready = Boolean(currentTrack) && studioStage >= 1 && !isLoadingTrack && !isProcessing && !exportBusy;
+  if (wav) wav.disabled = !(ready && (mixer?.hasStems?.() || masterAudioBuffer));
+  if (midi) midi.disabled = !(ready && window.electronAPI?.pedagogie?.transcribePiano);
+}
+
+function exportFailed(title, err) {
+  console.error(`[Studio] ${title}`, err);
+  notify({ id: 'studio-export', tone: 'error', title, message: err?.message || String(err || '') });
+}
+
+async function withExportBusy(button, label, task) {
+  const original = button?.textContent;
+  exportBusy = true;
+  updateExportButtons();
+  if (button) button.textContent = label;
+  try { await task(); } finally {
+    exportBusy = false;
+    if (button) button.textContent = original;
+    updateExportButtons();
+  }
+}
+
+async function exportMixWav() {
+  const files = window.electronAPI?.files;
+  if (!currentTrack || !files?.saveDialog || !files?.writeBinary) return;
+  const name = currentTrack.metadata?.name || currentTrack.id;
+  const target = await files.saveDialog({
+    defaultPath: exportFileName(name, transpose ? `mixage ${transpose > 0 ? '+' : ''}${transpose}` : 'mixage', 'wav'),
+    filters: [{ name: 'Fichier WAV', extensions: ['wav'] }],
+  });
+  if (!target) return;
+  await withExportBusy(document.getElementById('studio-export-wav-btn'), 'Export en cours…', async () => {
+    try {
+      const masterDb = Number(els.volume?.value) || 0;
+      let sources;
+      let duration;
+      if (mixer?.hasStems?.()) {
+        const buffers = mixer.getSources();
+        const state = mixer.getState();
+        sources = Object.entries(buffers).map(([stem, buffer]) => ({ buffer, gain: effectiveGain(stem, state, masterDb) }));
+        duration = Math.max(...Object.values(buffers).map((b) => b.duration));
+      } else if (masterAudioBuffer) {
+        const start = regionEnd !== null ? regionStart : 0;
+        const end = regionEnd !== null ? regionEnd : masterAudioBuffer.duration;
+        sources = [{ buffer: masterAudioBuffer, gain: 10 ** (masterDb / 20), offset: start }];
+        duration = Math.max(0.1, end - start);
+      } else {
+        throw new Error('aucun son chargé');
+      }
+      if (!sources.some((src) => src.gain > 0)) throw new Error('toutes les pistes sont coupées');
+      const { channels, sampleRate, transposed } = await renderMix({ sources, duration, transpose, createPitchShifter });
+      await files.writeBinary(target, encodeWav(channels, sampleRate));
+      notify({
+        id: 'studio-export',
+        title: 'Mixage exporté',
+        message: transpose && !transposed
+          ? `${target} — sans la transposition (indisponible à l'export sur cet ordinateur).`
+          : target,
+      });
+    } catch (err) {
+      exportFailed('Export du mixage impossible', err);
+    }
+  });
+}
+
+async function exportPianoMidi() {
+  const files = window.electronAPI?.files;
+  const transcribe = window.electronAPI?.pedagogie?.transcribePiano;
+  if (!currentTrack || !files?.saveDialog || !files?.writeBinary || !transcribe) return;
+  const name = currentTrack.metadata?.name || currentTrack.id;
+  const target = await files.saveDialog({
+    defaultPath: exportFileName(name, 'piano', 'mid'),
+    filters: [{ name: 'Fichier MIDI', extensions: ['mid', 'midi'] }],
+  });
+  if (!target) return;
+  await withExportBusy(document.getElementById('studio-export-midi-btn'), 'Transcription du piano…', async () => {
+    try {
+      // La piste piano séparée si elle existe (déjà limitée à la région) ; sinon le son du morceau,
+      // dont on ne garde que la région.
+      const pianoStem = originalStemsPaths?.piano || null;
+      const source = pianoStem || audioWavPath || currentTrack.metadata?.originalPath;
+      const range = pianoStem ? {} : { from: regionEnd !== null ? regionStart : 0, to: regionEnd };
+      if (!source) throw new Error('fichier introuvable');
+      const result = await transcribe(source);
+      if (!result?.available) {
+        throw new Error(result?.reason === 'dependency-missing'
+          ? `la transcription du piano demande des modules Python qui manquent (${result.detail || 'piano_transcription_inference, torch, librosa'}).`
+          : (result?.detail || 'la transcription a échoué'));
+      }
+      const events = transcriptionToEvents(result.notes, { shift: transpose, pedals: result.pedals, ...range });
+      const count = events.filter((e) => e.type === 'note_on').length;
+      if (!count) throw new Error(pianoStem ? 'aucune note trouvée dans la piste piano' : 'aucune note de piano trouvée');
+      await files.writeBinary(target, buildMidiFile(events, { name: `${name} — piano` }));
+      notify({ id: 'studio-export', title: 'Piano exporté en MIDI', message: `${count} notes${pianoStem ? '' : ' (morceau entier, sans séparation)'} — ${target}` });
+    } catch (err) {
+      exportFailed('Export MIDI impossible', err);
+    }
+  });
+}
+
 async function getRegionTrimmedPath() {
   if (regionEnd === null || !currentTrack) return currentTrack.metadata?.originalPath;
   try {
@@ -2782,9 +3395,9 @@ async function runSeparation() {
     );
 
     // Ne re-router l'audio que si la séparation a réussi (succès explicite ou simulation).
-    const succeeded = result && (result.success === true || result.simulated === true || Object.values(result).some(Boolean));
-    if (!succeeded) {
-      throw new Error('La séparation n\'a retourné aucune piste');
+    // [Claude] — 2026-10-09 — Un message d'erreur n'est pas un succès.
+    if (result?.success !== true) {
+      throw new Error(separationFailureText(result));
     }
 
     els.separateStatus.textContent = result.simulated ? 'Pistes simulées (Demucs non installé)' : 'Séparation terminée';

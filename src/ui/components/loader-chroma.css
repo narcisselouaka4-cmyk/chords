@@ -1,0 +1,143 @@
+/* =========================================================================
+   ÉCRAN D'ATTENTE COMMUN — ANALYSEUR DE CHROMA EN PERSPECTIVE
+   [Refonte 02/10]
+
+   Voir src/ui/components/loader-chroma.js pour le pourquoi et le markup.
+   Les couleurs viennent des variables de thème globales (--r-*), pas de celles
+   d'un onglet : la même scène sert à l'Analyse, au Studio, et à ce qui viendra.
+   ========================================================================= */
+.pjc-chroma-stage {
+  width: 268px;
+  height: 132px;
+  display: grid;
+  place-items: center;
+  perspective: 900px;
+  perspective-origin: 50% 46%;
+}
+
+.pjc-chroma-grid {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 7px;
+  width: 232px;
+  height: 92px;
+  transform-style: preserve-3d;
+  transform: rotateY(-17deg) rotateX(11deg);
+}
+
+/* Le sol : la lueur que les colonnes posent sous elles. Reculé d'un cran en
+   profondeur, il attrape la perspective de la scène et leur donne un appui —
+   sans lui, elles flottent et la rotation ne se lit pas. */
+.pjc-chroma-floor {
+  position: absolute;
+  left: -24%;
+  right: -24%;
+  bottom: -26px;
+  height: 56px;
+  transform: translateZ(-24px);
+  background: radial-gradient(
+    ellipse 52% 50% at 50% 42%,
+    color-mix(in srgb, var(--r-accent) 45%, transparent),
+    transparent 72%
+  );
+  opacity: 0.6;
+  filter: blur(3px);
+  pointer-events: none;
+}
+
+/* Une colonne = un demi-ton. Le fond est la graduation éteinte, le <i> la part
+   allumée : des segments de même taille dans les deux, pour que la découpe en
+   escalier reste nette quelle que soit la hauteur. */
+.pjc-chroma-col {
+  position: relative;
+  width: 15px;
+  height: 100%;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    to top,
+    var(--r-surface-raised) 0 5px,
+    transparent 5px 8px
+  );
+}
+
+.pjc-chroma-col.is-sharp {
+  width: 9px;
+  background: repeating-linear-gradient(
+    to top,
+    var(--r-surface-chip) 0 5px,
+    transparent 5px 8px
+  );
+}
+
+.pjc-chroma-col i {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    to top,
+    var(--r-accent) 0 5px,
+    transparent 5px 8px
+  );
+  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--r-accent) 55%, transparent);
+  /* clip-path plutôt qu'une hauteur animée : les segments gardent leur taille
+     au lieu de s'étirer, et rien ne refait de mise en page à chaque image. */
+  clip-path: inset(84% 0 0 0);
+  animation: pjc-chroma-rise 2.1s cubic-bezier(0.45, 0, 0.3, 1) infinite alternate;
+  /* Décalage négatif : les douze colonnes démarrent déjà en mouvement, à des
+     hauteurs différentes — une rampe synchronisée ferait « barre de
+     progression », pas « analyse ». */
+  animation-delay: calc(var(--i) * -0.19s);
+}
+
+.pjc-chroma-col.is-sharp i {
+  background: repeating-linear-gradient(
+    to top,
+    color-mix(in srgb, var(--r-accent) 72%, #ffffff) 0 5px,
+    transparent 5px 8px
+  );
+  animation-duration: 1.6s;
+}
+
+@keyframes pjc-chroma-rise {
+  from { clip-path: inset(88% 0 0 0); }
+  to   { clip-path: inset(14% 0 0 0); }
+}
+
+/* La tête de lecture qui avance dans le morceau. */
+.pjc-chroma-scan {
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  left: -6px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--r-accent) 85%, #ffffff) 22%,
+    color-mix(in srgb, var(--r-accent) 85%, #ffffff) 78%,
+    transparent
+  );
+  box-shadow: 0 0 20px 3px color-mix(in srgb, var(--r-accent) 45%, transparent);
+  animation: pjc-chroma-sweep 3.4s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes pjc-chroma-sweep {
+  0%        { transform: translateX(0); opacity: 0; }
+  12%, 88%  { opacity: 1; }
+  100%      { transform: translateX(244px); opacity: 0; }
+}
+
+/* Mouvement réduit : on garde la scène et la lecture de l'état, on retire le
+   balayage et on fige les colonnes à une hauteur plausible. */
+@media (prefers-reduced-motion: reduce) {
+  .pjc-chroma-col i {
+    animation: none;
+    clip-path: inset(46% 0 0 0);
+  }
+  .pjc-chroma-col:nth-child(odd) i { clip-path: inset(28% 0 0 0); }
+  .pjc-chroma-scan { animation: none; opacity: 0.35; transform: translateX(118px); }
+}

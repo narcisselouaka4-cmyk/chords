@@ -14,6 +14,14 @@ import { detectChord } from '../chord-engine/index.js';
 import { chordName, slashName, formatNoteList } from '../chord-engine/naming.js';
 
 /**
+ * [Claude] — 2026-09-25 — Nom d'accord sans balises HTML
+ * (« F#7<span class="flat">♭</span>13 » → « F#7♭13 »).
+ */
+export function plainText(label) {
+  return String(label ?? '').replace(/<[^>]*>/g, '');
+}
+
+/**
  * Nomme un jeu de notes MIDI.
  *
  * @param {number[]} midis
@@ -46,9 +54,12 @@ export function labelNotes(midis, options = {}) {
     };
   }
 
-  const label = chord.isSlash
+  // [Claude] — 2026-09-25 — Texte simple : chordName() écrit les altérations en
+  // HTML (<span class="flat">♭</span>) pour d'autres écrans ; ici le nom est
+  // affiché en texte (la grille montrait les balises) et envoyé au Copilote.
+  const label = plainText(chord.isSlash
     ? slashName(chord.rootPc, chord.symbol, chord.bassPc, latin)
-    : chordName(chord.rootPc, chord.symbol, latin);
+    : chordName(chord.rootPc, chord.symbol, latin));
 
   // Une quinte à vide n'est pas une erreur de lecture : c'est ce qui est
   // réellement joué à cet endroit. On le signale plutôt que de compléter la

@@ -37,6 +37,17 @@ function semitonesToPitchRatio(semitones) {
 
 export async function createPitchShifter(audioCtx, destinationNode, semitones = 0) {
   await ensureWorkletRegistered(audioCtx);
+  return createPitchShifterNow(audioCtx, destinationNode, semitones);
+}
+
+/**
+ * [Claude] — 2026-10-09 — Même chose, sans attendre : le processeur doit déjà être enregistré
+ * pour ce contexte (un premier createPitchShifter l'a fait). Sert à remplacer le nœud au vol :
+ * SoundTouch n'a aucun moyen de vider ses tampons (`clear()` n'existe pas dans
+ * @soundtouchjs/audio-worklet 2.x), et après un saut il rejouait ~0,13 s de l'ancien son.
+ */
+export function createPitchShifterNow(audioCtx, destinationNode, semitones = 0) {
+  if (!registeredContexts.has(audioCtx)) throw new Error('SoundTouch non enregistré pour ce contexte');
   const stNode = new SoundTouchNode({ context: audioCtx });
 
   // Verrouillage STRICT du tempo et du rate sur 1.0.

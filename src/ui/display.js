@@ -1,47 +1,50 @@
-import { chordName, slashName, formatNoteList, inversionName } from '../chord-engine/naming.js';
-import { getVoicingLabel, getAlias } from '../chord-engine/voicing.js';
+import { formatNoteList, inversionName, jazzChordName } from '../chord-engine/naming.js';
+import { getVoicingLabel } from '../chord-engine/voicing.js';
+import { renderLiveReading, clearLiveReading } from './live-reading.js';
+import { renderLiveStaff, clearLiveStaff } from './live-staff.js';
+
+// [Claude] — 2026-10-02 — Temps réel : la « Lecture en direct » (roue des 12 notes,
+// lectures à droite ; src/ui/live-reading.js) remplace l'affichage d'avant. Les
+// identifiants restent : #chord-name porte le nom (le miroir du clavier le lit),
+// #notes-display les notes (masqué : la roue les montre), #chord-detail, les
+// étiquettes de voicing et d'alias (masquées : voir les lectures et « Aussi »).
+// Nom à la manière jazz (B♭7, D/F♯) ; une note : « Do4 » ; deux notes :
+// l'intervalle (« Tierce mineure ») plutôt qu'un faux accord majeur.
 
 export function updateDisplay(els, result, notes, latin = false) {
   if (!result) {
-    clearDisplay(els);
+    clearDisplay(els, latin);
     return;
   }
 
-  const { rootPc, symbol, fullName, bassPc, isSlash, inversion, confidence, rootless, voicing } = result;
-  const displayName = rootless
-    ? chordName(rootPc, symbol, latin)
-    : isSlash
-      ? slashName(rootPc, symbol, bassPc, latin)
-      : chordName(rootPc, symbol, latin);
+  const { rootPc, voicing } = result;
+  const view = renderLiveReading(notes, result, latin);
+  // [Claude] — 2026-10-02 — La portée (3e notation) suit les mêmes notes.
+  renderLiveStaff(notes, result);
+  const displayName = view.titleIsChord ? jazzChordName(result, latin) : escapeHtml(view.title);
 
   els.chordName.innerHTML = displayName || '—';
   els.chordName.classList.remove('chord-name-empty');
+  els.chordName.classList.toggle('is-label', !view.titleIsChord);
   if (els.chordDisplay) els.chordDisplay.classList.remove('is-empty');
 
-  const detailParts = [];
-  if (fullName && displayName !== fullName) detailParts.push(fullName);
-  detailParts.push(inversionName(inversion));
+  els.chordDetail.textContent = view.titleIsChord ? `${view.quality} — ${view.position}` : view.quality;
 
-
-  els.chordDetail.textContent = detailParts.join(' — ');
-
-  const notePills = formatNoteList(notes.map((n) => n % 12), latin)
-    .map((name) => `<span class="note-pill">${name}</span>`)
+  // Notes entendues, avec leur orthographe dans l'accord (le miroir du clavier les lit).
+  els.notesDisplay.innerHTML = [...view.wheel.names.values()]
+    .map((name) => `<span class="note-pill">${escapeHtml(name)}</span>`)
     .join('');
-  els.notesDisplay.innerHTML = notePills;
 
-  // Voicing label and alias
   const voicingLabel = els.voicingLabel;
   const aliasLabel = els.aliasLabel;
   if (voicingLabel) {
-    const label = getVoicingLabel(voicing);
+    const label = view.voicing !== '—' ? view.voicing : getVoicingLabel(voicing);
     voicingLabel.textContent = label || '';
     voicingLabel.style.display = label ? 'inline-flex' : 'none';
   }
   if (aliasLabel) {
-    const alias = getAlias(symbol);
-    aliasLabel.textContent = alias ? `aussi : ${alias}` : '';
-    aliasLabel.style.display = alias ? 'inline-flex' : 'none';
+    aliasLabel.textContent = view.also.length ? `aussi : ${view.also[0]}` : '';
+    aliasLabel.style.display = view.also.length ? 'inline-flex' : 'none';
   }
 
   // [OpenCode] — 2026-08-05 — Nouveau format compact du panneau Techniques
@@ -49,7 +52,9 @@ export function updateDisplay(els, result, notes, latin = false) {
 
   // Mark tonic on keyboard
   document.querySelectorAll('.tonic').forEach((el) => el.classList.remove('tonic'));
-  document.getElementById(`note-${findTonicMidi(notes, rootPc)}`)?.classList.add('tonic');
+  if (view.titleIsChord && !result.rootless) {
+    document.getElementById(`note-${findTonicMidi(notes, rootPc)}`)?.classList.add('tonic');
+  }
 }
 
 function buildTechniquesHtml(result, notes, latin) {
@@ -57,10 +62,7 @@ function buildTechniquesHtml(result, notes, latin) {
     return '<p>Jouez des notes pour voir les techniques...</p>';
   }
 
-  const { rootPc, symbol, fullName, inversion, bassPc, isSlash, voicing } = result;
-  const name = isSlash
-    ? slashName(rootPc, symbol, bassPc, latin)
-    : chordName(rootPc, symbol, latin);
+  const { inversion, voicing } = result;
 
   const sections = [];
 
@@ -125,10 +127,13 @@ function findTonicMidi(notes, rootPc) {
   return sorted[0];
 }
 
-export function clearDisplay(els) {
+export function clearDisplay(els, latin = false) {
   // [OpenCode] — 2026-08-05 — État vide : pas de faux titre, pas de barre noire.
+  clearLiveReading(latin);
+  clearLiveStaff();
   els.chordName.innerHTML = '';
   els.chordName.classList.add('chord-name-empty');
+  els.chordName.classList.remove('is-label');
   if (els.chordDisplay) els.chordDisplay.classList.add('is-empty');
   els.chordDetail.textContent = '';
   if (els.voicingLabel) els.voicingLabel.style.display = 'none';

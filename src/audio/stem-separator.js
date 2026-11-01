@@ -22,6 +22,13 @@ export async function separateStems(trackId, originalPath, onProgress) {
   return await api.studio.separate(trackId, originalPath);
 }
 
+/** Arrête la séparation en cours de ce morceau (Demucs est tué). */
+export async function cancelSeparation(trackId) {
+  const api = getElectronAPI();
+  if (!api?.studio?.cancelSeparation) return false;
+  return await api.studio.cancelSeparation(trackId);
+}
+
 export async function isSeparated(trackId) {
   const api = getElectronAPI();
   if (!api?.studio?.isSeparated) return false;

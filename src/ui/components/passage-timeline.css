@@ -1,0 +1,134 @@
+/* [Claude] — 2026-10-14 — La barre du passage (Pédagogie IA) : src/ui/components/passage-timeline.js.
+   Une barre nue : la région du Copilote (comme dans le Studio) et la tête de lecture. Plus de bandes
+   dessinées dedans depuis le 16/10/2026 (ni étapes, ni chapitres, ni accords).
+   Jetons --tr-* : sombre et clair. */
+
+.passage-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  user-select: none;
+}
+
+.passage-timeline-track {
+  position: relative;
+  height: 46px;
+  border-radius: 10px;
+  background: var(--tr-inset);
+  border: 1px solid var(--tr-border);
+  cursor: crosshair;
+  touch-action: none;
+  overflow: visible;
+}
+
+/* Les étapes : des bandes posées sur le bas de la barre. */
+/* Un tuto lu au son (pas de guide) : ses accords, en bandes neutres. */
+/* Les chapitres d'un tuto : de gros segments, le titre écrit dedans (15/10/2026). */
+/* Sans région : le reflet des 30 dernières secondes. */
+.passage-timeline-follow {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--tr-accent) 12%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--tr-accent) 55%, transparent);
+  pointer-events: none;
+  transition: left .25s linear, width .25s linear;
+}
+.passage-timeline-follow[hidden] { display: none; }
+
+/* La région du Copilote. */
+.passage-timeline-region {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tr-accent) 22%, transparent);
+  border: 2px solid var(--tr-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tr-accent) 16%, transparent);
+  cursor: grab;
+  z-index: 2;
+}
+.passage-timeline-region[hidden] { display: none; }
+.passage-timeline.is-dragging .passage-timeline-region { cursor: grabbing; }
+.passage-timeline-region.is-new { animation: passage-region-in .55s cubic-bezier(.2, .9, .25, 1.15); }
+@keyframes passage-region-in {
+  0% { transform: scaleY(.35); opacity: .2; box-shadow: 0 0 0 0 color-mix(in srgb, var(--tr-accent) 60%, transparent); }
+  60% { transform: scaleY(1.08); opacity: 1; box-shadow: 0 0 0 10px color-mix(in srgb, var(--tr-accent) 0%, transparent); }
+  100% { transform: scaleY(1); }
+}
+.passage-timeline-region-label {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  transition: transform .2s;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tr-accent);
+  color: var(--tr-button-text, #fff);
+  font-family: var(--tr-mono);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.passage-timeline-region.is-near-start .passage-timeline-region-label { left: 0; transform: none; }
+.passage-timeline-region.is-near-end .passage-timeline-region-label { left: auto; right: 0; transform: none; }
+.passage-timeline-handle {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 26px;
+  margin-top: -13px;
+  padding: 0;
+  border: 2px solid var(--tr-surface);
+  border-radius: 6px;
+  background: var(--tr-accent);
+  cursor: ew-resize;
+  z-index: 3;
+}
+/* Hors de la région : une région étroite (quelques secondes d'une longue vidéo) garde ses deux poignées. */
+.passage-timeline-handle.is-start { left: -13px; }
+.passage-timeline-handle.is-end { right: -13px; }
+.passage-timeline-handle:hover { transform: scaleY(1.12); }
+.passage-timeline-handle:focus-visible { outline: 2px solid var(--tr-text); outline-offset: 2px; }
+
+.passage-timeline-playhead {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--tr-text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tr-bg) 70%, transparent);
+  pointer-events: none;
+  z-index: 4;
+  transition: left .25s linear;
+}
+.passage-timeline.is-dragging .passage-timeline-playhead { transition: none; }
+.passage-timeline-ghost {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--tr-text) 45%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+.passage-timeline-ghost[hidden] { display: none; }
+
+.passage-timeline-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--tr-muted);
+  font-family: var(--tr-mono);
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .passage-timeline-region.is-new { animation: none; }
+  .passage-timeline-playhead,
+  .passage-timeline-follow { transition: none; }
+}

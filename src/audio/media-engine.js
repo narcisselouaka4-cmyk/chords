@@ -35,6 +35,14 @@ export async function selectAudioFile() {
   return window.electronAPI.studio.selectAudioFile();
 }
 
+/** Onglet Analyse : un fichier audio (MP3, WAV, M4A) ou une vidéo MP4. */
+export async function selectAnalysisFile() {
+  if (!window.electronAPI?.studio?.selectAnalysisFile) {
+    throw new Error('Sélection de fichier non disponible');
+  }
+  return window.electronAPI.studio.selectAnalysisFile();
+}
+
 export async function selectVideoFile() {
   if (!window.electronAPI?.studio?.selectVideoFile) {
     throw new Error('Sélection de fichier vidéo non disponible');

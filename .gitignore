@@ -28,3 +28,7 @@ tests/corpus/b5/*.wav
 # outils de développement, réinstallables — voir CLAUDE.md § Outils de design.
 .claude/skills/
 apikeys
+
+# Environnement Python local et cache pytest.
+.venv/
+.pytest_cache/

@@ -11,7 +11,7 @@ from collections import defaultdict
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYTHON = os.path.join(PROJECT, '.venv', 'bin', 'python')
 AUDIO_PROC = os.path.join(PROJECT, 'electron', 'audio-processor.py')
-REPORT = os.path.join(PROJECT, 'COMPARAISON_REELLES.md')
+REPORT = os.path.join(PROJECT, 'docs', 'rapports', 'COMPARAISON_REELLES.md')
 OUT_DIR = os.path.join(PROJECT, 'tests', 'audio', 'reelles_comparison')
 os.makedirs(OUT_DIR, exist_ok=True)
 

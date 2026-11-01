@@ -275,7 +275,7 @@ export function openPicker(anchor) {
   pickerEl.className = 'onboarding-picker';
   pickerEl.setAttribute('role', 'menu');
   pickerEl.innerHTML = `
-    <div class="onboarding-picker-title">Tutoriel</div>
+    <div class="onboarding-picker-title">Didacticiel</div>
     ${CHAPTERS.map((chapter) => `
       <button type="button" class="onboarding-picker-item" data-chapter="${chapter.id}" role="menuitem">
         <span class="onboarding-picker-name">${chapter.title}</span>
