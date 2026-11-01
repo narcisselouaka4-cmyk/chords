@@ -54,6 +54,7 @@ import { applyTutorialPassage, progressionFromDegrees, parseKey } from './tutori
 import { parseTutorialRequest } from './tutorial-questions.js';
 import { structureLines, structureMomentLines } from './song-structure.js';
 import { lineMoves, movesLines } from './melodic-moves.js';
+import { teacherVoicingLines } from './teacher-voicings.js';
 import { buildScaleNotes, resolveScaleRequest, scaleTheoryAnswer, SCALE_DEFINITIONS } from './copilot-scale.js';
 import { sourceTransferRequest, transferFollowup, insertionFollowup } from './source-transfer.js';
 import { tutorialEvidence, evidenceLines, tutorialMeaningAnswer, tutorialPlayback, tutorialConversation } from './tutorial-evidence.js';
@@ -1302,6 +1303,12 @@ function formatContext(context, options = {}) {
     // mouvement pour arriver à une destination, ou pour remplacer un accord structurel »).
     if (context?.moment && context?.noteEvents?.length) {
       lines.push(...movesLines(lineMoves({ notes: context.noteEvents, chords: context.chords, structure: context.structure, start: context.moment.start, end: context.moment.end })));
+      // [Claude] — 2026-11-01 — Narcisse : « j'aimerais comprendre ce que joue le prof dans sa
+      // cover […] les inner voicings, les mouvements entre deux accords principaux, les voicings
+      // et le voice leading ». Les rôles de chaque voicing et la conduite des voix sont calculés
+      // par l'application (teacher-voicings.js) au lieu d'être laissés à la déduction du modèle
+      // sur des noms de notes bruts — il s'en tirait de façon vague, et parfois fausse.
+      lines.push(...teacherVoicingLines({ notes: context.noteEvents, chords: context.chords, start: context.moment.start, end: context.moment.end }));
     }
 
     if (context?.transcript?.length) {
