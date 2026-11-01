@@ -372,22 +372,22 @@ function cancelChooserOnEscape(e) {
   chooserTrigger?.focus();
 }
 
-/** Une étiquette prépare une demande réversible ; seul Envoyer la transmet. */
-function prepareAction(message, trigger) {
+/**
+ * Une étiquette écrit sa demande dans la case, et c'est tout : c'est le pianiste qui
+ * l'envoie, telle quelle ou après l'avoir complétée.
+ * [Claude] — 2026-11-01 — Avant, un encart « Tu peux modifier la demande avant de l'envoyer »
+ * s'ouvrait avec Envoyer / Annuler. Narcisse : « cette fenêtre-là n'a rien à faire là […]
+ * j'appuie sur Rejoue ce passage, il me l'écrit simplement dans ma barre, et puis moi je
+ * décide ». L'encart disait ce que la case montrait déjà, et ajoutait un clic.
+ * Le curseur va en fin de texte : compléter la demande ne demande rien de plus.
+ */
+function prepareAction(message) {
   if (!els.input || turnBusy) return;
   closeChooser();
-  chooserDraft = els.input.value;
-  chooserTrigger = trigger;
   prepare(message);
-  const box = el('div', { className: 'copilot-chooser', role: 'group', 'aria-label': 'Demande à envoyer' }, [
-    el('span', { className: 'copilot-chooser-title', text: 'Tu peux modifier la demande avant de l’envoyer.' }),
-    chooserSend(), chooserCancel(),
-  ]);
-  box.dataset.kind = 'message';
-  box.addEventListener('keydown', cancelChooserOnEscape);
-  els.quickActions.after(box);
-  els.chooser = box;
   els.input.focus();
+  const end = els.input.value.length;
+  els.input.setSelectionRange?.(end, end);
 }
 
 /** [Astra round 4] Rangée de suggestions, dans la grammaire .tr-chat-demos de
@@ -406,7 +406,7 @@ function renderActionChips(actions) {
       className: 'copilot-chip',
       type: 'button',
       title: message,
-      onClick: (e) => prepareAction(message, e.currentTarget),
+      onClick: () => prepareAction(message),
     });
     btn.innerHTML = ICON_SPARKLE;
     btn.appendChild(el('span', { text: message }));
@@ -1843,7 +1843,7 @@ export async function initCopilotTab() {
       }
       const message = chip.dataset.message;
       if (!message) return;
-      prepareAction(message, chip);
+      prepareAction(message);
     });
   }
   // [Claude] — 2026-10-03 — Un moment cité dans une réponse (« à 1:31 ») place la
