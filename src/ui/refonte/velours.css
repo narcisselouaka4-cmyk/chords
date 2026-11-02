@@ -5,7 +5,7 @@
 
    Velours s'appuie sur data-skin='global' pour hériter de toute la grammaire
    d'Atelier. data-skin-choice='velours' ne remplace que la matière visuelle.
-   Le décor partagé de Temps réel, Analyse et Studio vit ici ; leur composition
+   Le décor partagé d’Entraînement, Analyse et Studio vit ici ; leur composition
    et la barre du clavier restent des lots séparés. Aucune règle métier n'entre
    dans ce fichier.
    ============================================================================ */
@@ -227,8 +227,8 @@
    Phase 2 — scène de studio partagée
 
    La photographie vient de la maquette retenue ; les autres couches ne sont
-   que lumière et profondeur. Le décor n'apparaît que sur les trois surfaces
-   validées, jamais dans Sessions MIDI, Pédagogie IA, Copilote ou Exercices.
+   que lumière et profondeur. Les sous-onglets d’Entraînement partagent
+   désormais tous le décor de Temps réel (demande du 02/11/2026).
    -------------------------------------------------------------------------- */
 :root[data-skin-choice='velours'] {
   --velours-lamp-x: 28%;

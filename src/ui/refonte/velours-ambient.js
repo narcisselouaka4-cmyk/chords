@@ -5,10 +5,9 @@
 function activeSurface() {
   const activeTab = document.querySelector('#tab-nav .tab-btn.active')?.dataset.tab;
   if (activeTab === 'analysis' || activeTab === 'studio') return activeTab;
-  if (activeTab === 'practice') {
-    const view = document.getElementById('practice-tab')?.dataset.trainingView;
-    return !view || view === 'realtime' ? 'realtime' : 'none';
-  }
+  // Le décor de Temps réel est commun à tous les sous-onglets
+  // d’Entraînement ; seul leur contenu change lors de la navigation.
+  if (activeTab === 'practice') return 'realtime';
   return 'none';
 }
 
