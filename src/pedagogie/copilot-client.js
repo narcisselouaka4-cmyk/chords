@@ -59,6 +59,7 @@ import { buildScaleNotes, resolveScaleRequest, scaleTheoryAnswer, SCALE_DEFINITI
 import { sourceTransferRequest, transferFollowup, insertionFollowup } from './source-transfer.js';
 import { tutorialEvidence, evidenceLines, tutorialMeaningAnswer, tutorialPlayback, tutorialConversation } from './tutorial-evidence.js';
 import { personalPlayingAnswer } from './playing-advice.js';
+import { normalizeChatResponse, hasCompletionOutput, completionFailure } from './chat-response.js';
 import { takeExample } from './take-attachment.js';
 
 // [Claude] — 2026-09-24 — Consignes refaites (Narcisse : « quand je lui demande de
@@ -1498,16 +1499,16 @@ N'écris jamais d'appel d'outil dans ta réponse (suggest_actions(…), play_pro
 le pianiste le verrait tel quel.
 `;
 
-function buildChatCompletionPayload(config, payloadMessages, { includeTools = true, useMaxTokens = false, tutorialTools = false, exerciseTools = false, playingTools = false } = {}) {
+function buildChatCompletionPayload(config, payloadMessages, { includeTools = true, useMaxTokens = false, tutorialTools = false, exerciseTools = false, playingTools = false, maxTokens = 1200 } = {}) {
   const body = {
     model: config.model,
     messages: payloadMessages,
     temperature: 0.4,
   };
   if (useMaxTokens) {
-    body.max_tokens = 1200;
+    body.max_tokens = maxTokens;
   } else {
-    body.max_completion_tokens = 1200;
+    body.max_completion_tokens = maxTokens;
   }
   if (includeTools) {
     body.tools = [PLAY_NOTE_TOOL, SUGGEST_ACTIONS_TOOL, PLAY_VOICING_TOOL, PLAY_LICK_TOOL, PLAY_SCALE_TOOL, PLAY_PROGRESSION_TOOL, PLAY_MELODY_CHORDS_TOOL];
@@ -1522,7 +1523,7 @@ function buildChatCompletionPayload(config, payloadMessages, { includeTools = tr
 }
 
 function isOllamaCloudUrl(baseUrl = '') {
-  return /api\.ollama\.ai|ollama\.ai\/v1/i.test(baseUrl);
+  return /(?:api\.)?ollama\.(?:ai|com)\/v1/i.test(baseUrl);
 }
 
 // [Claude] — 2026-09-26 — Délai de réponse du service d'IA. Narcisse : « on ne peut
@@ -1744,10 +1745,9 @@ async function callChatCompletionOnce(config, body) {
       return { ok: false, error: `AI_API_ERROR_${response.status}`, responseText: text, status: response.status };
     }
     const data = await response.json();
-    const choice = data.choices?.[0]?.message;
-    if (!choice) return { ok: false, error: 'Réponse vide du modèle.' };
+    const { choice, diagnostics } = normalizeChatResponse(data);
     // [Claude] — 2026-10-04 — Jamais d'appel d'outil écrit en texte sous les yeux du pianiste.
-    return { ok: true, choice: withTextToolCalls(choice) };
+    return { ok: true, choice: withTextToolCalls(choice), diagnostics };
   })().catch((err) => {
     if (controller?.signal.aborted || err?.name === 'AbortError' || /timeout/i.test(err?.message || '')) {
       return { ok: false, error: 'AI_TIMEOUT' };
@@ -1770,7 +1770,7 @@ function normalizePayloadMessages(messages) {
     .filter((m) => m.role === 'system' || m.role === 'user' || m.role === 'assistant');
 }
 
-async function retryWithInternalReminder(config, payloadMessages, originalAssistantContent, reminderText, { includeTools = true, tutorialTools = false, exerciseTools = false, playingTools = false } = {}) {
+async function retryWithInternalReminder(config, payloadMessages, originalAssistantContent, reminderText, { includeTools = true, tutorialTools = false, exerciseTools = false, playingTools = false, maxTokens = 1200 } = {}) {
   const retryMessages = normalizePayloadMessages([
     ...payloadMessages,
     { role: 'assistant', content: originalAssistantContent },
@@ -1778,7 +1778,9 @@ async function retryWithInternalReminder(config, payloadMessages, originalAssist
   ]);
   const ollamaCloud = !includeTools && isOllamaCloudUrl(config.baseUrl);
   // [Claude] — 2026-09-25 — La relance garde les outils du tutoriel (rejouer un passage du professeur).
-  return callChatCompletionOnce(config, buildChatCompletionPayload(config, retryMessages, { includeTools, useMaxTokens: ollamaCloud, tutorialTools: includeTools && tutorialTools, exerciseTools: includeTools && exerciseTools, playingTools: includeTools && playingTools }));
+  const result = await callChatCompletionOnce(config, buildChatCompletionPayload(config, retryMessages, { includeTools, useMaxTokens: ollamaCloud, maxTokens, tutorialTools: includeTools && tutorialTools, exerciseTools: includeTools && exerciseTools, playingTools: includeTools && playingTools }));
+  // Un contrôle de validation ne doit pas effacer une réponse existante si sa relance est vide.
+  return result.ok && !hasCompletionOutput(result.choice) ? completionFailure(result, 'retry') : result;
 }
 
 export function finalizeContent(content, toolResult, requestedDemo = false) {
@@ -1955,11 +1957,11 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     if (!first.ok) return first;
     // Certains modèles n'envoient que suggest_actions (ou une réponse vide).
     // Une seule relance sans outils demande le texte, sinon échec explicite, jamais bulle vide.
-    if (!String(first.choice.content || '').trim() && !(first.choice.tool_calls || []).some((call) => call?.function?.name?.startsWith('play_') || call?.function?.name === 'apply_tutorial_passage')) {
+    if (!hasCompletionOutput(first.choice)) {
       const suggestions = (first.choice.tool_calls || []).filter((call) => call?.function?.name === 'suggest_actions');
-      const completed = await retryWithInternalReminder(config, payloadMessages, '', 'Réponds maintenant à la dernière question en français, avec une explication concrète fondée sur le contexte fourni. Pas de liste de questions de suivi, pas d’appel d’outil : seulement la réponse au pianiste.', { includeTools: false });
+      const completed = await retryWithInternalReminder(config, payloadMessages, '', 'Réponds maintenant à la dernière question en français, avec une explication concrète fondée sur le contexte fourni. Pas de liste de questions de suivi, pas d’appel d’outil : seulement la réponse au pianiste.', { includeTools: false, maxTokens: first.diagnostics?.finishReason === 'length' || first.diagnostics?.reasoningTokens > 0 ? 4800 : 1200 });
       if (!completed.ok) return completed;
-      if (!String(completed.choice.content || '').trim()) return { ok: false, error: 'AI_EMPTY_RESPONSE' };
+      if (!String(completed.choice.content || '').trim()) return completionFailure(completed, 'text-retry');
       first = { ...completed, choice: { ...completed.choice, tool_calls: suggestions } };
     }
 
@@ -2361,7 +2363,7 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
       console.log('[CopilotValidation]', JSON.stringify(logPayload, null, 2));
     }
 
-    if (!String(content || '').trim()) return { ok: false, error: 'AI_EMPTY_RESPONSE' };
+    if (!String(content || '').trim()) return completionFailure(first, 'finalize');
     return {
       ok: true,
       content,

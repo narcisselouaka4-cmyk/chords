@@ -1972,6 +1972,66 @@ async function testPersonalPlayingGuard() {
   } finally { global.fetch = originalFetch; }
 }
 
+async function testResponseRecoveryAndPlans() {
+  const originalFetch = global.fetch;
+  const response = (message, finish_reason = 'stop', usage = {}) => ({ ok: true, status: 200, json: async () => ({ choices: [{ message, finish_reason }], usage }) });
+  const setup = (url = 'https://api.example.test/v1') => {
+    global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'never-log-this-key', baseUrl: url, model: 'same-model', monthlyCap: 50 }) };
+  };
+  try {
+    setup();
+    global.fetch = async () => response({ content: [{ type: 'reasoning', text: 'private-reasoning' }, { type: 'text', text: 'Essaie une couleur supplémentaire.' }], reasoning_content: 'private-reasoning' });
+    const array = await sendCopilotMessage({ message: 'Comment varier mon accompagnement ?', messages: [] });
+    check('Texte par blocs : rendu lisible, aucun raisonnement exposé', array.ok && array.content === 'Essaie une couleur supplémentaire.' && !array.content.includes('private'));
+
+    let bodies = [];
+    global.fetch = async (_url, init) => {
+      bodies.push(JSON.parse(init.body));
+      return bodies.length === 1 ? response({ content: '', reasoning_content: 'private-reasoning' }, 'length', { completion_tokens: 1200, completion_tokens_details: { reasoning_tokens: 1200 } })
+        : response({ content: 'Ajoute une couleur à un endroit de ta phrase.' });
+    };
+    const recovered = await sendCopilotMessage({ message: 'Comment varier mon accompagnement ?', messages: [] });
+    check('Réponse interrompue : une seule relance avec davantage de place', recovered.ok && bodies.length === 2 && bodies[0].max_completion_tokens === 1200 && bodies[1].max_completion_tokens === 4800);
+    check('La récupération garde le modèle et demande seulement du texte', bodies.every((b) => b.model === 'same-model') && !bodies[1].tools);
+
+    global.fetch = async () => response({ content: '', reasoning_content: 'private-reasoning' }, 'length', { completion_tokens: 4800, completion_tokens_details: { reasoning_tokens: 4800 } });
+    const limited = await sendCopilotMessage({ message: 'Comment varier mon accompagnement ?', messages: [] });
+    check('Interruption persistante : cause distinguée d’une réponse vide', !limited.ok && limited.error === 'AI_OUTPUT_LIMIT' && limited.diagnostics?.finishReason === 'length');
+    check('Les diagnostics ne contiennent ni clé ni raisonnement', !JSON.stringify(limited).includes('never-log') && !JSON.stringify(limited).includes('private-reasoning'));
+
+    let count = 0;
+    global.fetch = async () => ++count === 1 ? { ok: true, json: async () => ({ choices: [] }) } : response({ content: 'Reprenons avec une idée simple.' });
+    const malformed = await sendCopilotMessage({ message: 'Comment varier mon accompagnement ?', messages: [] });
+    check('Une réponse sans message peut être récupérée sans bulle vide', malformed.ok && count === 2 && malformed.content.includes('Reprenons'));
+
+    count = 0;
+    global.fetch = async () => {
+      count++;
+      return count === 1 ? response({ content: 'Voici un **Cmaj7**.', tool_calls: [65, 68, 72].map((midi, i) => ({ function: { name: 'play_note', arguments: JSON.stringify({ midi, impliedChordName: 'Cmaj7', startOffsetMs: i * 80, durationMs: 500 }) } })) }) : response({ content: '' });
+    };
+    const validated = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [] });
+    check('Une relance de validation vide ne détruit pas l’explication et sa correction', validated.ok && validated.content.includes('Précision') && validated.toolResult.played.length === 3 && count === 2);
+
+    setup('https://ollama.com/v1'); bodies = [];
+    global.fetch = async (_url, init) => {
+      bodies.push(JSON.parse(init.body));
+      if (bodies.length === 1) return { ok: false, status: 400, text: async () => 'unsupported parameter' };
+      return bodies.length === 2 ? response({ content: '' }, 'length') : response({ content: 'Voici une réponse complète.' });
+    };
+    const compatible = await sendCopilotMessage({ message: 'Comment varier mon accompagnement ?', messages: [] });
+    check('Le repli compatible conserve max_tokens dans la récupération', compatible.ok && bodies.length === 3 && bodies[1].max_tokens === 1200 && bodies[2].max_tokens === 4800 && !bodies[2].max_completion_tokens);
+
+    const fs = await import('node:fs');
+    const take = JSON.parse(fs.readFileSync(new URL('./fixtures/copilot-arpeggiated-take.json', import.meta.url)));
+    const context = { playing: { passage: take } };
+    let calls = 0;
+    global.fetch = async () => { calls++; throw new Error('Aucun appel nécessaire pour ce plan'); };
+    const first = await sendCopilotMessage({ message: 'Ajoute des mouvements ou des accords enrichis à ma progression et fais-moi une démonstration', context, messages: [] });
+    const next = await sendCopilotMessage({ message: "c'est tout ? tu peut rien ajouter de plus ?", context, messages: [{ role: 'assistant', content: first.content, toolResult: first.toolResult }] });
+    check('Progression réelle : plan puis complément sans dépendre du fournisseur', first.ok && next.ok && calls === 0 && next.toolResult.example.noteCount > first.toolResult.example.noteCount);
+  } finally { global.fetch = originalFetch; }
+}
+
 async function runTests() {
   testToolCalls();
   await testNoKey();
@@ -2027,6 +2087,7 @@ async function runTests() {
   testTextToolCalls();
   await testTextToolCallsInSend();
   await testPersonalPlayingGuard();
+  await testResponseRecoveryAndPlans();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

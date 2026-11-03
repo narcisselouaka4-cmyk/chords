@@ -44,7 +44,7 @@ check('Une exploration déclarée ne devient pas un bilan de niveau', () => {
 check('Une source connue fournit des changements contrôlés', () => {
   const proposals = playingProposals(take).proposals;
   assert(proposals.some((p) => p.edit.type === 'remove'));
-  assert(proposals.some((p) => p.edit.type === 'replace'));
+  assert(proposals.some((p) => p.edit.type === 'add'));
 });
 for (const goal of ['Allège mes accords', 'Enrichis mes accords']) check(`${goal} conserve les événements hors du changement`, () => {
   const result = run(goal);
@@ -52,11 +52,13 @@ for (const goal of ['Allège mes accords', 'Enrichis mes accords']) check(`${goa
   assert(advice);
   assert.equal(result.toolResult.example, null);
   const changed = applyTakeEdit(take, advice.edit);
-  if (advice.edit.type === 'remove') assert.equal(changed.events.length, take.events.length - 2);
-  else assert.equal(changed.events.length, take.events.length);
-  const sourceOn = take.events[advice.edit.on];
-  const untouched = take.events.filter((e) => !(e.note === sourceOn.note && e.time >= sourceOn.time && e.time <= sourceOn.time + 1.1));
-  for (const event of untouched) assert(changed.events.some((e) => JSON.stringify(e) === JSON.stringify(event)));
+  const edits = advice.edit.edits || [advice.edit];
+  const removed = new Set(edits.filter((e) => e.type === 'remove').flatMap((e) => {
+    const on = take.events[e.on];
+    return [e.on, take.events.findIndex((off, i) => i > e.on && off.type === 'note_off' && off.note === on.note)];
+  }));
+  for (const [i, event] of take.events.entries()) if (!removed.has(i)) assert(changed.events.some((e) => JSON.stringify(e) === JSON.stringify(event)));
+  assert.equal(changed.events.length, take.events.length - removed.size + edits.filter((e) => e.type === 'add').length * 2);
   assert.deepEqual(changed.events.filter((e) => e.type === 'control'), take.events.filter((e) => e.type === 'control'));
   assert.deepEqual(take, original);
 });
@@ -144,7 +146,7 @@ check('Une demande d’enrichissement conserve l’arpège réel au-delà de 250
   assert(result.toolResult.playingAdvice);
   const changed = applyTakeEdit(real, result.toolResult.playingAdvice.edit);
   assert(changed);
-  assert.deepEqual(changed.events.map((e) => e.time), real.events.map((e) => e.time));
+  for (const event of real.events) assert(changed.events.some((e) => JSON.stringify(e) === JSON.stringify(event)));
 });
 check('Une pédale tenue ou l’absence de transition n’entraînent pas d’accord ajouté arbitraire', () => {
   const withPedal = { ...real, events: [{ type: 'control', controller: 64, value: 127, time: 0 }, ...real.events] };
@@ -253,5 +255,87 @@ check('Une nouvelle intention explicite prime sur un ancien conseil lors de l’
   ] });
   assert.equal(result.toolResult.playingAdvice.goal, 'enrich');
   assert(result.autoplay);
+});
+check('La demande réelle développe plusieurs accords et un passage, pas une seule note de gauche', () => {
+  const result = personalPlayingAnswer({ message: 'Ajoute des mouvements ou des accords enrichis à ma progression et fais-moi directement une démonstration.', context: realContext });
+  const advice = result.toolResult.playingAdvice;
+  assert.equal(advice.edit.type, 'plan');
+  assert(advice.changes.length >= 4);
+  assert(advice.changes.some((p) => p.goal === 'passing'));
+  assert(advice.changes.filter((p) => p.goal === 'enrich').length >= 3);
+  assert(result.autoplay);
+  assert(result.toolResult.example.noteCount >= 90);
+  assert(advice.changes.some((p) => p.at > 18));
+  assert.deepEqual(result.toolResult.originalTake, real);
+});
+check('L’enrichissement garde Do–Sol à gauche et Do–Ré–Sol à droite du premier accord', () => {
+  const result = personalPlayingAnswer({ message: 'Enrichis mes accords et fais-moi une démonstration', context: realContext });
+  const changed = applyTakeEdit(real, result.toolResult.playingAdvice.edit);
+  for (const e of real.events) assert(changed.events.some((c) => JSON.stringify(c) === JSON.stringify(e)));
+  assert(changed.events.some((e) => e.type === 'note_on' && e.note === 67 && e.time === real.events[1].time));
+  assert.equal(JSON.stringify(real), realCopy);
+});
+check('« c’est tout ? » ajoute des endroits à la variante déjà entendue, sans répéter le premier conseil', () => {
+  const first = personalPlayingAnswer({ message: 'Ajoute des mouvements et enrichis ma progression, fais-moi une démonstration', context: realContext });
+  const next = personalPlayingAnswer({ message: "c'est tout ? tu peut rien ajouter de plus ?", context: realContext, messages: [{ role: 'assistant', ...first }] });
+  assert(next.ok && next.autoplay);
+  const before = first.toolResult.playingAdvice.changes.map((p) => p.id);
+  const after = next.toolResult.playingAdvice.changes.map((p) => p.id);
+  assert(after.length > before.length);
+  for (const id of before) assert(after.includes(id));
+  assert.equal(new Set(after).size, after.length);
+  assert.match(next.content, /version précédente/);
+  assert(next.content.split('\n').filter((line) => line.startsWith('- ')).length <= 2);
+});
+check('Des relances successives finissent clairement sans inventer de nouveaux changements', () => {
+  let messages = [];
+  let previousCount = 0;
+  let ended = false;
+  for (let i = 0; i < 8; i++) {
+    const message = i ? 'Ajoute autre chose' : 'Développe ma progression avec une démonstration';
+    const r = personalPlayingAnswer({ message, messages, context: realContext });
+    assert(r?.ok);
+    if (!r.toolResult.playingAdvice) { assert.match(r.content, /pas trouvé d’autre/); ended = true; break; }
+    const count = r.toolResult.playingAdvice.changes?.length || 1;
+    assert(count > previousCount);
+    previousCount = count;
+    messages.push({ role: 'user', content: message }, { role: 'assistant', ...r });
+  }
+  assert(ended);
+});
+check('Une autre version repart de l’original sans cumuler silencieusement les anciens changements', () => {
+  const first = personalPlayingAnswer({ message: 'Développe ma progression avec une démonstration', context: realContext });
+  const next = personalPlayingAnswer({ message: 'Propose une autre version de ma progression', context: realContext, messages: [{ role: 'assistant', ...first }] });
+  assert(next?.toolResult.playingAdvice);
+  const before = new Set(first.toolResult.playingAdvice.changes.map((p) => p.id));
+  assert(next.toolResult.playingAdvice.changes.every((p) => !before.has(p.id)));
+  assert.deepEqual(next.toolResult.originalTake, real);
+});
+check('Une relance sur un ancien changement de gauche le migre avant de compléter le plan', () => {
+  const old = { role: 'assistant', toolResult: { example: { events: [] }, playingAdvice: {
+    id: 'color-1', goal: 'enrich', take: real, edit: { type: 'replace', on: 1, note: 69 }, text: 'Remplace le Sol par un La.' } } };
+  const next = personalPlayingAnswer({ message: 'Ajoute autre chose', context: realContext, messages: [old] });
+  const changed = applyTakeEdit(real, next.toolResult.playingAdvice.edit);
+  for (const e of real.events) assert(changed.events.some((c) => JSON.stringify(c) === JSON.stringify(e)));
+});
+check('La fusion refuse deux éditions incompatibles d’une même note et deux ajouts qui se chevauchent', () => {
+  assert.equal(applyTakeEdit(take, { type: 'plan', edits: [{ type: 'replace', on: 0, note: 77 }, { type: 'remove', on: 0 }] }), null);
+  assert.equal(applyTakeEdit(take, { type: 'plan', edits: [{ type: 'add', on: 0, note: 77 }, { type: 'add', on: 0, note: 77 }] }), null);
+});
+check('Le plan ne laisse aucune métadonnée de calcul dans les événements MIDI', () => {
+  const r = personalPlayingAnswer({ message: 'Enrichis mes accords', context: realContext });
+  const changed = applyTakeEdit(real, r.toolResult.playingAdvice.edit);
+  for (const e of changed.events) {
+    assert.equal(Object.getOwnPropertySymbols(e).length, 0);
+    assert(!Object.keys(e).some((key) => /source.index/i.test(key)));
+  }
+});
+check('Une nouvelle prise envoyée délimite le suivi et ne récupère pas le plan de l’ancienne', () => {
+  const old = personalPlayingAnswer({ message: 'Enrichis ma progression', context: realContext });
+  const fresh = { events: [{ type: 'note_on', note: 90, velocity: .5, time: 0 }, { type: 'note_off', note: 90, time: 1 }], duration: 1 };
+  const result = personalPlayingAnswer({ message: 'Ajoute autre chose', context: { playing: { passage: fresh } }, messages: [
+    { role: 'assistant', ...old }, { role: 'user', content: 'Voici une autre prise', take: fresh },
+  ] });
+  assert(!result.toolResult.playingAdvice && !result.toolResult.example);
 });
 console.log(`${count}/${count} vérifications réussies`);

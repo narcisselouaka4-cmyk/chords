@@ -1816,7 +1816,8 @@ async function sendUserMessage() {
  */
 export function copilotErrorText(error) {
   const code = String(error || '');
-  if (code === 'AI_EMPTY_RESPONSE') return 'Le service d’IA a renvoyé une réponse vide. Ta question est conservée ; réessaie ou choisis un autre modèle dans Réglages › Assistant IA.';
+  if (code === 'AI_EMPTY_RESPONSE') return 'Je n’ai pas reçu de réponse utilisable, même après une nouvelle tentative. Ta question est conservée ; tu peux la renvoyer.';
+  if (code === 'AI_OUTPUT_LIMIT') return 'La réponse a été interrompue avant d’être rédigée. Ta question est conservée ; réessaie sur un point précis.';
   if (code === 'AI_API_KEY_INVALID') return 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.';
   if (code === 'AI_TIMEOUT') return 'Le service d\'IA n\'a pas répondu à temps (90 secondes). Réessaie ; s\'il est souvent aussi lent, choisis un autre modèle dans Réglages › Assistant IA.';
   if (/^AI_API_ERROR_(413|429)$/.test(code)) return 'Le service d\'IA refuse la demande pour l\'instant (trop longue, ou trop de demandes rapprochées pour ce modèle). Réessaie dans une minute, ou choisis un autre modèle dans Réglages › Assistant IA.';
