@@ -4,6 +4,7 @@ import { chordToneIntervals } from '../practice-exercise.js';
 import { parseChordName } from './note-roles.js';
 import { frenchNote } from '../recorder/session-performance.js';
 import { takeExample } from './take-attachment.js';
+import { planPassingEdit, PASSING_TIMING_VERSION } from './playing-passage.js';
 
 const pc = (n) => ((n % 12) + 12) % 12;
 const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'").toLowerCase();
@@ -32,13 +33,30 @@ export function applyTakeEdit(take, edit) {
   if (edit.type === 'passing') {
     if (!Array.isArray(edit.notes) || edit.notes.length < 3 || edit.notes.some((n) => !Number.isInteger(n) || n < 21 || n > 108)) return null;
     if (!Number.isFinite(edit.start) || !Number.isFinite(edit.end) || edit.start < 0 || edit.end - edit.start < .12) return null;
-    if (pairs.some((p) => edit.notes.includes(p.event.note) && p.event.time < edit.end && p.end > edit.start)) return null;
     const anchor = pairs.find((p) => p.on === edit.on);
     if (!anchor) return null;
+    const attacks = edit.attacks || edit.notes.map((_, i) => edit.start + i * Math.min(.04, (edit.end - edit.start) / (edit.notes.length * 3)));
+    if (attacks.length !== edit.notes.length || attacks.some((t, i) => !Number.isFinite(t) || t < edit.start || t >= edit.end || (i && t < attacks[i - 1]))) return null;
+    const adjustments = edit.adjustments || [];
+    const removed = new Set();
     const events = take.events.map((e) => ({ ...e }));
+    for (const a of adjustments) {
+      const pair = pairs.find((p) => p.on === a.on && p.off === a.off);
+      if (!pair || pair.end <= edit.start || pair.event.time >= edit.end) return null;
+      if (a.remove) {
+        if (pair.event.time < edit.start) return null;
+        removed.add(pair.on); removed.add(pair.off);
+      } else {
+        if (!Number.isFinite(a.end) || a.end < pair.event.time + .05 || a.end > pair.end || a.end > edit.end) return null;
+        events[pair.off].time = a.end;
+      }
+    }
+    const kept = events.filter((_, i) => !removed.has(i));
+    if (notePairs(kept).some((p) => edit.notes.some((n, i) => n === p.event.note && p.event.time < edit.end && p.end > attacks[i]))) return null;
+    events.length = 0;
+    events.push(...kept);
     edit.notes.forEach((note, i) => {
-      const time = edit.start + i * Math.min(.04, (edit.end - edit.start) / (edit.notes.length * 3));
-      events.push({ type: 'note_on', note, time, velocity: anchor.event.velocity, channel: anchor.event.channel || 0 },
+      events.push({ type: 'note_on', note, time: attacks[i], velocity: anchor.event.velocity, channel: anchor.event.channel || 0 },
         { type: 'note_off', note, time: edit.end, velocity: 0, channel: anchor.event.channel || 0 });
     });
     events.sort((a, b) => a.time - b.time);
@@ -139,33 +157,26 @@ function passingProposals(take, review, pairs) {
     if (root < 28) continue;
     // Shell de dominante : basse, septième, tierce. Les intervalles sont calculés sur la cible.
     const notes = [root, root + 10, root + 16];
-    const allowed = new Set([0, 4, 7, 10].map((n) => pc(dominant + n)));
-    const end = target.at - .025;
-    let start = Math.max(previous.at + .3, target.at - .6);
-    for (const p of pairs) {
-      if (p.event.time >= end || p.end <= start) continue;
-      // Ne pas empiler sur une autre harmonie, ni sur une touche déjà enfoncée.
-      if (!allowed.has(pc(p.event.note)) || notes.includes(p.event.note) || notes.some((n) => Math.abs(n - p.event.note) === 1)) start = Math.max(start, p.end + .012);
-    }
-    if (end - start < .14) continue;
-    // Le maintien par pédale rendrait cette respiration trompeuse : laisser cette transition intacte.
-    let pedal = false;
-    let pedalled = false;
-    for (const e of take.events) {
-      if (e.time > end) break;
-      if (e.type !== 'control' || e.controller !== 64) continue;
-      pedal = e.value >= 64;
-      if (e.time >= start && pedal) pedalled = true;
-      if (e.time < start) pedalled = pedal;
-    }
-    if (pedalled) continue;
+    const edit = planPassingEdit(take, review, pairs, target, previous, notes, anchor);
+    if (!edit) continue;
     const label = `${name(dominant + 60)} septième`;
     out.push({ id: `passing-${anchor.on}`, goal: 'passing',
-      edit: { type: 'passing', on: anchor.on, start, end, notes },
-      text: `Juste avant ton accord de ${chordLabel(c)}, essaie un ${label} comme accord de passage. Il prépare l’arrivée sur l’accord suivant. Je le glisse dans une respiration de ton jeu, sans remplacer ta progression.`,
+      transition: { rootPc: dominant, targetRootPc: c.rootPc, targetQuality: c.quality }, edit,
+      text: `Juste avant ton accord de ${chordLabel(c)}, essaie un ${label} comme accord de passage. Je le commence à contretemps, en suivant ton arpège, puis je garde ton arrivée sur l’accord suivant.`,
     });
   }
   return out;
+}
+
+/** Les cartes sauvegardées avant le correctif ne doivent pas rejouer l'ancien placement. */
+export function refreshPlayingResult(result) {
+  const advice = result?.playingAdvice;
+  if (advice?.edit?.type !== 'passing' || advice.edit.timingVersion === PASSING_TIMING_VERSION) return result;
+  const current = playingProposals(advice.take).proposals.find((p) => p.id === advice.id);
+  if (!current) return null;
+  const changed = applyTakeEdit(advice.take, current.edit);
+  const example = changed && takeExample(changed, 'Avec la proposition');
+  return example ? { ...result, playingAdvice: { ...current, take: advice.take }, originalTake: advice.take, example } : null;
 }
 
 const HEAR = 'Fais-moi entendre cette proposition';
@@ -175,50 +186,78 @@ const actions = [
   { label: 'Allège mes accords', message: 'Allège mes accords' },
 ];
 
-/** Retour local pour le jeu personnel. Une réponse générique n'invente pas de bilan de maîtrise. */
+const requestedGoal = (text) => /accords? de passage|accords? (?:pour|de) transition/.test(text) ? 'passing'
+  : /alleg|moins charge|(?:retir|supprim).*(?:doublure|double)|simplifi.*(?:accord|accompagnement)/.test(text) ? 'lighten'
+    : /enrich|(?:ajout|rajout).*(?:couleur|neuvieme|9e)|couleur.*accord|ameliore.*voicing/.test(text) ? 'enrich' : null;
+
+// Les accords explicitement demandés sont des contraintes, jamais remplacés silencieusement.
+function requestedTransition(message) {
+  const roots = { do: 'C', re: 'D', mi: 'E', fa: 'F', sol: 'G', la: 'A', si: 'B' };
+  const text = String(message).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(do|re|mi|fa|sol|la|si)\s+(mineur\s*7|mineur|majeur\s*7|septieme)\b/gi,
+      (_, root, quality) => roots[root.toLowerCase()] + ({ mineur: 'm', mineur7: 'm7', majeur7: 'maj7', septieme: '7' }[quality.toLowerCase().replace(/\s/g, '')] || ''));
+  const chords = [...text.matchAll(/\b([A-G](?:#|b)?(?:maj7|maj9|m7b5|m7|m9|7b9|7|9|13|m)?(?:\/[A-G](?:#|b)?)?)\b/g)].map((m) => parseChordName(m[1])).filter(Boolean);
+  return chords.length >= 2 ? chords.slice(-2) : null;
+}
+
+/** Retour local pour le jeu personnel. Une demande d'écoute aboutit à une démonstration calculée. */
 export function personalPlayingAnswer({ message, messages = [], context, review = false }) {
   const data = context?.playing?.passage;
   if (!data?.events?.length) return null;
   const text = plain(message);
-  const last = [...messages].reverse().find((m) => m.role === 'assistant' && !m.isTyping);
-  const previous = last?.toolResult?.playingAdvice;
+  const previous = [...messages].reverse().find((m) => m.role === 'assistant' && !m.isTyping && m.toolResult?.playingAdvice)?.toolResult.playingAdvice;
+  const hear = /fais.*(?:entendre|ecouter)|entendre|ecout|montre[- ]moi|demonstration|\bdemo\b|un exemple|joue[- ]moi/.test(text)
+    && !/(?:rejou|reecout|reentendre).*(?:ma prise|mon jeu|original|ma melodie|ma main)/.test(text);
+  const lastRequest = [...messages].reverse().filter((m) => m.role === 'user').map((m) => ({
+    goal: requestedGoal(plain(m.content)), named: requestedTransition(m.content),
+  })).find((r) => r.goal || r.named);
+  const named = requestedTransition(message) || (hear ? lastRequest?.named : null);
   const base = { played: [], ignored: 0, suggestions: [], example: null, voicing: null };
-  const answer = (content, extra = {}, suggestedActions = []) => ({ ok: true, content, toolResult: { ...base, ...extra }, suggestedActions, autoplay: false });
+  const answer = (content, extra = {}, suggestedActions = []) => ({ ok: true, content, toolResult: { ...base, ...extra }, suggestedActions, autoplay: Boolean(extra.example) });
   if (/\b(?:hasard|n'importe quoi|aleatoire|sans intention|test des touches)\b/.test(text)) {
     return answer('D’accord, cette prise était une exploration. Je n’en déduis pas ton niveau. Pour un conseil utile, choisis un petit passage ou dis-moi ce que tu souhaites essayer.');
   }
-  if ((text === plain(HEAR) || /fais[- ](?:le[- ])?moi entendre|montre[- ]moi|demonstration|un exemple/.test(text)) && previous) {
-    // Le conseil garde SA source, même si une autre prise a été confiée ensuite.
-    const changed = applyTakeEdit(previous.take, previous.edit);
+  const generic = /qu['’ ]en penses|ton avis|analyse mon jeu/.test(text);
+  const retry = /^(?:et )?(?:maintenant|alors|reessaie)(?:[ ?!.]*)$/.test(text);
+  const historyGoal = () => lastRequest?.goal;
+  const goal = requestedGoal(text) || (retry ? historyGoal() : null);
+  const take = { ...data, duration: data.duration || Math.max(...data.events.map((e) => e.time)) };
+  if (hear && previous && !named && !goal && (!historyGoal() || historyGoal() === previous.goal)) {
+    // Réévaluer les anciens placements compressés, y compris après réouverture de l'historique.
+    const updated = refreshPlayingResult({ playingAdvice: previous });
+    if (!updated) return answer('Je ne trouve pas de placement rythmique assez clair pour ce passage. Je peux plutôt enrichir tes accords.', {}, actions);
+    const advice = updated.playingAdvice;
+    return demonstrate(advice);
+  }
+  function demonstrate(advice) {
+    const changed = applyTakeEdit(advice.take, advice.edit);
     const example = changed && takeExample(changed, 'Avec la proposition');
     if (!example) return answer('Je ne peux pas appliquer ce changement à la prise enregistrée. Reprenons à partir de ton jeu.');
-    return answer(`${previous.text}\n\nCompare ton jeu original et la proposition. Le reste de ta prise est conservé.`, {
-      example, originalTake: previous.take, playingAdvice: previous,
-    });
+    const comparison = advice.edit.type === 'passing'
+      ? 'Compare les deux versions. Seul l’accompagnement à cet endroit est ajusté.'
+      : 'Compare ton jeu original et la proposition. Le reste de ta prise est conservé.';
+    return answer(`${advice.text}\n\n${comparison}`, { example, originalTake: advice.take, playingAdvice: advice });
   }
-  const generic = /qu['’ ]en penses|ton avis|analyse mon jeu/.test(text);
-  const goal = /accords? de passage|accords? (?:pour|de) transition/.test(text) ? 'passing'
-    : /alleg|moins charge|(?:retir|supprim).*(?:doublure|double)|simplifi.*(?:accord|accompagnement)/.test(text) ? 'lighten'
-    : /enrich|(?:ajout|rajout).*(?:couleur|neuvieme|9e)|couleur.*accord|ameliore.*voicing/.test(text) ? 'enrich' : null;
   // Une consigne d'exercice explicite reste évaluée par le chemin dédié.
   if (!goal && generic && context.type === 'exercise') return null;
-  if (!goal && /(?:fais.*entendre|demonstration|montre[- ]moi|un exemple)/.test(text) && !/rejou|reecout|reentendre|ma melodie|ma main/.test(text)) return answer('Je peux te faire réécouter ta prise, ou préparer un changement précis pour enrichir ou alléger tes accords. Quel changement souhaites-tu entendre ?', {}, actions);
-  if (!goal && !generic) return null;
-  const take = { ...data, duration: data.duration || Math.max(...data.events.map((e) => e.time)) };
+  if (!goal && !generic && !hear) return null;
   const found = playingProposals(take);
-  if (!goal) return answer('J’ai bien reçu ta prise. Que souhaites-tu travailler : enrichir tes accords, alléger l’accompagnement, ou autre chose ? Je préfère connaître ton intention avant de te proposer un changement.', {}, actions);
-  // Demande mixte (« passage ou enrichissement ») : donner l'autre option si elle convient mieux.
-  const proposal = found.proposals.find((p) => p.goal === goal)
-    || (goal === 'passing' && /enrich|couleur|agremente/.test(text) ? found.proposals.find((p) => p.goal === 'enrich') : null);
+  if (!goal && !hear) return answer('J’ai bien reçu ta prise. Que souhaites-tu travailler : enrichir tes accords, alléger l’accompagnement, ou autre chose ? Je préfère connaître ton intention avant de te proposer un changement.', {}, actions);
+  const desired = goal || (named ? 'passing' : historyGoal() || previous?.goal || 'passing');
+  const matches = (p) => !named || (p.transition?.rootPc === named[0].rootPc && /^7$/.test(named[0].quality)
+    && p.transition?.targetRootPc === named[1].rootPc && /^m(?!aj)/.test(p.transition.targetQuality) === /^m(?!aj)/.test(named[1].quality));
+  const proposal = found.proposals.find((p) => p.goal === desired && matches(p))
+    || (!named && desired === 'passing' && (/enrich|couleur|agremente/.test(text) || (hear && !goal)) ? found.proposals.find((p) => p.goal === 'enrich') : null);
+  if (!proposal && named) return answer('Je ne peux pas encore placer cet enchaînement précis dans ta prise avec une démonstration fidèle. Je peux chercher un accord de passage adapté aux accords que tu as joués.', {}, [{ label: 'Propose un accord de passage', message: 'Propose un accord de passage' }]);
   if (!proposal) {
-    if (goal === 'lighten') return answer('Je n’ai pas repéré de doublure que je puisse retirer en conservant clairement ton accord, ta basse et la mélodie. Choisis un accord précis ou indique ce que tu trouves trop chargé.');
+    if (desired === 'lighten') return answer('Je n’ai pas repéré de doublure que je puisse retirer en conservant clairement ton accord, ta basse et la mélodie. Choisis un accord précis ou indique ce que tu trouves trop chargé.');
     if (found.harmonicCount > 0) {
-      return goal === 'passing'
-        ? answer('Je repère les accords, mais je n’ai pas trouvé assez de place pour insérer un accord de passage sans couvrir les notes que tu tiens. Je peux plutôt te proposer un enrichissement.', {}, [{ label: 'Enrichis mes accords', message: 'Enrichis mes accords' }])
+      return desired === 'passing'
+        ? answer('Je repère les accords, mais pas encore un placement rythmique assez clair pour insérer un accord de passage en gardant ta mélodie. Je peux plutôt te proposer un enrichissement.', {}, [{ label: 'Enrichis mes accords', message: 'Enrichis mes accords' }])
         : answer('Je repère les accords de ta prise, mais pas de couleur supplémentaire dans cette position qui conserve clairement ton dessus. Je peux chercher un accord de passage.', {}, [{ label: 'Propose un accord de passage', message: 'Propose un accord de passage' }]);
     }
     return answer('Je n’ai pas assez de repères harmoniques pour ajouter une note avec confiance. Indique l’accord que tu souhaitais jouer, ou enregistre un passage plus court. Je garderai ta façon de le jouer.');
   }
   const advice = { ...proposal, take };
-  return answer(proposal.text, { playingAdvice: advice }, [{ label: HEAR, message: HEAR }]);
+  return hear ? demonstrate(advice) : answer(proposal.text, { playingAdvice: advice }, [{ label: HEAR, message: HEAR }]);
 }

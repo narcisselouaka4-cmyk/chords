@@ -14,7 +14,7 @@ import {
   conversationToText,
   AUTONOMOUS_HISTORY_KEY as HISTORY_AUTONOMOUS_KEY,
 } from './copilot-history.js';
-import { sendCopilotMessage, extractTextToolCalls } from './copilot-client.js';
+import { sendCopilotMessage, extractTextToolCalls, wantsToHear } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
 import { liveTake } from '../recorder/live-take.js';
 import { reviewTake } from '../recorder/take-review.js';
@@ -38,6 +38,7 @@ import { notify } from '../ui/components/app-notify.js';
 import { createTakePlayer, refreshTakePlayers, refreshTakeCursor } from './take-player.js';
 import { lastAttachedTake } from './take-attachment.js';
 import { createDictation } from './copilot-dictation.js';
+import { refreshPlayingResult } from './playing-advice.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -465,6 +466,11 @@ function cancelChooserOnEscape(e) {
 function prepareAction(message) {
   if (!els.input || turnBusy) return;
   closeChooser();
+  // Une demande d'écoute explicite est un clic de lecture. Une prise non envoyée passe toujours par Envoyer.
+  if (!draftTake && !els.input.value.trim() && wantsToHear(message)) {
+    void runCopilotTurn(message);
+    return;
+  }
   prepare(message);
   els.input.focus();
   const end = els.input.value.length;
@@ -1018,7 +1024,14 @@ function toggleExample(msg) {
     document.dispatchEvent(new CustomEvent('copilot-stop-example'));
     return;
   }
-  const example = msg.toolResult.example;
+  const updated = refreshPlayingResult(msg.toolResult);
+  if (!updated) {
+    notify({ title: 'Ce passage doit être recalculé', message: 'Demande un autre accord de passage.', tone: 'info' });
+    return;
+  }
+  msg.toolResult = updated;
+  const example = updated.example;
+  examplesById.set(id, example);
   document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example, pedal: examplePedal, rate: exampleRate } }));
 }
 

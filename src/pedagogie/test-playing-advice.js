@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { takeExample, takeEnvelope, lastAttachedTake } from './take-attachment.js';
-import { applyTakeEdit, personalPlayingAnswer, playingProposals } from './playing-advice.js';
+import { applyTakeEdit, personalPlayingAnswer, playingProposals, refreshPlayingResult } from './playing-advice.js';
 
 const events = [];
 for (const [i, notes] of [[48, 55, 60, 64, 67, 72], [50, 57, 62, 65, 69, 74]].entries()) {
@@ -74,7 +74,7 @@ check('L’écoute du conseil compare la source exacte et la variante calculée'
   const heard = run('Fais-moi entendre cette proposition', [{ role: 'assistant', ...result }]);
   assert(heard.toolResult.example?.events.length);
   assert.deepEqual(heard.toolResult.originalTake, take);
-  assert.equal(heard.autoplay, false);
+  assert.equal(heard.autoplay, true);
 });
 check('Le conseil reste lié à sa source lors d’un suivi', () => {
   const result = run('Enrichis mes accords');
@@ -109,17 +109,25 @@ check('Une demande de passage propose une dominante liée à un accord réelleme
   const { edit } = result.toolResult.playingAdvice;
   assert.equal(edit.type, 'passing');
   assert.deepEqual(edit.notes, [52, 62, 68]); // Mi, Ré, Sol# : fondamentale, septième, tierce.
-  assert(edit.start > 3.36 && edit.end < 3.66);
+  assert(edit.start > 2.94 && edit.start < 2.99);
+  assert(edit.end - edit.start > .65);
+  assert(edit.attacks[1] - edit.attacks[0] > .22);
 });
-check('L’insertion garde absolument tous les événements originaux et ferme les notes ajoutées', () => {
+check('Seuls deux relâchements d’accompagnement changent ; les attaques et la source restent intactes', () => {
   const result = personalPlayingAnswer({ message: 'Propose un accord de passage', context: realContext });
   const changed = applyTakeEdit(real, result.toolResult.playingAdvice.edit);
   assert(changed);
-  for (const e of real.events) assert(changed.events.some((c) => JSON.stringify(c) === JSON.stringify(e)));
-  const added = changed.events.filter((e) => !real.events.some((c) => JSON.stringify(c) === JSON.stringify(e)));
-  assert.equal(added.length, 6);
+  const { edit } = result.toolResult.playingAdvice;
+  assert.equal(edit.adjustments.length, 2);
+  for (const [i, e] of real.events.entries()) {
+    const adjustment = edit.adjustments.find((a) => a.off === i);
+    const expected = adjustment ? { ...e, time: adjustment.end } : e;
+    assert(changed.events.some((c) => JSON.stringify(c) === JSON.stringify(expected)));
+  }
+  const added = changed.events.filter((e) => e.type === 'note_on' && !real.events.some((c) => JSON.stringify(c) === JSON.stringify(e)));
+  assert.equal(added.length, 3);
   for (const on of added.filter((e) => e.type === 'note_on')) {
-    const off = added.find((e) => e.type === 'note_off' && e.note === on.note);
+    const off = changed.events.find((e) => e.type === 'note_off' && e.note === on.note && e.time > on.time);
     assert(off && off.time > on.time && off.time < 3.66);
   }
   assert.equal(JSON.stringify(real), realCopy);
@@ -143,5 +151,107 @@ check('Une pédale tenue ou l’absence de transition n’entraînent pas d’ac
   assert.equal(playingProposals(withPedal).proposals.filter((p) => p.goal === 'passing').length, 0);
   const chord = { events: events.filter((e) => e.time < 1.8), duration: 1.8 };
   assert.equal(playingProposals(chord).proposals.filter((p) => p.goal === 'passing').length, 0);
+});
+const prose = [
+  { role: 'user', content: 'Un accord de passage ou un accord enrichi pour ma progression ?', take: real },
+  { role: 'assistant', content: 'Essaie E7 avant Am7 pour préparer cet accord.' },
+];
+for (const message of ['Fais-moi entendre un exemple.', 'Fais-moi une démonstration', 'Écoute un exemple avec E7 → Am7', 'Fais-moi écouter Mi septième avant La mineur 7']) check(`La demande réelle « ${message} » fournit et démarre la démonstration`, () => {
+  const result = personalPlayingAnswer({ message, messages: prose, context: realContext });
+  assert(result.toolResult.example?.events.length);
+  assert.equal(result.autoplay, true);
+  assert.deepEqual(result.toolResult.originalTake, real);
+  assert.equal(result.toolResult.playingAdvice.edit.type, 'passing');
+  assert.doesNotMatch(result.content, /Quel changement souhaites/);
+});
+check('Le conseil survit à une réponse intermédiaire sans données de démonstration', () => {
+  const advice = personalPlayingAnswer({ message: 'Propose un accord de passage', context: realContext });
+  const result = personalPlayingAnswer({ message: 'Fais-moi une démonstration', context: realContext, messages: [
+    { role: 'assistant', ...advice }, { role: 'user', content: 'Tu peux me le montrer ?' },
+    { role: 'assistant', content: 'Quel changement souhaites-tu entendre ?' },
+  ] });
+  assert.equal(result.toolResult.playingAdvice.id, advice.toolResult.playingAdvice.id);
+  assert(result.autoplay);
+});
+check('Un ancien placement sauvegardé est recalculé avant sa nouvelle écoute', () => {
+  const old = { role: 'assistant', toolResult: { playingAdvice: { id: 'passing-31', goal: 'passing',
+    take: real, text: 'Ancienne proposition', edit: { type: 'passing', on: 31, start: 3.3803, end: 3.635, notes: [52, 62, 68] } } } };
+  const result = personalPlayingAnswer({ message: 'Fais-moi entendre cette proposition', messages: [old], context: realContext });
+  assert.equal(result.toolResult.playingAdvice.edit.timingVersion, 2);
+  assert(result.toolResult.playingAdvice.edit.start < 3);
+  assert(result.autoplay);
+});
+check('Un enchaînement nommé indisponible ne se change pas silencieusement en un autre', () => {
+  const result = personalPlayingAnswer({ message: 'Écoute un exemple avec tritone sub Db7 → G7b9', messages: prose, context: realContext });
+  assert.equal(result.toolResult.example, null);
+  assert.match(result.content, /enchaînement précis/);
+  assert.doesNotMatch(result.content, /Quel changement souhaites/);
+  assert(result.suggestedActions.length);
+});
+check('« Et maintenant ? » reprend la demande de la conversation plutôt que de la confier au modèle', () => {
+  const result = personalPlayingAnswer({ message: 'et maintenant ?', messages: prose, context: realContext });
+  assert(result.toolResult.playingAdvice);
+  assert.equal(result.autoplay, false);
+});
+check('Le passage débute au contretemps estimé et laisse l’arrivée ainsi que la mélodie à leur place', () => {
+  const result = personalPlayingAnswer({ message: 'Propose un accord de passage', context: realContext });
+  const { edit } = result.toolResult.playingAdvice;
+  const before = real.events.find((e) => e.type === 'note_on' && e.note === 59).time;
+  const arrival = real.events.find((e) => e.type === 'note_on' && e.note === 57).time;
+  const beat = (arrival - before) / 4;
+  assert(Math.abs((edit.start - before) / beat - 2.5) < .001);
+  const changed = applyTakeEdit(real, edit);
+  const melody = real.events.filter((e) => e.note >= 72);
+  for (const e of melody) assert(changed.events.some((c) => JSON.stringify(c) === JSON.stringify(e)));
+  assert(changed.events.some((e) => e.type === 'note_on' && e.note === 57 && e.time === arrival));
+  for (const a of edit.adjustments) assert(real.events[a.off].type === 'note_off' && a.end < real.events[a.off].time);
+});
+check('Le placement et le déroulement suivent un changement de tempo de la prise', () => {
+  const base = playingProposals(real).proposals.find((p) => p.goal === 'passing').edit;
+  for (const factor of [.8, 1.25]) {
+    const scaled = { ...real, duration: real.duration * factor, events: real.events.map((e) => ({ ...e, time: e.time * factor })) };
+    const result = personalPlayingAnswer({ message: 'Propose un accord de passage', context: { playing: { passage: scaled } } });
+    const edit = result.toolResult.playingAdvice.edit;
+    assert(Math.abs(edit.start - base.start * factor) < .02);
+    for (const [i, t] of edit.attacks.entries()) assert(Math.abs(t - base.attacks[i] * factor) < .02);
+  }
+});
+check('Une demande de rejeu original reste sur le chemin de rejeu exact', () => {
+  assert.equal(personalPlayingAnswer({ message: 'Rejoue ma prise', context: realContext, messages: prose }), null);
+  assert.equal(personalPlayingAnswer({ message: 'Explique-moi le rôle du Mi', context: realContext }), null);
+});
+check('Un jeu fortement irrégulier ne reçoit pas de contretemps artificiellement comprimé', () => {
+  const warp = (t) => t < 3.66 ? t * .5 : 1.83 + (t - 3.66) * 1.6;
+  const irregular = { ...real, duration: warp(real.duration), events: real.events.map((e) => ({ ...e, time: warp(e.time) })) };
+  const proposed = playingProposals(irregular).proposals.filter((p) => p.goal === 'passing');
+  assert(!proposed.some((p) => p.edit.on === 31));
+});
+check('Une relance conserve un enchaînement nommé indisponible au lieu de rejouer un ancien conseil', () => {
+  const old = personalPlayingAnswer({ message: 'Propose un accord de passage', context: realContext });
+  const named = 'Écoute un exemple avec tritone sub Db7 → G7b9';
+  const result = personalPlayingAnswer({ message: 'Fais-moi une démonstration', context: realContext, messages: [
+    { role: 'assistant', ...old }, { role: 'user', content: named },
+    { role: 'assistant', content: 'Cet enchaînement précis n’est pas disponible.' },
+  ] });
+  assert.equal(result.toolResult.example, null);
+  assert.match(result.content, /enchaînement précis/);
+});
+check('Le bouton Play d’une ancienne carte recalcule son exemple sans modifier les données sauvegardées', () => {
+  const old = { example: { events: [] }, playingAdvice: { id: 'passing-31', goal: 'passing', take: real,
+    edit: { type: 'passing', on: 31, start: 3.3803, end: 3.635, notes: [52, 62, 68] } } };
+  const copy = structuredClone(old);
+  const updated = refreshPlayingResult(old);
+  assert(updated.example.events.some((e) => e.type === 'noteOn' && e.note === 52 && e.time < 3));
+  assert.equal(updated.playingAdvice.edit.timingVersion, 2);
+  assert.deepEqual(old, copy);
+});
+check('Une nouvelle intention explicite prime sur un ancien conseil lors de l’écoute suivante', () => {
+  const old = personalPlayingAnswer({ message: 'Propose un accord de passage', context: realContext });
+  const result = personalPlayingAnswer({ message: 'Fais-moi une démonstration', context: realContext, messages: [
+    { role: 'assistant', ...old }, { role: 'user', content: 'Enrichis mes accords' },
+    { role: 'assistant', content: 'Essayons un enrichissement.' },
+  ] });
+  assert.equal(result.toolResult.playingAdvice.goal, 'enrich');
+  assert(result.autoplay);
 });
 console.log(`${count}/${count} vérifications réussies`);
