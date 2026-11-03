@@ -705,6 +705,11 @@ function setExamplePedal(on) {
  * main pour chaque accord (quatre accords au plus), sous l'explication.
  */
 function renderExampleCard(msg) {
+  // Les anciennes cartes retrouvent aussi la comparaison avant leur premier Play.
+  if (msg.toolResult.playingAdvice && !msg.toolResult.example?.comparison) {
+    const refreshed = refreshPlayingResult(msg.toolResult);
+    if (refreshed) msg.toolResult = refreshed;
+  }
   const example = msg.toolResult.example;
   const id = exampleIdOf(msg);
   const playing = playingExampleId === id;
@@ -785,6 +790,15 @@ function buildTransport(box, example, id) {
   ]);
   for (const m of markerSpans(example, duration)) {
     track.appendChild(el('span', { className: `copilot-transport-mark is-${m.kind}`, style: `left: ${m.left}%; width: ${m.width}%`, title: m.title }));
+  }
+  for (const c of example.comparison?.changes || []) {
+    const removed = c.kind === 'removed';
+    const perBeat = 60 / (example.tempo || 60);
+    track.appendChild(el('span', {
+      className: 'copilot-transport-mark is-copilot-change',
+      style: `left: ${c.start * perBeat / duration * 100}%`,
+      title: `${removed ? 'Note retirée ou écourtée' : 'Ajout ou modification'} : ${frenchNote(c.note)}`,
+    }));
   }
   const time = el('span', { className: 'copilot-transport-time' });
   const range = el('input', {

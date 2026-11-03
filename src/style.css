@@ -471,6 +471,13 @@ body {
   fill: var(--kb-app);
 }
 
+/* Comparaison Copilot : le jeu conservé garde sa couleur ; seul le changement
+   prend le jaune, même si l'accent de l'application a une autre couleur. */
+.note.active.is-app.is-copilot-source .piano-key { fill: currentColor; }
+.note.white.active.is-app.is-copilot-change .piano-key { fill: #ffd966; }
+.note.black.active.is-app.is-copilot-change .piano-key { fill: #f2b705; }
+.note.active.is-copilot-change .piano-key { stroke: #926400; stroke-width: 2.5px; }
+
 .piano-key-name {
   font-size: 14px;
   fill: rgba(0, 0, 0, 0.2);

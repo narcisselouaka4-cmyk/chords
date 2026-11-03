@@ -3,7 +3,7 @@ import { reviewTake } from '../recorder/take-review.js';
 import { chordToneIntervals } from '../practice-exercise.js';
 import { parseChordName } from './note-roles.js';
 import { frenchNote } from '../recorder/session-performance.js';
-import { takeExample } from './take-attachment.js';
+import { comparedTakeExample } from './playing-diff.js';
 import { notePairs, applyTakeEdit } from './take-edit.js';
 export { notePairs, applyTakeEdit } from './take-edit.js';
 import { planPlayingChanges } from './playing-plan.js';
@@ -111,13 +111,19 @@ function passingProposals(take, review, pairs) {
 /** Les cartes sauvegardées avant le correctif ne doivent pas rejouer l'ancien placement. */
 export function refreshPlayingResult(result) {
   const advice = result?.playingAdvice;
-  if (!advice || advice.version === 3 || advice.edit?.type === 'plan') return result;
+  if (!advice) return result;
+  if (advice.version === 3 || advice.edit?.type === 'plan') {
+    if (result.example?.comparison?.version === 1) return result;
+    const changed = applyTakeEdit(advice.take, advice.edit);
+    const example = changed && comparedTakeExample(advice.take, changed);
+    return example ? { ...result, originalTake: advice.take, example } : null;
+  }
   const proposals = playingProposals(advice.take).proposals;
   const oldTime = advice.take.events[advice.edit?.on]?.time;
   const current = proposals.find((p) => p.id === advice.id) || proposals.find((p) => p.goal === advice.goal && p.at <= oldTime && p.end > oldTime);
   if (!current) return null;
   const changed = applyTakeEdit(advice.take, current.edit);
-  const example = changed && takeExample(changed, 'Avec la proposition');
+  const example = changed && comparedTakeExample(advice.take, changed);
   return example ? { ...result, playingAdvice: { ...current, take: advice.take }, originalTake: advice.take, example } : null;
 }
 
@@ -179,7 +185,7 @@ export function personalPlayingAnswer({ message, messages = [], context, review 
   }
   function demonstrate(advice) {
     const changed = applyTakeEdit(advice.take, advice.edit);
-    const example = changed && takeExample(changed, 'Avec la proposition');
+    const example = changed && comparedTakeExample(advice.take, changed);
     if (!example) return answer('Je ne peux pas appliquer ce changement à la prise enregistrée. Reprenons à partir de ton jeu.');
     const comparison = advice.edit.type === 'plan' ? 'Compare ton jeu original et cette version enrichie.' : advice.edit.type === 'passing' || advice.changes?.some((p) => p.goal === 'passing')
       ? 'Compare les deux versions. Seul l’accompagnement à cet endroit est ajusté.'

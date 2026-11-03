@@ -23,6 +23,7 @@ import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback
 import { pickPreferredInput } from './midi-ports.js';
 import { createChordHistory } from './chord-history.js';
 import { initCopilotTab } from './pedagogie/copilot-tab.js';
+import { createPlayingHighlights } from './ui/playing-highlights.js';
 
 import { createNoteGrouper, isGraceNote, chordNotesWithHeld } from './note-grouper.js';
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
@@ -372,6 +373,7 @@ function applyActiveNotes() {
   for (const midi of state.suggestionNotes) {
     lightKey(midi, true);
   }
+  demoHooks.onVisual?.();
 }
 
 let suggestionReleaseTimer = null;
@@ -697,6 +699,7 @@ function feedDemoEvent(type, a, b) {
   } finally {
     state.isPlayback = false;
   }
+  demoHooks.onVisual?.();
 }
 
 // Notes possibles au dessus d'un accord (voice leading), mises en cache : le
@@ -711,7 +714,7 @@ function cachedTopNoteChoices(rootPc, quality) {
 // Rappels posés par initPracticeExercise (accord suivi, accord de passage, fin
 // de démo) ; cardExtras : notes que la démo ajoute à la carte affichée ;
 // playingPassing : rang de l'accord suivi par le passage qui sonne.
-const demoHooks = { onStep: null, onPassing: null, onEnd: null, cardExtras: null, playingPassing: null };
+const demoHooks = { onStep: null, onPassing: null, onEnd: null, onVisual: null, cardExtras: null, playingPassing: null };
 const demoPlayer = createDemoPlayer({
   send: feedDemoEvent,
   onStep: (step) => demoHooks.onStep?.(step),
@@ -2507,6 +2510,10 @@ function initPracticeExercise() {
   // demoContext : { kind: 'movement', stepBefore, passingBefore } | { kind: 'preview', previewId }
   //   | { kind: 'copilot', id, tempo } | null
   let demoContext = null;
+  const playingHighlights = createPlayingHighlights(document);
+  demoHooks.onVisual = () => {
+    if (demoContext?.kind === 'copilot') playingHighlights.show(demoContext.comparison, demoPlayer.position(), { pedal: demoContext.pedal });
+  };
   let previewId = null;
   // Envoi régulier de la position de l'exemple du Copilote à sa carte (barre de lecture).
   let exampleTicker = null;
@@ -2646,6 +2653,7 @@ function initPracticeExercise() {
   demoHooks.onEnd = () => {
     const context = demoContext;
     demoContext = null;
+    playingHighlights.clear();
     previewId = null;
     demoHooks.playingPassing = null;
     if (context?.kind === 'copilot') {
@@ -2680,8 +2688,9 @@ function initPracticeExercise() {
     }
     const tempo = example.tempo || 60;
     // [Claude] — 2026-10-04 — Avec ou sans la pédale : le choix du pianiste (onglet Copilote).
-    demoPlayer.play({ events: example.events, beats: example.beats }, { tempo, pedal: e.detail.pedal !== false, rate: Number(e.detail.rate) || 1 });
-    demoContext = { kind: 'copilot', id, tempo };
+    const pedal = e.detail.pedal !== false;
+    demoContext = { kind: 'copilot', id, tempo, comparison: example.comparison, pedal };
+    demoPlayer.play({ events: example.events, beats: example.beats }, { tempo, pedal, rate: Number(e.detail.rate) || 1 });
     document.dispatchEvent(new CustomEvent('copilot-example-state', { detail: { id, playing: true } }));
     clearInterval(exampleTicker);
     exampleTicker = setInterval(sendExampleProgress, 250);
@@ -2714,13 +2723,17 @@ function initPracticeExercise() {
       demoContext.scrub = null;
       if (scrub && Number.isFinite(at)) demoPlayer.seek(at / perBeat);
       if (scrub?.resume) demoPlayer.resume();
-    } else if (action === 'pedal') demoPlayer.setPedal(e.detail.on !== false);
+    } else if (action === 'pedal') {
+      demoContext.pedal = e.detail.on !== false;
+      demoPlayer.setPedal(demoContext.pedal);
+    }
     // [Claude] — 2026-10-04 — La vitesse de l'exemple, changée en cours de lecture.
     else if (action === 'rate') demoPlayer.setRate(Number(e.detail.rate) || 1);
     sendExampleProgress();
   });
   function sendExampleProgress() {
     if (demoContext?.kind !== 'copilot' || !demoPlayer.isActive()) return;
+    demoHooks.onVisual?.();
     const perBeat = 60 / demoContext.tempo;
     document.dispatchEvent(new CustomEvent('copilot-example-progress', {
       detail: {
@@ -2742,6 +2755,7 @@ function initPracticeExercise() {
     exampleFrame = requestAnimationFrame(() => {
       exampleFrame = null;
       if (demoContext?.kind !== 'copilot' || !demoPlayer.isPlaying()) return;
+      demoHooks.onVisual?.();
       document.dispatchEvent(new CustomEvent('copilot-example-frame', {
         detail: { id: demoContext.id, position: demoPlayer.position() * 60 / demoContext.tempo },
       }));

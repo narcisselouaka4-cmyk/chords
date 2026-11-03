@@ -19,6 +19,7 @@ export const APP_KEY_CLASS = 'is-app';
  */
 export function lightKeyElement(key, fromApp) {
   if (!key?.classList) return;
+  key.classList.remove('is-copilot-source', 'is-copilot-change');
   key.classList.add('active');
   key.classList.toggle(APP_KEY_CLASS, Boolean(fromApp));
 }
@@ -29,7 +30,7 @@ export function lightKeyElement(key, fromApp) {
  */
 export function unlightKeyElement(key) {
   if (!key?.classList) return;
-  key.classList.remove('active', APP_KEY_CLASS);
+  key.classList.remove('active', APP_KEY_CLASS, 'is-copilot-source', 'is-copilot-change');
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
