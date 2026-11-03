@@ -635,11 +635,12 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
     out.push(`### Rythme : ${rhythmParts.join(' · ')}`);
   }
   out.push('');
-  out.push('### Observations de l\'application (seule source des suggestions ; moments m:ss,d)');
-  out.push('Ce qui marche :');
+  out.push('### Observations calculées (hypothèses à vérifier selon l’intention, pas un bilan à recopier)');
+  out.push('Ne déduis pas le niveau du pianiste de ces mesures. Aucune correction d’arpège, de tension ou de rythme libre sans objectif explicite. Ne montre pas les mesures internes dans la réponse courte.');
+  out.push('Mesures descriptives (ne prouvent pas une maîtrise) :');
   if (review.strengths.length) review.strengths.slice(0, 5).forEach((s) => out.push(`- ${s.text}`));
   else out.push('- (rien de mesurable à souligner)');
-  out.push('Suggestions (à proposer comme des conseils) :');
+  out.push('Pistes possibles seulement si elles répondent au but du pianiste (aucune obligation de conseil) :');
   if (review.issues.length) {
     review.issues.slice(0, 6).forEach((i) => {
       out.push(`- ${i.title} : ${i.text}`);

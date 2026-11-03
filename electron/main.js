@@ -1191,12 +1191,15 @@ function runPianoVision(args) {
  * sort avec le code 0 même en cas d'échec métier, la raison étant portée par le
  * JSON. On lit donc le JSON avant de conclure à une panne.
  */
-function runTranscriber(args) {
+function runTranscriber(args, { timeoutMs = 0 } = {}) {
   return new Promise((resolve, reject) => {
     const proc = trackChild(spawn(getPythonCommand(), [
       path.join(__dirname, 'transcriber.py'),
       ...args,
     ], { shell: false }));
+
+    const timeout = timeoutMs ? setTimeout(() => { proc.kill(); reject(new Error('Transcription trop longue.')); }, timeoutMs) : null;
+    proc.once('close', () => clearTimeout(timeout));
 
     let stdout = '';
     let stderr = '';
@@ -1892,6 +1895,34 @@ function setupStudioIPC() {
   //   - no-speech          : le modèle a tourné et n'a trouvé aucune parole ;
   //   - failed             : échec technique (fichier illisible, modèle en erreur).
   // L'écran en fait trois messages différents. Aucun texte n'est fabriqué.
+  // Dictée du Copilote : fichier temporaire dédié, transcription locale, jamais de clé ni d'envoi vocal.
+  let dictationBusy = false;
+  ipcMain.handle('copilot:transcribe-dictation', async (event, audio) => {
+    if (event.sender !== mainWindow?.webContents) return { ok: false, message: 'Fenêtre non autorisée.' };
+    if (!(audio instanceof ArrayBuffer) && !ArrayBuffer.isView(audio)) return { ok: false, message: 'Enregistrement illisible.' };
+    if (audio.byteLength < 100 || audio.byteLength > 16 * 1024 * 1024) return { ok: false, message: 'Cette dictée est vide ou trop longue. Réessaie avec une phrase plus courte.' };
+    if (dictationBusy) return { ok: false, message: 'Une dictée est encore en cours de transcription. Patiente un instant.' };
+    dictationBusy = true;
+    let workDir = null;
+    try {
+      if (!(await transcriberInstalled())) return { ok: false, message: 'Le moteur de dictée locale n’est pas installé sur ce PC. Tu peux écrire ta demande.' };
+      workDir = await createTranscribeDir();
+      const input = path.join(workDir, 'dictation.webm');
+      const wav = path.join(workDir, 'dictation.wav');
+      await fs.writeFile(input, Buffer.from(audio));
+      await extractTrackAudio(input, wav);
+      const raw = await runTranscriber(['transcribe', wav, '--language=fr'], { timeoutMs: 180000 });
+      const text = raw?.ok ? (raw.segments || []).map((s) => s.text.trim()).filter(Boolean).join(' ') : '';
+      return text ? { ok: true, text } : { ok: false, message: 'Je n’ai pas reconnu de paroles. Réessaie en parlant près du micro.' };
+    } catch (err) {
+      console.warn('[Copilot] Dictée indisponible :', err.message);
+      return { ok: false, message: 'La transcription n’a pas abouti. Tu peux réessayer ou écrire ta demande.' };
+    } finally {
+      await releaseTranscribeDir(workDir);
+      dictationBusy = false;
+    }
+  });
+
   ipcMain.handle('pedagogie:transcribe-video', async (event, filePath, options = {}) => {
     if (!(await transcriberInstalled())) {
       return { available: false, reason: 'dependency-missing' };

@@ -694,6 +694,28 @@
    ============================================================================ */
 #copilot-chat-area { flex: 1; min-height: 0; }
 #copilot-messages { flex: 1; min-height: 0; overflow: auto; }
+/* Prise jointe : une enveloppe MIDI, puis l'envoi explicite du message. */
+.copilot-take-player { display: flex; align-items: center; gap: 10px; padding: 12px; margin: 8px 0; min-width: 0; border: 1px solid var(--tr-border); border-radius: 12px; background: var(--tr-surface); color: var(--tr-text); }
+.copilot-take-body { flex: 1; min-width: 70px; }
+.copilot-take-body strong { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.copilot-take-wave { position: relative; height: 38px; overflow: hidden; color: var(--tr-accent); }
+.copilot-take-wave svg { display: block; width: 100%; height: 100%; fill: currentColor; opacity: .75; }
+.copilot-take-cursor { position: absolute; top: 0; bottom: 0; left: var(--take-progress, 0%); width: 2px; background: var(--tr-text); }
+.copilot-take-play { width: 34px; height: 34px; flex-shrink: 0; border: 0; border-radius: 50%; cursor: pointer; background: var(--tr-accent); color: var(--tr-button-text); }
+.copilot-take-time { font: 11px var(--tr-mono); color: var(--tr-muted); white-space: nowrap; }
+.copilot-take-action { border: 0; background: transparent; color: var(--tr-text); font: inherit; font-size: 11px; cursor: pointer; padding: 5px; }
+.copilot-take-action:hover { text-decoration: underline; }
+.copilot-mic-btn { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--tr-border); border-radius: 13px; padding: 5px 9px; color: var(--tr-text); background: var(--tr-surface); font: inherit; font-size: 11px; white-space: nowrap; cursor: pointer; }
+.copilot-mic-btn[aria-pressed="true"] { color: var(--tr-red); border-color: currentColor; }
+.copilot-dictation-status { font-size: 12px; color: var(--tr-text); padding: 4px 10px; margin: 0; }
+.copilot-take-player button:focus-visible, .copilot-mic-btn:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 3px; }
+#copilot-take-draft[hidden], .copilot-dictation-status[hidden] { display: none; }
+@media (max-width: 1200px) {
+  .copilot-take-player { flex-wrap: wrap; }
+  .copilot-take-action { margin-left: auto; }
+  :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools { flex-wrap: wrap; }
+  :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-hint { white-space: normal; }
+}
 /* [Astra round 4] — Plus d'override de mise en page ici : .tr-composer,
    .tr-composer textarea et .tr-composer-tools d'astra-training.css font déjà
    exactement ce qu'il faut (carte, textarea qui grandit, barre d'outils en

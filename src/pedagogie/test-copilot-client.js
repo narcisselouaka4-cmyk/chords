@@ -1944,6 +1944,34 @@ async function testTimeout() {
   global.fetch = originalFetch;
 }
 
+async function testPersonalPlayingGuard() {
+  const originalFetch = global.fetch;
+  const context = { type: 'autonomous', playing: { passage: { events: [
+    { type: 'note_on', note: 60, velocity: .7, channel: 0, time: 0 },
+    { type: 'note_off', note: 60, velocity: 0, channel: 0, time: 2 },
+  ], duration: 2 } } };
+  let calls = 0;
+  let system = '';
+  global.fetch = async (_url, init) => {
+    calls += 1;
+    system = JSON.parse(init.body).messages[0].content;
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: {
+      role: 'assistant', content: 'Voici une démonstration.', tool_calls: [
+        { id: 'wrong', type: 'function', function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['C', 'F', 'G'] }) } },
+      ],
+    } }] }) };
+  };
+  try {
+    const neutral = await sendCopilotMessage({ message: 'Qu’en penses-tu de ce que je viens de jouer ?', messages: [], context, review: true });
+    check('Prise sans objectif : aucun appel IA ni bilan inventé', calls === 0 && /intention/.test(neutral.content) && !neutral.toolResult.example);
+    const guarded = await sendCopilotMessage({ message: 'Ajoute une appoggiature à mon jeu', messages: [], context, review: true });
+    check('Une démonstration générique ne remplace jamais une transformation personnelle', calls === 1 && !guarded.toolResult.example && /vérifiable/.test(guarded.content));
+    check('Consignes simples : aucune liste de compliments/corrections imposée', /une seule suggestion/i.test(system) && /aucun.*compliment/i.test(system) && !/Commence par un ou deux points qui marchent/.test(system));
+    const replayed = await sendCopilotMessage({ message: 'Rejoue mon jeu', messages: [], context });
+    check('Même si le modèle appelle un autre outil, le rejeu garde les notes de la prise', replayed.toolResult.example?.events.filter((e) => e.type === 'noteOn').every((e) => e.note === 60));
+  } finally { global.fetch = originalFetch; }
+}
+
 async function runTests() {
   testToolCalls();
   await testNoKey();
@@ -1998,6 +2026,7 @@ async function runTests() {
   testWantsToHear();
   testTextToolCalls();
   await testTextToolCallsInSend();
+  await testPersonalPlayingGuard();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

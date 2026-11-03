@@ -79,6 +79,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     rename: (oldPath, newPath) => ipcRenderer.invoke('files:rename', oldPath, newPath),
   },
   // [Claude 05/09] — Pédagogie IA : analyse d'un tutoriel vidéo à l'image.
+  copilot: {
+    transcribeDictation: (audio) => ipcRenderer.invoke('copilot:transcribe-dictation', audio),
+  },
   pedagogie: {
     analyzeVideo: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:analyze-video', filePath, options),
     transcribeVideo: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:transcribe-video', filePath, options),

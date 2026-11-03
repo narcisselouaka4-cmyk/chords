@@ -35,6 +35,9 @@ import {
 import { createSpeedMenu, setSpeedMenuValue, clampSpeed } from '../ui/components/speed-menu.js';
 import { appConfirm } from '../ui/components/app-dialog.js';
 import { notify } from '../ui/components/app-notify.js';
+import { createTakePlayer, refreshTakePlayers } from './take-player.js';
+import { lastAttachedTake } from './take-attachment.js';
+import { createDictation } from './copilot-dictation.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -61,8 +64,11 @@ let exampleRate = readExampleRate();
 // portrait (lines), ses notes exactes (events, pour le rejouer) et sa tonalité,
 // gardés pour les questions de suivi de la même conversation.
 let lastTake = null;
+let draftTake = null;
+let dictation = null;
+let takeSequence = 0;
 // [Claude] — 2026-09-26 — Écoute de « Qu'en penses-tu ? » : début (ms) et minuterie
-// du compteur ; arrêt et envoi automatiques au bout de 5 minutes.
+// du compteur ; arrêt de l'écoute à 5 minutes, sans envoi automatique.
 const REVIEW_MAX_SECONDS = 300;
 let reviewStartedAt = 0;
 let reviewTimer = null;
@@ -1018,6 +1024,7 @@ function toggleExample(msg) {
 
 /** Met à jour le bouton de la carte qui joue (ou vient de s'arrêter), sans tout redessiner. */
 function refreshExampleCards() {
+  refreshTakePlayers(els.root?.ownerDocument, playingExampleId, exampleProgress, examplePaused);
   if (!els.messages) return;
   els.messages.querySelectorAll('.copilot-example').forEach((card) => {
     const playing = card.dataset.exampleId === playingExampleId;
@@ -1076,12 +1083,16 @@ function renderReviewButton(hint = null) {
 /**
  * [Claude] — 2026-09-26 — « Qu'en penses-tu ? » (dans la case du Copilote, à la place
  * de « IA connectée ») : premier clic, le Copilote écoute ; second clic (Stop), ce
- * qui a été joué entre les deux part aussitôt. Narcisse : un essai raté juste avant
+ * qui a été joué entre les deux reste dans le brouillon. Narcisse : un essai raté juste avant
  * se mêlait à l'essai réussi quand le passage était « depuis la dernière pause ».
- * @returns {Promise<object|null>} l'avis de l'application, une fois envoyé
+ * @returns {Promise<object|null>} la prise préparée, sans envoi
  */
 export async function toggleReviewCapture() {
   if (!liveTake.isCapturing()) {
+    dictation?.cancel();
+    document.dispatchEvent(new CustomEvent('copilot-stop-example'));
+    draftTake = null;
+    renderDraftTake();
     liveTake.startCapture();
     reviewStartedAt = Date.now();
     clearInterval(reviewTimer);
@@ -1100,7 +1111,40 @@ export async function toggleReviewCapture() {
     return null;
   }
   renderReviewButton();
-  return reviewPassage(passage);
+  draftTake = { ...passage, id: `take-${Date.now()}-${++takeSequence}` };
+  renderDraftTake();
+  renderReviewButton('Réécoute ta prise, ajoute ta demande, puis appuie sur Envoyer.');
+  return passage;
+}
+
+function clearDraftTake() {
+  document.dispatchEvent(new CustomEvent('copilot-stop-example'));
+  draftTake = null;
+  renderDraftTake();
+  renderReviewButton();
+}
+
+function renderDraftTake() {
+  if (!els.takeDraft) return;
+  els.takeDraft.replaceChildren();
+  els.takeDraft.hidden = !draftTake;
+  if (!draftTake) return;
+  els.takeDraft.append(createTakePlayer(draftTake, {
+    id: draftTake.id,
+    onDelete: clearDraftTake,
+    onRedo: () => { clearDraftTake(); toggleReviewCapture(); },
+  }));
+}
+
+function resetComposer() {
+  clearInterval(reviewTimer);
+  reviewTimer = null;
+  liveTake.clear();
+  dictation?.cancel();
+  const status = document.getElementById('copilot-dictation-status');
+  if (status) { status.hidden = true; status.textContent = ''; delete status.dataset.error; }
+  clearDraftTake();
+  if (els.input) { els.input.value = ''; autoGrowInput(); }
 }
 
 /**
@@ -1112,19 +1156,18 @@ export async function toggleReviewCapture() {
  */
 export async function reviewPassage(passage, { question = '' } = {}) {
   if (!passage?.events?.length || !els.input) return null;
+  if (turnBusy) return null;
   const asked = String(question || els.input.value || '').trim();
   const exercise = currentMode === 'exercise' ? readCopilotContext('exercise') : null;
   const review = reviewTake(passage.events, { question: asked, expect: exercise ? { ...exercise.expect, label: exercise.title } : null });
   if (!review) return null;
-  // Stop pendant que le Copilote répond encore : l'envoi attend la fin de la réponse
-  // (deux minutes au plus : le service d'IA a 90 secondes pour répondre).
-  for (let waited = 0; turnBusy && waited < 120000; waited += 200) {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-  }
+  document.dispatchEvent(new CustomEvent('copilot-stop-example'));
   els.input.value = '';
   autoGrowInput();
   const defaultQuestion = exercise ? `Qu'en penses-tu de ce que je viens de jouer sur l'exercice (${exercise.title}) ?` : DEFAULT_REVIEW_QUESTION;
-  await runCopilotTurn(asked || defaultQuestion, { review: true, take: { lines: review.contextLines, events: passage.events, key: review.key?.label || null } });
+  draftTake = null;
+  renderDraftTake();
+  await runCopilotTurn(asked || defaultQuestion, { review: true, take: { ...passage, lines: review.contextLines, key: review.key?.confidence >= .6 ? review.key.label : null } });
   return review;
 }
 
@@ -1248,11 +1291,13 @@ function renderOneMessage(msg, { last = false } = {}) {
   const visibleText = !isUser && !String(text || '').trim() && !msg.toolResult?.example
     ? 'Cette réponse enregistrée est vide. Repose ta question pour obtenir une nouvelle réponse.' : text;
   renderMessageText(content, visibleText);
+  if (isUser && msg.take?.events?.length) content.append(createTakePlayer(msg.take, { id: msg.take.id || `take-${msg.timestamp}` }));
   if (notes) content.appendChild(renderNotesDetails(notes));
 
   // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
   // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
   if (msg.toolResult?.example) {
+    if (msg.toolResult.originalTake) content.append(createTakePlayer(msg.toolResult.originalTake, { id: `${exampleIdOf(msg)}-original`, title: 'Ton jeu original' }));
     content.appendChild(renderExampleCard(msg));
   } else if (msg.toolResult?.played?.length) {
     // Anciennes conversations : notes jouées à l'époque, pour mémoire.
@@ -1298,6 +1343,7 @@ function showChatArea() {
 }
 
 async function startNewConversation(tutorialPath) {
+  resetComposer();
   lastTake = null;
   const id = await createConversation(tutorialPath || AUTONOMOUS_HISTORY_KEY);
   if (!id) return null;
@@ -1554,8 +1600,10 @@ async function onDeleteEmptyConversations() {
 async function loadHistoryItem(conversationId) {
   const history = await loadHistory(conversationId);
   if (!history) return;
+  resetComposer();
   currentConversationId = conversationId;
   messages = history.messages || [];
+  lastTake = lastAttachedTake(messages);
   currentMode = 'autonomous';
   currentSessionId = null;
   currentSessionContext = null;
@@ -1652,7 +1700,8 @@ async function resumeOrStartConversation(key) {
     if (latest) {
       const history = await loadHistory(latest.conversationId);
       if (history?.messages?.length) {
-        lastTake = null;
+        resetComposer();
+        lastTake = lastAttachedTake(history.messages);
         currentConversationId = latest.conversationId;
         messages = history.messages;
         return currentConversationId;
@@ -1736,6 +1785,9 @@ async function onModeToggleClick() {
 async function sendUserMessage() {
   // Réponse en cours : le texte reste dans la case, il partira ensuite.
   if (turnBusy) return;
+  if (liveTake.isCapturing()) { renderReviewButton('Arrête la prise pour pouvoir la réécouter et l’envoyer.'); return; }
+  if (dictation && dictation.state() !== 'idle') return;
+  if (draftTake) return reviewPassage(draftTake);
   const text = els.input.value.trim();
   if (!text) return;
   els.input.value = '';
@@ -1771,7 +1823,7 @@ function playingSources() {
   if (session?.events?.length) {
     out.session = { events: session.events, key: session.key || session.heardKey || null, offset: Number(readCopilotContext('keyboard')?.transpose) || 0 };
   }
-  if (lastTake?.events?.length) out.passage = { events: lastTake.events, key: lastTake.key || null };
+  if (lastTake?.events?.length) out.passage = { ...lastTake, key: lastTake.key || null };
   return out.session || out.passage ? out : null;
 }
 
@@ -1799,7 +1851,7 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
     if (take) lastTake = take;
     const turnMessages = messages;
     const turnConversationId = currentConversationId;
-    messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
+    messages.push({ role: 'user', content: text, ...(take ? { take } : {}), timestamp: new Date().toISOString() });
     addTypingIndicator();
 
     const base = getTutorialContext() || getSessionContext() || getExerciseContext();
@@ -1886,6 +1938,39 @@ export async function initCopilotTab() {
   els.reviewBtn = document.getElementById('copilot-review-btn');
   els.reviewHint = document.getElementById('copilot-review-hint');
   els.reviewBtn?.addEventListener('click', () => toggleReviewCapture());
+  els.takeDraft = document.getElementById('copilot-take-draft');
+  const mic = document.getElementById('copilot-mic-btn');
+  const status = document.getElementById('copilot-dictation-status');
+  dictation = createDictation({
+    transcribe: window.electronAPI?.copilot?.transcribeDictation,
+    onState: (state) => {
+      const labels = { idle: 'Dicter', opening: 'Annuler', recording: 'Stop micro', transcribing: 'Annuler' };
+      mic?.querySelector('span')?.replaceChildren(document.createTextNode(labels[state]));
+      mic?.setAttribute('aria-pressed', String(state === 'recording'));
+      mic?.setAttribute('aria-label', state === 'idle' ? 'Dicter ma demande' : labels[state]);
+      if (status && state !== 'idle') {
+        status.hidden = false;
+        status.textContent = state === 'recording' ? 'Je t’écoute. Arrête le micro pour relire ta demande.' : state === 'transcribing' ? 'Je retranscris ta demande…' : 'Ouverture du micro…';
+      } else if (status && !status.dataset.error) status.hidden = true;
+    },
+    onText: (text) => {
+      const combined = [els.input.value.trim(), text].filter(Boolean).join(' ');
+      // Aucun texte dicté n'est perdu silencieusement à la limite du champ.
+      els.input.value = combined;
+      autoGrowInput();
+      status.hidden = false;
+      delete status.dataset.error;
+      status.textContent = 'Demande transcrite. Relis-la, puis appuie sur Envoyer.';
+      els.input.focus();
+    },
+    onError: (text) => { if (status) { status.hidden = false; status.dataset.error = 'true'; status.textContent = text; } },
+  });
+  mic?.addEventListener('click', () => {
+    if (liveTake.isCapturing()) { renderReviewButton('Arrête d’abord la prise pour dicter ta demande.'); return; }
+    if (status) delete status.dataset.error;
+    document.dispatchEvent(new CustomEvent('copilot-stop-example'));
+    dictation.toggle();
+  });
   // « Demander au Copilote » depuis Exercices.
   document.addEventListener('copilot-open-exercise', () => switchToExerciseMode());
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
@@ -1989,6 +2074,7 @@ export async function initCopilotTab() {
     if (!id || id !== playingExampleId) return;
     exampleProgress = { id, position: Number(position) || 0, duration: Number(duration) || 0 };
     examplePaused = Boolean(paused);
+    refreshTakePlayers(els.root?.ownerDocument, playingExampleId, exampleProgress, examplePaused);
     refreshExampleTransport();
   });
 
