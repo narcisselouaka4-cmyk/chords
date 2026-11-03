@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { takeExample, takeEnvelope, lastAttachedTake } from './take-attachment.js';
 import { applyTakeEdit, personalPlayingAnswer, playingProposals } from './playing-advice.js';
 
@@ -88,5 +89,59 @@ check('Les amas chromatiques ne génèrent pas d’enrichissement arbitraire', (
 });
 check('L’historique retrouve la dernière prise, même après des questions de suivi', () => {
   assert.deepEqual(lastAttachedTake([{ role: 'user', take }, { role: 'assistant', content: '...' }, { role: 'user', content: 'Explique' }]), take);
+});
+const real = JSON.parse(readFileSync(new URL('./fixtures/copilot-arpeggiated-take.json', import.meta.url)));
+const realCopy = JSON.stringify(real);
+const realContext = { playing: { passage: real } };
+check('La prise réelle arpégée n’est plus confondue avec un manque de repères', () => {
+  const proposals = playingProposals(real);
+  assert(proposals.harmonicCount >= 10);
+  assert(proposals.proposals.some((p) => p.goal === 'enrich'));
+  assert(proposals.proposals.some((p) => p.goal === 'passing'));
+  const result = personalPlayingAnswer({ message: 'Un accord de passage ou un accord enrichi pour ma progression ?', context: realContext });
+  assert(result.toolResult.playingAdvice);
+  assert.doesNotMatch(result.content, /pas assez|repères|indique l’accord/);
+});
+check('Une demande de passage propose une dominante liée à un accord réellement joué', () => {
+  const result = personalPlayingAnswer({ message: 'Propose un accord de passage', context: realContext });
+  assert.match(result.content, /Mi septième/);
+  assert.match(result.content, /La mineur/);
+  const { edit } = result.toolResult.playingAdvice;
+  assert.equal(edit.type, 'passing');
+  assert.deepEqual(edit.notes, [52, 62, 68]); // Mi, Ré, Sol# : fondamentale, septième, tierce.
+  assert(edit.start > 3.36 && edit.end < 3.66);
+});
+check('L’insertion garde absolument tous les événements originaux et ferme les notes ajoutées', () => {
+  const result = personalPlayingAnswer({ message: 'Propose un accord de passage', context: realContext });
+  const changed = applyTakeEdit(real, result.toolResult.playingAdvice.edit);
+  assert(changed);
+  for (const e of real.events) assert(changed.events.some((c) => JSON.stringify(c) === JSON.stringify(e)));
+  const added = changed.events.filter((e) => !real.events.some((c) => JSON.stringify(c) === JSON.stringify(e)));
+  assert.equal(added.length, 6);
+  for (const on of added.filter((e) => e.type === 'note_on')) {
+    const off = added.find((e) => e.type === 'note_off' && e.note === on.note);
+    assert(off && off.time > on.time && off.time < 3.66);
+  }
+  assert.equal(JSON.stringify(real), realCopy);
+});
+check('La démonstration du passage est préparée depuis la prise réelle', () => {
+  const result = personalPlayingAnswer({ message: 'Propose un accord de passage', context: realContext });
+  const heard = personalPlayingAnswer({ message: 'Fais-moi entendre cette proposition', context: realContext, messages: [{ role: 'assistant', ...result }] });
+  assert.equal(heard.toolResult.example.noteCount, 87);
+  assert.equal(heard.toolResult.example.beats, real.duration);
+  assert.deepEqual(heard.toolResult.originalTake, real);
+});
+check('Une demande d’enrichissement conserve l’arpège réel au-delà de 250 ms', () => {
+  const result = personalPlayingAnswer({ message: 'Enrichis mes accords', context: realContext });
+  assert(result.toolResult.playingAdvice);
+  const changed = applyTakeEdit(real, result.toolResult.playingAdvice.edit);
+  assert(changed);
+  assert.deepEqual(changed.events.map((e) => e.time), real.events.map((e) => e.time));
+});
+check('Une pédale tenue ou l’absence de transition n’entraînent pas d’accord ajouté arbitraire', () => {
+  const withPedal = { ...real, events: [{ type: 'control', controller: 64, value: 127, time: 0 }, ...real.events] };
+  assert.equal(playingProposals(withPedal).proposals.filter((p) => p.goal === 'passing').length, 0);
+  const chord = { events: events.filter((e) => e.time < 1.8), duration: 1.8 };
+  assert.equal(playingProposals(chord).proposals.filter((p) => p.goal === 'passing').length, 0);
 });
 console.log(`${count}/${count} vérifications réussies`);

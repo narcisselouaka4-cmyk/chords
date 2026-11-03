@@ -1,0 +1,1182 @@
+{
+  "description": "Prise arpegee de 23 secondes, retour utilisateur du 03/11/2026",
+  "duration": 23.396299999997026,
+  "events": [
+    {
+      "type": "note_on",
+      "note": 60,
+      "velocity": 0.4251968503937008,
+      "channel": 0,
+      "time": 0
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.47244094488188976,
+      "channel": 0,
+      "time": 0.22190000000595944
+    },
+    {
+      "type": "note_on",
+      "note": 72,
+      "velocity": 0.4881889763779528,
+      "channel": 0,
+      "time": 0.45790000000596365
+    },
+    {
+      "type": "note_on",
+      "note": 74,
+      "velocity": 0.6614173228346457,
+      "channel": 0,
+      "time": 0.6714000000059599
+    },
+    {
+      "type": "note_on",
+      "note": 79,
+      "velocity": 0.7480314960629921,
+      "channel": 0,
+      "time": 0.8877999999970285
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 0.9925999999940416
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.41732283464566927,
+      "channel": 0,
+      "time": 1.091200000002985
+    },
+    {
+      "type": "note_off",
+      "note": 72,
+      "velocity": 0,
+      "channel": 0,
+      "time": 1.1780999999940462
+    },
+    {
+      "type": "note_on",
+      "note": 72,
+      "velocity": 0.4881889763779528,
+      "channel": 0,
+      "time": 1.3225000000000051
+    },
+    {
+      "type": "note_off",
+      "note": 74,
+      "velocity": 0,
+      "channel": 0,
+      "time": 1.3672999999970301
+    },
+    {
+      "type": "note_off",
+      "note": 60,
+      "velocity": 0,
+      "channel": 0,
+      "time": 1.4639000000059639
+    },
+    {
+      "type": "note_on",
+      "note": 74,
+      "velocity": 0.6535433070866141,
+      "channel": 0,
+      "time": 1.7585000000000122
+    },
+    {
+      "type": "note_on",
+      "note": 59,
+      "velocity": 0.6220472440944882,
+      "channel": 0,
+      "time": 1.8030999999940462
+    },
+    {
+      "type": "note_off",
+      "note": 72,
+      "velocity": 0,
+      "channel": 0,
+      "time": 1.8182000000029888
+    },
+    {
+      "type": "note_on",
+      "note": 62,
+      "velocity": 0.4409448818897638,
+      "channel": 0,
+      "time": 2.2514000000059724
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 2.3492999999970294
+    },
+    {
+      "type": "note_off",
+      "note": 79,
+      "velocity": 0,
+      "channel": 0,
+      "time": 2.416099999994046
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.4645669291338583,
+      "channel": 0,
+      "time": 2.4772000000029806
+    },
+    {
+      "type": "note_on",
+      "note": 76,
+      "velocity": 0.7716535433070866,
+      "channel": 0,
+      "time": 2.739099999994039
+    },
+    {
+      "type": "note_on",
+      "note": 79,
+      "velocity": 0.4566929133858268,
+      "channel": 0,
+      "time": 2.759299999997026
+    },
+    {
+      "type": "note_off",
+      "note": 74,
+      "velocity": 0,
+      "channel": 0,
+      "time": 2.7889000000059667
+    },
+    {
+      "type": "note_off",
+      "note": 79,
+      "velocity": 0,
+      "channel": 0,
+      "time": 2.982299999997025
+    },
+    {
+      "type": "note_on",
+      "note": 74,
+      "velocity": 0.6456692913385826,
+      "channel": 0,
+      "time": 3.0339000000059713
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 3.260200000002982
+    },
+    {
+      "type": "note_off",
+      "note": 76,
+      "velocity": 0,
+      "channel": 0,
+      "time": 3.311900000005963
+    },
+    {
+      "type": "note_on",
+      "note": 71,
+      "velocity": 0.5433070866141733,
+      "channel": 0,
+      "time": 3.333299999997024
+    },
+    {
+      "type": "note_off",
+      "note": 74,
+      "velocity": 0,
+      "channel": 0,
+      "time": 3.3677999999970183
+    },
+    {
+      "type": "note_off",
+      "note": 62,
+      "velocity": 0,
+      "channel": 0,
+      "time": 3.3682999999970207
+    },
+    {
+      "type": "note_off",
+      "note": 59,
+      "velocity": 0,
+      "channel": 0,
+      "time": 3.385000000000005
+    },
+    {
+      "type": "note_off",
+      "note": 71,
+      "velocity": 0,
+      "channel": 0,
+      "time": 3.643500000000003
+    },
+    {
+      "type": "note_on",
+      "note": 57,
+      "velocity": 0.5354330708661418,
+      "channel": 0,
+      "time": 3.660000000000011
+    },
+    {
+      "type": "note_on",
+      "note": 72,
+      "velocity": 0.5669291338582677,
+      "channel": 0,
+      "time": 3.660599999994048
+    },
+    {
+      "type": "note_on",
+      "note": 64,
+      "velocity": 0.4251968503937008,
+      "channel": 0,
+      "time": 3.940000000000012
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.4881889763779528,
+      "channel": 0,
+      "time": 4.236400000005972
+    },
+    {
+      "type": "note_off",
+      "note": 72,
+      "velocity": 0,
+      "channel": 0,
+      "time": 4.424000000000007
+    },
+    {
+      "type": "note_on",
+      "note": 72,
+      "velocity": 0.6692913385826772,
+      "channel": 0,
+      "time": 4.559700000002991
+    },
+    {
+      "type": "note_on",
+      "note": 74,
+      "velocity": 0.5275590551181102,
+      "channel": 0,
+      "time": 5.186000000000007
+    },
+    {
+      "type": "note_on",
+      "note": 76,
+      "velocity": 0.7007874015748031,
+      "channel": 0,
+      "time": 5.296500000000009
+    },
+    {
+      "type": "note_off",
+      "note": 72,
+      "velocity": 0,
+      "channel": 0,
+      "time": 5.368599999994046
+    },
+    {
+      "type": "note_off",
+      "note": 64,
+      "velocity": 0,
+      "channel": 0,
+      "time": 5.4032999999970315
+    },
+    {
+      "type": "note_off",
+      "note": 57,
+      "velocity": 0,
+      "channel": 0,
+      "time": 5.40379999999702
+    },
+    {
+      "type": "note_off",
+      "note": 74,
+      "velocity": 0,
+      "channel": 0,
+      "time": 5.502400000005963
+    },
+    {
+      "type": "note_on",
+      "note": 71,
+      "velocity": 0.6299212598425197,
+      "channel": 0,
+      "time": 5.541499999999999
+    },
+    {
+      "type": "note_on",
+      "note": 55,
+      "velocity": 0.5354330708661418,
+      "channel": 0,
+      "time": 5.575099999994052
+    },
+    {
+      "type": "note_off",
+      "note": 76,
+      "velocity": 0,
+      "channel": 0,
+      "time": 5.591000000000008
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 5.596299999997029
+    },
+    {
+      "type": "note_on",
+      "note": 62,
+      "velocity": 0.47244094488188976,
+      "channel": 0,
+      "time": 5.924700000002986
+    },
+    {
+      "type": "note_on",
+      "note": 72,
+      "velocity": 0.6535433070866141,
+      "channel": 0,
+      "time": 6.524299999997027
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.14960629921259844,
+      "channel": 0,
+      "time": 6.55740000000597
+    },
+    {
+      "type": "note_off",
+      "note": 71,
+      "velocity": 0,
+      "channel": 0,
+      "time": 6.86690000000597
+    },
+    {
+      "type": "note_on",
+      "note": 71,
+      "velocity": 0.6692913385826772,
+      "channel": 0,
+      "time": 6.990900000005965
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 7.011599999994047
+    },
+    {
+      "type": "note_off",
+      "note": 62,
+      "velocity": 0,
+      "channel": 0,
+      "time": 7.166099999994046
+    },
+    {
+      "type": "note_off",
+      "note": 55,
+      "velocity": 0,
+      "channel": 0,
+      "time": 7.259500000000003
+    },
+    {
+      "type": "note_off",
+      "note": 71,
+      "velocity": 0,
+      "channel": 0,
+      "time": 7.4017000000029896
+    },
+    {
+      "type": "note_on",
+      "note": 53,
+      "velocity": 0.6299212598425197,
+      "channel": 0,
+      "time": 7.503200000002991
+    },
+    {
+      "type": "note_off",
+      "note": 72,
+      "velocity": 0,
+      "channel": 0,
+      "time": 7.504299999997031
+    },
+    {
+      "type": "note_on",
+      "note": 69,
+      "velocity": 0.6456692913385826,
+      "channel": 0,
+      "time": 7.517200000002987
+    },
+    {
+      "type": "note_on",
+      "note": 60,
+      "velocity": 0.48031496062992124,
+      "channel": 0,
+      "time": 7.97120000000298
+    },
+    {
+      "type": "note_on",
+      "note": 65,
+      "velocity": 0.4881889763779528,
+      "channel": 0,
+      "time": 8.176200000002979
+    },
+    {
+      "type": "note_off",
+      "note": 69,
+      "velocity": 0,
+      "channel": 0,
+      "time": 8.35029999999702
+    },
+    {
+      "type": "note_on",
+      "note": 69,
+      "velocity": 0.6614173228346457,
+      "channel": 0,
+      "time": 8.448799999997021
+    },
+    {
+      "type": "note_on",
+      "note": 72,
+      "velocity": 0.14960629921259844,
+      "channel": 0,
+      "time": 8.45959999999404
+    },
+    {
+      "type": "note_off",
+      "note": 65,
+      "velocity": 0,
+      "channel": 0,
+      "time": 9.120599999994042
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.4330708661417323,
+      "channel": 0,
+      "time": 9.146599999994038
+    },
+    {
+      "type": "note_off",
+      "note": 53,
+      "velocity": 0,
+      "channel": 0,
+      "time": 9.16670000000299
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 9.277500000000003
+    },
+    {
+      "type": "note_on",
+      "note": 52,
+      "velocity": 0.6692913385826772,
+      "channel": 0,
+      "time": 9.379500000000007
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.5984251968503937,
+      "channel": 0,
+      "time": 9.392499999999998
+    },
+    {
+      "type": "note_off",
+      "note": 69,
+      "velocity": 0,
+      "channel": 0,
+      "time": 9.44740000000597
+    },
+    {
+      "type": "note_on",
+      "note": 55,
+      "velocity": 0.6614173228346457,
+      "channel": 0,
+      "time": 9.601099999994048
+    },
+    {
+      "type": "note_off",
+      "note": 60,
+      "velocity": 0,
+      "channel": 0,
+      "time": 9.657499999999999
+    },
+    {
+      "type": "note_off",
+      "note": 72,
+      "velocity": 0,
+      "channel": 0,
+      "time": 9.701700000002987
+    },
+    {
+      "type": "note_on",
+      "note": 60,
+      "velocity": 0.5984251968503937,
+      "channel": 0,
+      "time": 9.819700000002982
+    },
+    {
+      "type": "note_on",
+      "note": 64,
+      "velocity": 0.47244094488188976,
+      "channel": 0,
+      "time": 10.04570000000298
+    },
+    {
+      "type": "note_on",
+      "note": 69,
+      "velocity": 0.6299212598425197,
+      "channel": 0,
+      "time": 10.279799999997024
+    },
+    {
+      "type": "note_on",
+      "note": 71,
+      "velocity": 0.6456692913385826,
+      "channel": 0,
+      "time": 10.746400000005963
+    },
+    {
+      "type": "note_off",
+      "note": 60,
+      "velocity": 0,
+      "channel": 0,
+      "time": 10.796599999994044
+    },
+    {
+      "type": "note_off",
+      "note": 64,
+      "velocity": 0,
+      "channel": 0,
+      "time": 10.813700000002981
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 10.845099999994048
+    },
+    {
+      "type": "note_off",
+      "note": 69,
+      "velocity": 0,
+      "channel": 0,
+      "time": 10.868200000002986
+    },
+    {
+      "type": "note_off",
+      "note": 52,
+      "velocity": 0,
+      "channel": 0,
+      "time": 10.981099999994044
+    },
+    {
+      "type": "note_off",
+      "note": 55,
+      "velocity": 0,
+      "channel": 0,
+      "time": 10.99590000000596
+    },
+    {
+      "type": "note_off",
+      "note": 71,
+      "velocity": 0,
+      "channel": 0,
+      "time": 11.190000000000012
+    },
+    {
+      "type": "note_on",
+      "note": 65,
+      "velocity": 0.5826771653543307,
+      "channel": 0,
+      "time": 11.204799999997022
+    },
+    {
+      "type": "note_on",
+      "note": 50,
+      "velocity": 0.6220472440944882,
+      "channel": 0,
+      "time": 11.221500000000006
+    },
+    {
+      "type": "note_on",
+      "note": 57,
+      "velocity": 0.47244094488188976,
+      "channel": 0,
+      "time": 11.671599999994044
+    },
+    {
+      "type": "note_on",
+      "note": 60,
+      "velocity": 0.41732283464566927,
+      "channel": 0,
+      "time": 11.86620000000299
+    },
+    {
+      "type": "note_off",
+      "note": 65,
+      "velocity": 0,
+      "channel": 0,
+      "time": 11.963400000005961
+    },
+    {
+      "type": "note_on",
+      "note": 65,
+      "velocity": 0.6692913385826772,
+      "channel": 0,
+      "time": 12.102599999994041
+    },
+    {
+      "type": "note_off",
+      "note": 57,
+      "velocity": 0,
+      "channel": 0,
+      "time": 12.270599999994047
+    },
+    {
+      "type": "note_on",
+      "note": 57,
+      "velocity": 0.5039370078740157,
+      "channel": 0,
+      "time": 12.34920000000298
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.6456692913385826,
+      "channel": 0,
+      "time": 12.662299999997032
+    },
+    {
+      "type": "note_off",
+      "note": 50,
+      "velocity": 0,
+      "channel": 0,
+      "time": 12.797299999997023
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 13.02509999999404
+    },
+    {
+      "type": "note_on",
+      "note": 64,
+      "velocity": 0.6456692913385826,
+      "channel": 0,
+      "time": 13.039299999997027
+    },
+    {
+      "type": "note_off",
+      "note": 65,
+      "velocity": 0,
+      "channel": 0,
+      "time": 13.055000000000007
+    },
+    {
+      "type": "note_on",
+      "note": 48,
+      "velocity": 0.23622047244094488,
+      "channel": 0,
+      "time": 13.075299999997029
+    },
+    {
+      "type": "note_on",
+      "note": 52,
+      "velocity": 0.5511811023622047,
+      "channel": 0,
+      "time": 13.346700000002983
+    },
+    {
+      "type": "note_off",
+      "note": 57,
+      "velocity": 0,
+      "channel": 0,
+      "time": 13.481799999997023
+    },
+    {
+      "type": "note_on",
+      "note": 57,
+      "velocity": 0.5118110236220472,
+      "channel": 0,
+      "time": 13.635799999997019
+    },
+    {
+      "type": "note_on",
+      "note": 69,
+      "velocity": 0.6062992125984252,
+      "channel": 0,
+      "time": 13.92940000000597
+    },
+    {
+      "type": "note_off",
+      "note": 64,
+      "velocity": 0,
+      "channel": 0,
+      "time": 14.140200000002991
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.5354330708661418,
+      "channel": 0,
+      "time": 14.230700000002983
+    },
+    {
+      "type": "note_off",
+      "note": 60,
+      "velocity": 0,
+      "channel": 0,
+      "time": 14.29470000000299
+    },
+    {
+      "type": "note_off",
+      "note": 57,
+      "velocity": 0,
+      "channel": 0,
+      "time": 14.45659999999404
+    },
+    {
+      "type": "note_off",
+      "note": 69,
+      "velocity": 0,
+      "channel": 0,
+      "time": 14.536599999994039
+    },
+    {
+      "type": "note_on",
+      "note": 60,
+      "velocity": 0.5590551181102362,
+      "channel": 0,
+      "time": 14.542900000005972
+    },
+    {
+      "type": "note_off",
+      "note": 52,
+      "velocity": 0,
+      "channel": 0,
+      "time": 14.556900000005967
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 14.55740000000597
+    },
+    {
+      "type": "note_off",
+      "note": 48,
+      "velocity": 0,
+      "channel": 0,
+      "time": 14.57040000000596
+    },
+    {
+      "type": "note_on",
+      "note": 46,
+      "velocity": 0.6062992125984252,
+      "channel": 0,
+      "time": 14.818099999994047
+    },
+    {
+      "type": "note_on",
+      "note": 62,
+      "velocity": 0.6535433070866141,
+      "channel": 0,
+      "time": 14.841700000002987
+    },
+    {
+      "type": "note_off",
+      "note": 60,
+      "velocity": 0,
+      "channel": 0,
+      "time": 14.871200000002986
+    },
+    {
+      "type": "note_on",
+      "note": 53,
+      "velocity": 0.5039370078740157,
+      "channel": 0,
+      "time": 15.16070000000299
+    },
+    {
+      "type": "note_on",
+      "note": 58,
+      "velocity": 0.47244094488188976,
+      "channel": 0,
+      "time": 15.438700000002981
+    },
+    {
+      "type": "note_on",
+      "note": 65,
+      "velocity": 0.7244094488188977,
+      "channel": 0,
+      "time": 15.755799999997024
+    },
+    {
+      "type": "note_off",
+      "note": 53,
+      "velocity": 0,
+      "channel": 0,
+      "time": 16.398799999997024
+    },
+    {
+      "type": "note_off",
+      "note": 46,
+      "velocity": 0,
+      "channel": 0,
+      "time": 16.415299999997032
+    },
+    {
+      "type": "note_off",
+      "note": 65,
+      "velocity": 0,
+      "channel": 0,
+      "time": 16.415900000005962
+    },
+    {
+      "type": "note_off",
+      "note": 58,
+      "velocity": 0,
+      "channel": 0,
+      "time": 16.43120000000299
+    },
+    {
+      "type": "note_off",
+      "note": 62,
+      "velocity": 0,
+      "channel": 0,
+      "time": 16.43220000000298
+    },
+    {
+      "type": "note_on",
+      "note": 43,
+      "velocity": 0.23622047244094488,
+      "channel": 0,
+      "time": 16.64909999999405
+    },
+    {
+      "type": "note_on",
+      "note": 55,
+      "velocity": 0.3543307086614173,
+      "channel": 0,
+      "time": 16.67859999999405
+    },
+    {
+      "type": "note_on",
+      "note": 57,
+      "velocity": 0.4330708661417323,
+      "channel": 0,
+      "time": 16.749599999994047
+    },
+    {
+      "type": "note_on",
+      "note": 60,
+      "velocity": 0.4645669291338583,
+      "channel": 0,
+      "time": 16.770400000005964
+    },
+    {
+      "type": "note_on",
+      "note": 62,
+      "velocity": 0.6771653543307087,
+      "channel": 0,
+      "time": 16.788900000005967
+    },
+    {
+      "type": "note_on",
+      "note": 65,
+      "velocity": 0.5905511811023622,
+      "channel": 0,
+      "time": 16.806400000005965
+    },
+    {
+      "type": "note_off",
+      "note": 60,
+      "velocity": 0,
+      "channel": 0,
+      "time": 17.36390000000597
+    },
+    {
+      "type": "note_off",
+      "note": 55,
+      "velocity": 0,
+      "channel": 0,
+      "time": 17.38579999999702
+    },
+    {
+      "type": "note_off",
+      "note": 65,
+      "velocity": 0,
+      "channel": 0,
+      "time": 17.398599999994047
+    },
+    {
+      "type": "note_off",
+      "note": 57,
+      "velocity": 0,
+      "channel": 0,
+      "time": 17.41550000000001
+    },
+    {
+      "type": "note_off",
+      "note": 62,
+      "velocity": 0,
+      "channel": 0,
+      "time": 17.431900000005967
+    },
+    {
+      "type": "note_off",
+      "note": 43,
+      "velocity": 0,
+      "channel": 0,
+      "time": 17.45959999999404
+    },
+    {
+      "type": "note_on",
+      "note": 43,
+      "velocity": 0.3543307086614173,
+      "channel": 0,
+      "time": 17.636900000005966
+    },
+    {
+      "type": "note_on",
+      "note": 50,
+      "velocity": 0.6141732283464567,
+      "channel": 0,
+      "time": 17.666299999997022
+    },
+    {
+      "type": "note_on",
+      "note": 53,
+      "velocity": 0.49606299212598426,
+      "channel": 0,
+      "time": 17.68350000000001
+    },
+    {
+      "type": "note_on",
+      "note": 56,
+      "velocity": 0.4566929133858268,
+      "channel": 0,
+      "time": 17.71120000000299
+    },
+    {
+      "type": "note_on",
+      "note": 59,
+      "velocity": 0.6614173228346457,
+      "channel": 0,
+      "time": 17.740900000005965
+    },
+    {
+      "type": "note_on",
+      "note": 62,
+      "velocity": 0.6535433070866141,
+      "channel": 0,
+      "time": 17.754000000000005
+    },
+    {
+      "type": "note_on",
+      "note": 65,
+      "velocity": 0.14960629921259844,
+      "channel": 0,
+      "time": 18.161
+    },
+    {
+      "type": "note_off",
+      "note": 43,
+      "velocity": 0,
+      "channel": 0,
+      "time": 18.29609999999404
+    },
+    {
+      "type": "note_off",
+      "note": 59,
+      "velocity": 0,
+      "channel": 0,
+      "time": 18.315400000005965
+    },
+    {
+      "type": "note_off",
+      "note": 50,
+      "velocity": 0,
+      "channel": 0,
+      "time": 18.316000000000003
+    },
+    {
+      "type": "note_off",
+      "note": 62,
+      "velocity": 0,
+      "channel": 0,
+      "time": 18.334099999994038
+    },
+    {
+      "type": "note_off",
+      "note": 65,
+      "velocity": 0,
+      "channel": 0,
+      "time": 18.363299999997025
+    },
+    {
+      "type": "note_off",
+      "note": 56,
+      "velocity": 0,
+      "channel": 0,
+      "time": 18.36959999999405
+    },
+    {
+      "type": "note_off",
+      "note": 53,
+      "velocity": 0,
+      "channel": 0,
+      "time": 18.47359999999405
+    },
+    {
+      "type": "note_on",
+      "note": 48,
+      "velocity": 0.25196850393700787,
+      "channel": 0,
+      "time": 18.70270000000299
+    },
+    {
+      "type": "note_on",
+      "note": 55,
+      "velocity": 0.36220472440944884,
+      "channel": 0,
+      "time": 18.72129999999703
+    },
+    {
+      "type": "note_on",
+      "note": 59,
+      "velocity": 0.4251968503937008,
+      "channel": 0,
+      "time": 18.740099999994044
+    },
+    {
+      "type": "note_on",
+      "note": 62,
+      "velocity": 0.5433070866141733,
+      "channel": 0,
+      "time": 18.782599999994048
+    },
+    {
+      "type": "note_on",
+      "note": 64,
+      "velocity": 0.5354330708661418,
+      "channel": 0,
+      "time": 18.80840000000596
+    },
+    {
+      "type": "note_on",
+      "note": 67,
+      "velocity": 0.5433070866141733,
+      "channel": 0,
+      "time": 18.84940000000597
+    },
+    {
+      "type": "note_off",
+      "note": 59,
+      "velocity": 0,
+      "channel": 0,
+      "time": 19.92609999999405
+    },
+    {
+      "type": "note_off",
+      "note": 62,
+      "velocity": 0,
+      "channel": 0,
+      "time": 19.99720000000299
+    },
+    {
+      "type": "note_off",
+      "note": 64,
+      "velocity": 0,
+      "channel": 0,
+      "time": 20.040000000000006
+    },
+    {
+      "type": "note_off",
+      "note": 67,
+      "velocity": 0,
+      "channel": 0,
+      "time": 20.070900000005963
+    },
+    {
+      "type": "note_on",
+      "note": 71,
+      "velocity": 0.4409448818897638,
+      "channel": 0,
+      "time": 20.58540000000596
+    },
+    {
+      "type": "note_on",
+      "note": 74,
+      "velocity": 0.6614173228346457,
+      "channel": 0,
+      "time": 20.60890000000596
+    },
+    {
+      "type": "note_on",
+      "note": 76,
+      "velocity": 0.33858267716535434,
+      "channel": 0,
+      "time": 20.68459999999405
+    },
+    {
+      "type": "note_on",
+      "note": 79,
+      "velocity": 0.7322834645669292,
+      "channel": 0,
+      "time": 20.71950000000001
+    },
+    {
+      "type": "note_off",
+      "note": 71,
+      "velocity": 0,
+      "channel": 0,
+      "time": 21.84320000000298
+    },
+    {
+      "type": "note_off",
+      "note": 74,
+      "velocity": 0,
+      "channel": 0,
+      "time": 21.86009999999405
+    },
+    {
+      "type": "note_off",
+      "note": 76,
+      "velocity": 0,
+      "channel": 0,
+      "time": 21.886200000002987
+    },
+    {
+      "type": "note_off",
+      "note": 79,
+      "velocity": 0,
+      "channel": 0,
+      "time": 21.901200000002987
+    },
+    {
+      "type": "note_off",
+      "note": 55,
+      "velocity": 0,
+      "channel": 0,
+      "time": 22.33070000000299
+    },
+    {
+      "type": "note_off",
+      "note": 48,
+      "velocity": 0,
+      "channel": 0,
+      "time": 22.3545
+    }
+  ]
+}

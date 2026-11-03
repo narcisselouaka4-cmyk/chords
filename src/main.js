@@ -2510,6 +2510,7 @@ function initPracticeExercise() {
   let previewId = null;
   // Envoi régulier de la position de l'exemple du Copilote à sa carte (barre de lecture).
   let exampleTicker = null;
+  let exampleFrame = null;
 
   const DEMO_STYLE_STORAGE = 'exercise-demo-style';
   let demoStyle = 'auto';
@@ -2650,6 +2651,8 @@ function initPracticeExercise() {
     if (context?.kind === 'copilot') {
       clearInterval(exampleTicker);
       exampleTicker = null;
+      cancelAnimationFrame(exampleFrame);
+      exampleFrame = null;
       document.dispatchEvent(new CustomEvent('copilot-example-state', { detail: { id: context.id, playing: false } }));
       return;
     }
@@ -2728,6 +2731,22 @@ function initPracticeExercise() {
         paused: demoPlayer.isPaused() && !demoContext.scrub?.resume,
       },
     }));
+    if (demoPlayer.isPlaying()) startExampleFrames();
+    else { cancelAnimationFrame(exampleFrame); exampleFrame = null; }
+  }
+
+  // Le curseur suit l'horloge du lecteur, y compris après pause, saut et changement de vitesse.
+  // Les autres contrôles gardent leur cadence de 250 ms : aucun formulaire reconstruit à 60 Hz.
+  function startExampleFrames() {
+    if (exampleFrame !== null) return;
+    exampleFrame = requestAnimationFrame(() => {
+      exampleFrame = null;
+      if (demoContext?.kind !== 'copilot' || !demoPlayer.isPlaying()) return;
+      document.dispatchEvent(new CustomEvent('copilot-example-frame', {
+        detail: { id: demoContext.id, position: demoPlayer.position() * 60 / demoContext.tempo },
+      }));
+      startExampleFrames();
+    });
   }
 
   // [Claude] — 2026-10-09 — La lecture en cours, dans la barre du clavier (visible de partout).

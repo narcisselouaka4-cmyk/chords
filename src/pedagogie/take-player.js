@@ -54,11 +54,24 @@ export function createTakePlayer(take, { id, title = 'Ton jeu', onDelete, onRedo
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'copilot-take-action';
-    button.textContent = text;
+    button.title = text;
+    button.setAttribute('aria-label', text);
+    button.innerHTML = text === 'Recommencer'
+      ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7.4M3 4v7h7"/></svg>'
+      : '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>';
     button.addEventListener('click', action);
     card.append(button);
   }
   return card;
+}
+
+/** Le marqueur reçoit la position réelle du lecteur à chaque image ; les libellés restent moins fréquents. */
+export function refreshTakeCursor(root, id, position) {
+  root?.querySelectorAll('[data-take-player]').forEach((card) => {
+    if (card.dataset.takePlayer !== id) return;
+    const duration = Number(card.dataset.duration);
+    card.style.setProperty('--take-progress', `${duration ? Math.min(100, Math.max(0, position / duration * 100)) : 0}%`);
+  });
 }
 
 export function refreshTakePlayers(root, id, progress, paused = false) {

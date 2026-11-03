@@ -703,16 +703,17 @@
 .copilot-take-cursor { position: absolute; top: 0; bottom: 0; left: var(--take-progress, 0%); width: 2px; background: var(--tr-text); }
 .copilot-take-play { width: 34px; height: 34px; flex-shrink: 0; border: 0; border-radius: 50%; cursor: pointer; background: var(--tr-accent); color: var(--tr-button-text); }
 .copilot-take-time { font: 11px var(--tr-mono); color: var(--tr-muted); white-space: nowrap; }
-.copilot-take-action { border: 0; background: transparent; color: var(--tr-text); font: inherit; font-size: 11px; cursor: pointer; padding: 5px; }
-.copilot-take-action:hover { text-decoration: underline; }
-.copilot-mic-btn { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--tr-border); border-radius: 13px; padding: 5px 9px; color: var(--tr-text); background: var(--tr-surface); font: inherit; font-size: 11px; white-space: nowrap; cursor: pointer; }
+.copilot-take-action { display: inline-grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--tr-text); cursor: pointer; padding: 0; }
+.copilot-take-action:hover { background: var(--tr-raised); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > #copilot-mic-btn.copilot-mic-btn { display: inline-grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; padding: 0; line-height: 1; cursor: pointer; }
+.copilot-mic-btn > span { display: none; }
+.copilot-mic-btn > svg, .copilot-take-action > svg { display: block; flex-shrink: 0; }
 .copilot-mic-btn[aria-pressed="true"] { color: var(--tr-red); border-color: currentColor; }
 .copilot-dictation-status { font-size: 12px; color: var(--tr-text); padding: 4px 10px; margin: 0; }
 .copilot-take-player button:focus-visible, .copilot-mic-btn:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 3px; }
 #copilot-take-draft[hidden], .copilot-dictation-status[hidden] { display: none; }
 @media (max-width: 1200px) {
   .copilot-take-player { flex-wrap: wrap; }
-  .copilot-take-action { margin-left: auto; }
   :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools { flex-wrap: wrap; }
   :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-hint { white-space: normal; }
 }

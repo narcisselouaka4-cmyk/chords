@@ -35,7 +35,7 @@ import {
 import { createSpeedMenu, setSpeedMenuValue, clampSpeed } from '../ui/components/speed-menu.js';
 import { appConfirm } from '../ui/components/app-dialog.js';
 import { notify } from '../ui/components/app-notify.js';
-import { createTakePlayer, refreshTakePlayers } from './take-player.js';
+import { createTakePlayer, refreshTakePlayers, refreshTakeCursor } from './take-player.js';
 import { lastAttachedTake } from './take-attachment.js';
 import { createDictation } from './copilot-dictation.js';
 
@@ -1948,6 +1948,7 @@ export async function initCopilotTab() {
       mic?.querySelector('span')?.replaceChildren(document.createTextNode(labels[state]));
       mic?.setAttribute('aria-pressed', String(state === 'recording'));
       mic?.setAttribute('aria-label', state === 'idle' ? 'Dicter ma demande' : labels[state]);
+      if (mic) mic.title = state === 'idle' ? 'Dicter ma demande' : labels[state];
       if (status && state !== 'idle') {
         status.hidden = false;
         status.textContent = state === 'recording' ? 'Je t’écoute. Arrête le micro pour relire ta demande.' : state === 'transcribing' ? 'Je retranscris ta demande…' : 'Ouverture du micro…';
@@ -2076,6 +2077,10 @@ export async function initCopilotTab() {
     examplePaused = Boolean(paused);
     refreshTakePlayers(els.root?.ownerDocument, playingExampleId, exampleProgress, examplePaused);
     refreshExampleTransport();
+  });
+  document.addEventListener('copilot-example-frame', (e) => {
+    if (e.detail?.id !== playingExampleId) return;
+    refreshTakeCursor(els.root?.ownerDocument, e.detail.id, e.detail.position);
   });
 
   document.addEventListener('copilot-send-message', async (e) => {
