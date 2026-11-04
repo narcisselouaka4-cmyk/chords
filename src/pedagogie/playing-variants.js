@@ -34,39 +34,49 @@ export function variationAffinity(source,changed,review,sourceFamily,candidateFa
  return .4*retention+.3*structure+.15*(1-Math.min(1,newTimes))+.15*(1-Math.min(1,density));
 }
 
+/** Un développement réutilise les liaisons validées avant d'ajouter des couleurs. */
+function selectVariantChanges(take,candidates,review,family,{seed=[],limit=6}={}) {
+ const selected=[...seed],regions=new Set(seed.map(p=>p.region));
+ for(const p of candidates) {
+  if(regions.has(p.region)||selected.length>=limit)continue;
+  const next=applyTakeEdit(take,{type:'plan',edits:[...selected,p].map(p=>p.edit)});
+  if(!next||variationAffinity(take,next,review,family,family)==null)continue;
+  selected.push(p);regions.add(p.region);
+ }
+ return selected;
+}
+
 export function buildPlayingVariants(take,{message=''}={}) {
  const found=playingProposals(take);if(!found.review)return [];
  const vicinity=playingNeighbourhood(take,message);
  const source={playing:{passage:take}};
  const base=personalPlayingAnswer({message:'Enrichis mes accords et fais-moi une demonstration',context:source});
  const baseAdvice=base?.toolResult?.playingAdvice;
- if(!baseAdvice)return [];
- const baseChanges=baseAdvice.changes||[baseAdvice];
+ const baseChanges=baseAdvice?.changes||(baseAdvice?[baseAdvice]:[]);
  const ornaments=playingOrnaments(take,found.review,{latin:vicinity.latin});
- const title=vicinity.latin?['Montuno coloré','Voix en réponse','Son plus ouvert']:vicinity.family==='jazz'
-  ?['Jazz lié','Jazz en mouvement','Jazz ornementé']:['Harmonie liée','Arpèges et mouvement','Approches et liaisons'];
- const profiles=[
-  {id:'linked',title:title[0],description:'Des accords enrichis, avec tes appuis et ton phrasé.',candidates:baseChanges},
-  {id:'flow',title:title[1],description:vicinity.latin?'Une autre couleur sur les attaques de ton motif.':'De petits arpèges dans les espaces de ta prise.',candidates:vicinity.latin?
-   found.proposals.filter(p=>p.goal==='enrich'&&!baseChanges.some(q=>q.id===p.id)&&!['drop2','upper'].includes(p.technique)):
-   ornaments.filter(p=>p.technique==='arpeggio')},
-  {id:'connect',title:title[2],description:vicinity.latin?'Des accords plus aérés, sans changer le motif.':'Des notes pour relier tes accords.',candidates:vicinity.latin?
-   found.proposals.filter(p=>p.goal==='lighten'||p.technique==='drop2'):
-   [...found.proposals.filter(p=>p.goal==='passing'),...heldPassingProposals(take,found.review),...ornaments.filter(p=>p.technique==='approach')]},
- ];
+ // La proximité seule favorisait les versions les plus pauvres. Les liaisons
+ // sont désormais le point de départ (retour d'écoute de Narcisse), pas une
+ // décoration concurrente d'une gamme automatique sur chaque accord.
+ const connections=selectVariantChanges(take,[...found.proposals.filter(p=>p.goal==='passing'),
+  ...heldPassingProposals(take,found.review),...ornaments],found.review,vicinity.family);
+ const profiles=vicinity.latin?[
+  {id:'linked',title:'Montuno coloré',description:'Des accords enrichis sur ton motif.',candidates:baseChanges},
+  {id:'flow',title:'Voix en réponse',description:'Une autre couleur sur les attaques de ton motif.',candidates:
+   found.proposals.filter(p=>p.goal==='enrich'&&!baseChanges.some(q=>q.id===p.id)&&!['drop2','upper'].includes(p.technique))},
+  {id:'connect',title:'Son plus ouvert',description:'Des accords plus aérés, sans changer le motif.',candidates:
+   found.proposals.filter(p=>p.goal==='lighten'||p.technique==='drop2')},
+ ]:connections.length?[
+  {id:'connect',title:'Approches et liaisons',description:'Des notes pour relier tes accords.',seed:connections,candidates:[]},
+  {id:'developed',title:'Liaisons et couleurs',description:'Les mêmes transitions, avec des accords enrichis.',seed:connections,
+   candidates:baseChanges.filter(p=>p.goal!=='passing'),limit:connections.length+4,requireExtra:true},
+ ]:[{id:'linked',title:'Accords enrichis',description:'Une autre couleur sur tes accords.',candidates:baseChanges}];
  const variants=[],signatures=new Set();
  for(const profile of profiles) {
-  const selected=[];let changed=null;
-  // Un seul arpège par zone, mais une liaison et un accord de passage peuvent
-  // coexister si l'édition composée vérifie leurs événements ensemble.
-  const regions=new Set();
-  for(const p of profile.candidates) {
-   if(regions.has(p.region)||selected.length>=6)continue;
-   const next=applyTakeEdit(take,{type:'plan',edits:[...selected,p].map(p=>p.edit)});
-   if(!next||variationAffinity(take,next,found.review,vicinity.family,vicinity.family)==null)continue;
-   selected.push(p);regions.add(p.region);changed=next;
-  }
-  if(!selected.length)continue;
+  const selected=selectVariantChanges(take,profile.candidates,found.review,vicinity.family,
+   {seed:profile.seed,limit:profile.limit});
+  if(!selected.length||profile.requireExtra&&selected.length===(profile.seed?.length||0))continue;
+  const changed=applyTakeEdit(take,{type:'plan',edits:selected.map(p=>p.edit)});
+  if(!changed)continue;
   const example=comparedTakeExample(take,changed);if(!example?.comparison.changes.length)continue;
   const signature=JSON.stringify(example.events);if(signatures.has(signature))continue;
   signatures.add(signature);
@@ -76,7 +86,9 @@ export function buildPlayingVariants(take,{message=''}={}) {
    affinity:variationAffinity(take,changed,found.review,vicinity.family,vicinity.family),advice,
    example:{...example,title:profile.title,subtitle:profile.description}});
  }
- return variants.sort((a,b)=>b.affinity-a.affinity);
+ // Ordre éditorial assumé : d'abord le geste plébiscité, ensuite son
+ // développement. Le score reste un garde-fou de fidélité, pas de goût.
+ return vicinity.latin?variants.sort((a,b)=>b.affinity-a.affinity):variants;
 }
 
 export function personalVariantsAnswer({message,messages=[],context}) {
@@ -87,8 +99,12 @@ export function personalVariantsAnswer({message,messages=[],context}) {
  const previous=[...relevant].reverse().find(m=>m.role==='assistant'&&m.toolResult?.variants?.length);
  const hear=/entendre|ecout|demonstration|\bdemo\b|montre.moi|joue.moi/.test(text);
  const broad=/plusieurs (?:propositions|versions|variantes)|interpretations?|ameliore.*(?:jeu|progression)|developpe|transforme.*(?:jeu|progression)|enrichis.*(?:mes accords|progression)|rends.*(?:accords|jeu).*(?:beau|riche)|(?:rajoute|ajoute|ajouter).*(?:mouvements|accords enrichis)/.test(text);
- if(!broad&&!(hear&&previous))return null;
- const variants=!broad&&previous?previous.toolResult.variants:buildPlayingVariants(take,{message});
+ const feedback=previous&&/approches?|liaisons?|arpeges?|harmonie liee/.test(text)
+  &&/prefere|mieux|naturel|humain|robot|catastroph|en dessous|rapproche/.test(text);
+ const develop=previous?.toolResult.variants.some(v=>v.advice?.changes?.some(p=>p.technique==='arpeggio'))
+  &&/va plus loin|developpe cette|enrichis cette/.test(text);
+ if(!broad&&!feedback&&!develop&&!(hear&&previous))return null;
+ const variants=!broad&&!feedback&&!develop&&previous?previous.toolResult.variants:buildPlayingVariants(take,{message});
  if(!variants.length)return null;
  const first=variants[0];
  return {ok:true,content:`${variants.length>1?`Voici ${variants.length===3?'trois':'deux'} propositions différentes sur ta prise.`:'Voici une proposition sur ta prise.'} Tes appuis de basse, tes notes principales et leurs attaques restent le fil conducteur. Tu peux écouter chaque version librement.`,

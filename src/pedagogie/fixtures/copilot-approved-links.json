@@ -1,0 +1,1217 @@
+{
+  "take": {
+    "events": [
+      {
+        "type": "note_on",
+        "note": 53,
+        "velocity": 0.41732283464566927,
+        "channel": 0,
+        "time": 0
+      },
+      {
+        "type": "note_on",
+        "note": 60,
+        "velocity": 0.5275590551181102,
+        "channel": 0,
+        "time": 0.022799999997005216
+      },
+      {
+        "type": "note_on",
+        "note": 64,
+        "velocity": 0.4881889763779528,
+        "channel": 0,
+        "time": 0.05279999999697793
+      },
+      {
+        "type": "note_on",
+        "note": 69,
+        "velocity": 0.6220472440944882,
+        "channel": 0,
+        "time": 0.1265999999940277
+      },
+      {
+        "type": "note_off",
+        "note": 64,
+        "velocity": 0,
+        "channel": 0,
+        "time": 2.160299999996937
+      },
+      {
+        "type": "note_off",
+        "note": 69,
+        "velocity": 0,
+        "channel": 0,
+        "time": 2.1780999999940605
+      },
+      {
+        "type": "note_off",
+        "note": 53,
+        "velocity": 0,
+        "channel": 0,
+        "time": 2.1949999999999363
+      },
+      {
+        "type": "note_off",
+        "note": 60,
+        "velocity": 0,
+        "channel": 0,
+        "time": 2.2191999999880636
+      },
+      {
+        "type": "note_on",
+        "note": 55,
+        "velocity": 0.49606299212598426,
+        "channel": 0,
+        "time": 2.5238999999910448
+      },
+      {
+        "type": "note_on",
+        "note": 62,
+        "velocity": 0.5511811023622047,
+        "channel": 0,
+        "time": 2.5613999999910675
+      },
+      {
+        "type": "note_on",
+        "note": 65,
+        "velocity": 0.4645669291338583,
+        "channel": 0,
+        "time": 2.5884999999999536
+      },
+      {
+        "type": "note_on",
+        "note": 69,
+        "velocity": 0.5748031496062992,
+        "channel": 0,
+        "time": 2.612299999996935
+      },
+      {
+        "type": "note_on",
+        "note": 71,
+        "velocity": 0.6614173228346457,
+        "channel": 0,
+        "time": 2.6692999999969516
+      },
+      {
+        "type": "note_off",
+        "note": 69,
+        "velocity": 0,
+        "channel": 0,
+        "time": 2.7435999999939895
+      },
+      {
+        "type": "note_off",
+        "note": 62,
+        "velocity": 0,
+        "channel": 0,
+        "time": 4.635099999994054
+      },
+      {
+        "type": "note_off",
+        "note": 71,
+        "velocity": 0,
+        "channel": 0,
+        "time": 4.657599999993977
+      },
+      {
+        "type": "note_off",
+        "note": 55,
+        "velocity": 0,
+        "channel": 0,
+        "time": 4.684999999999945
+      },
+      {
+        "type": "note_off",
+        "note": 65,
+        "velocity": 0,
+        "channel": 0,
+        "time": 4.71179999999697
+      },
+      {
+        "type": "note_on",
+        "note": 52,
+        "velocity": 0.4251968503937008,
+        "channel": 0,
+        "time": 5.024399999991033
+      },
+      {
+        "type": "note_on",
+        "note": 59,
+        "velocity": 0.4566929133858268,
+        "channel": 0,
+        "time": 5.054899999990994
+      },
+      {
+        "type": "note_on",
+        "note": 62,
+        "velocity": 0.4409448818897638,
+        "channel": 0,
+        "time": 5.139299999996979
+      },
+      {
+        "type": "note_on",
+        "note": 67,
+        "velocity": 0.6141732283464567,
+        "channel": 0,
+        "time": 5.195599999993988
+      },
+      {
+        "type": "note_off",
+        "note": 59,
+        "velocity": 0,
+        "channel": 0,
+        "time": 6.136499999999955
+      },
+      {
+        "type": "note_on",
+        "note": 59,
+        "velocity": 0.49606299212598426,
+        "channel": 0,
+        "time": 6.190199999988067
+      },
+      {
+        "type": "note_off",
+        "note": 62,
+        "velocity": 0,
+        "channel": 0,
+        "time": 6.709299999997029
+      },
+      {
+        "type": "note_off",
+        "note": 67,
+        "velocity": 0,
+        "channel": 0,
+        "time": 6.8401999999880445
+      },
+      {
+        "type": "note_on",
+        "note": 74,
+        "velocity": 0.36220472440944884,
+        "channel": 0,
+        "time": 6.869199999988041
+      },
+      {
+        "type": "note_off",
+        "note": 52,
+        "velocity": 0,
+        "channel": 0,
+        "time": 6.95619999998803
+      },
+      {
+        "type": "note_off",
+        "note": 59,
+        "velocity": 0,
+        "channel": 0,
+        "time": 6.993699999988053
+      },
+      {
+        "type": "note_off",
+        "note": 74,
+        "velocity": 0,
+        "channel": 0,
+        "time": 7.305399999990982
+      },
+      {
+        "type": "note_on",
+        "note": 67,
+        "velocity": 0.2992125984251969,
+        "channel": 0,
+        "time": 7.3405999999939695
+      },
+      {
+        "type": "note_on",
+        "note": 57,
+        "velocity": 0.4881889763779528,
+        "channel": 0,
+        "time": 7.345299999996996
+      },
+      {
+        "type": "note_on",
+        "note": 55,
+        "velocity": 0.4330708661417323,
+        "channel": 0,
+        "time": 7.373299999997016
+      },
+      {
+        "type": "note_on",
+        "note": 72,
+        "velocity": 0.4409448818897638,
+        "channel": 0,
+        "time": 7.376399999991008
+      },
+      {
+        "type": "note_on",
+        "note": 64,
+        "velocity": 0.2125984251968504,
+        "channel": 0,
+        "time": 7.377999999999929
+      },
+      {
+        "type": "note_off",
+        "note": 55,
+        "velocity": 0,
+        "channel": 0,
+        "time": 7.468199999988087
+      },
+      {
+        "type": "note_off",
+        "note": 67,
+        "velocity": 0,
+        "channel": 0,
+        "time": 8.579099999994014
+      },
+      {
+        "type": "note_off",
+        "note": 64,
+        "velocity": 0,
+        "channel": 0,
+        "time": 8.890299999996955
+      },
+      {
+        "type": "note_on",
+        "note": 71,
+        "velocity": 0.2992125984251969,
+        "channel": 0,
+        "time": 8.890899999991007
+      },
+      {
+        "type": "note_off",
+        "note": 57,
+        "velocity": 0,
+        "channel": 0,
+        "time": 9.030699999988087
+      },
+      {
+        "type": "note_off",
+        "note": 72,
+        "velocity": 0,
+        "channel": 0,
+        "time": 9.13969999998801
+      },
+      {
+        "type": "note_on",
+        "note": 69,
+        "velocity": 0.4015748031496063,
+        "channel": 0,
+        "time": 9.166499999999928
+      },
+      {
+        "type": "note_off",
+        "note": 71,
+        "velocity": 0,
+        "channel": 0,
+        "time": 9.27029999999695
+      },
+      {
+        "type": "note_off",
+        "note": 69,
+        "velocity": 0,
+        "channel": 0,
+        "time": 9.375
+      },
+      {
+        "type": "note_on",
+        "note": 53,
+        "velocity": 0.5433070866141733,
+        "channel": 0,
+        "time": 9.406699999988064
+      },
+      {
+        "type": "note_on",
+        "note": 69,
+        "velocity": 0.5669291338582677,
+        "channel": 0,
+        "time": 9.426399999991077
+      },
+      {
+        "type": "note_on",
+        "note": 60,
+        "velocity": 0.4409448818897638,
+        "channel": 0,
+        "time": 9.691699999988032
+      },
+      {
+        "type": "note_on",
+        "note": 64,
+        "velocity": 0.4645669291338583,
+        "channel": 0,
+        "time": 9.931499999999915
+      },
+      {
+        "type": "note_off",
+        "note": 69,
+        "velocity": 0,
+        "channel": 0,
+        "time": 10.091299999996977
+      },
+      {
+        "type": "note_on",
+        "note": 69,
+        "velocity": 0.6692913385826772,
+        "channel": 0,
+        "time": 10.204099999994014
+      },
+      {
+        "type": "note_off",
+        "note": 53,
+        "velocity": 0,
+        "channel": 0,
+        "time": 11.275599999994029
+      },
+      {
+        "type": "note_off",
+        "note": 60,
+        "velocity": 0,
+        "channel": 0,
+        "time": 11.311099999993985
+      },
+      {
+        "type": "note_off",
+        "note": 64,
+        "velocity": 0,
+        "channel": 0,
+        "time": 11.311799999996992
+      },
+      {
+        "type": "note_off",
+        "note": 69,
+        "velocity": 0,
+        "channel": 0,
+        "time": 11.457399999991026
+      },
+      {
+        "type": "note_on",
+        "note": 55,
+        "velocity": 0.5433070866141733,
+        "channel": 0,
+        "time": 11.602099999994039
+      },
+      {
+        "type": "note_on",
+        "note": 62,
+        "velocity": 0.3858267716535433,
+        "channel": 0,
+        "time": 11.604399999991074
+      },
+      {
+        "type": "note_on",
+        "note": 69,
+        "velocity": 0.4330708661417323,
+        "channel": 0,
+        "time": 11.62969999998802
+      },
+      {
+        "type": "note_on",
+        "note": 71,
+        "velocity": 0.47244094488188976,
+        "channel": 0,
+        "time": 11.721599999994055
+      },
+      {
+        "type": "note_off",
+        "note": 69,
+        "velocity": 0,
+        "channel": 0,
+        "time": 11.723499999999945
+      },
+      {
+        "type": "note_off",
+        "note": 62,
+        "velocity": 0,
+        "channel": 0,
+        "time": 11.836699999988014
+      },
+      {
+        "type": "note_on",
+        "note": 62,
+        "velocity": 0.4645669291338583,
+        "channel": 0,
+        "time": 11.890799999996943
+      },
+      {
+        "type": "note_on",
+        "note": 65,
+        "velocity": 0.4409448818897638,
+        "channel": 0,
+        "time": 12.141399999990995
+      },
+      {
+        "type": "note_off",
+        "note": 71,
+        "velocity": 0,
+        "channel": 0,
+        "time": 12.229899999991062
+      },
+      {
+        "type": "note_on",
+        "note": 71,
+        "velocity": 0.6850393700787402,
+        "channel": 0,
+        "time": 12.35839999999098
+      },
+      {
+        "type": "note_off",
+        "note": 62,
+        "velocity": 0,
+        "channel": 0,
+        "time": 13.241199999987998
+      },
+      {
+        "type": "note_off",
+        "note": 55,
+        "velocity": 0,
+        "channel": 0,
+        "time": 13.372599999994009
+      },
+      {
+        "type": "note_off",
+        "note": 65,
+        "velocity": 0,
+        "channel": 0,
+        "time": 13.374699999988025
+      },
+      {
+        "type": "note_off",
+        "note": 71,
+        "velocity": 0,
+        "channel": 0,
+        "time": 13.49839999999108
+      },
+      {
+        "type": "note_on",
+        "note": 65,
+        "velocity": 0.28346456692913385,
+        "channel": 0,
+        "time": 13.569599999994011
+      },
+      {
+        "type": "note_on",
+        "note": 48,
+        "velocity": 0.4645669291338583,
+        "channel": 0,
+        "time": 13.75489999999104
+      },
+      {
+        "type": "note_on",
+        "note": 64,
+        "velocity": 0.5826771653543307,
+        "channel": 0,
+        "time": 13.78909999999405
+      },
+      {
+        "type": "note_off",
+        "note": 65,
+        "velocity": 0,
+        "channel": 0,
+        "time": 13.824899999990976
+      },
+      {
+        "type": "note_on",
+        "note": 55,
+        "velocity": 0.4251968503937008,
+        "channel": 0,
+        "time": 14.019199999988018
+      },
+      {
+        "type": "note_on",
+        "note": 60,
+        "velocity": 0.3937007874015748,
+        "channel": 0,
+        "time": 14.293199999988019
+      },
+      {
+        "type": "note_off",
+        "note": 64,
+        "velocity": 0,
+        "channel": 0,
+        "time": 14.421299999997018
+      },
+      {
+        "type": "note_on",
+        "note": 64,
+        "velocity": 0.5196850393700787,
+        "channel": 0,
+        "time": 14.587999999999965
+      },
+      {
+        "type": "note_on",
+        "note": 67,
+        "velocity": 0.7322834645669292,
+        "channel": 0,
+        "time": 14.809299999996938
+      },
+      {
+        "type": "note_off",
+        "note": 60,
+        "velocity": 0,
+        "channel": 0,
+        "time": 16.31259999999395
+      },
+      {
+        "type": "note_off",
+        "note": 64,
+        "velocity": 0,
+        "channel": 0,
+        "time": 16.36919999998804
+      },
+      {
+        "type": "note_off",
+        "note": 67,
+        "velocity": 0,
+        "channel": 0,
+        "time": 16.430299999997033
+      },
+      {
+        "type": "note_off",
+        "note": 48,
+        "velocity": 0,
+        "channel": 0,
+        "time": 16.437999999999988
+      },
+      {
+        "type": "note_off",
+        "note": 55,
+        "velocity": 0,
+        "channel": 0,
+        "time": 16.44219999998802
+      }
+    ],
+    "duration": 17.993199999988065,
+    "noteCount": 41,
+    "id": "take-1793754322490-1",
+    "lines": [
+      "## Passage joué au clavier (« Qu'en penses-tu ? »)",
+      "Durée : 0:16,4 · 41 notes · pédale 0 % du temps · vélocité 46 à 79 sur 127",
+      "Question du pianiste : « Je veux que tu améliores au maximum ce jeu. »",
+      "",
+      "### Accords (moment · nom [degré] · main gauche | main droite · dessus = note de mélodie · voicing reconnu · rôles · conduite des voix vers le suivant)",
+      "- 0:00,0 Fmaj7 [IV] · une main : Fa3 Do4 Mi4 La4 · Drop 2, état fondamental · 1 5 7 3 · → Mi (7e majeure) monte sur Fa (7e de G9) ; La reste (3ce → 9e)",
+      "- 0:02,5 G9 [V] · une main : Sol3 Ré4 Fa4 La4 Si4 · Close position (basse à part), état fondamental · 1 5 b7 9 3 · → Fa (7e) monte sur Sol (3ce de Em7) ; Ré reste (quinte → 7e)",
+      "- 0:05,0 Em7 [III] · une main : Mi3 Si3 Ré4 Sol4 · Drop 2, état fondamental · 1 5 b7 b3 · → Ré (7e) monte sur Mi (quinte de Am7/G) ; Sol reste (3ce → 7e)",
+      "- 0:07,3 Am7/G [VI] · Sol3 La3 | Mi4 Sol4 Do5 · dessus Do5 · Rootless (renversé, basse à la main gauche), 3e renversement · b7 1 5 b7 b3",
+      "- 0:08,8 Amadd9 [VI] · La3 | Si4 Do5 · dessus Do5 · Voicing libre, état fondamental · 1 9 b3 · → Si (9e) descend sur La (3ce de Fmaj7)",
+      "- 0:09,4 Fmaj7 [IV] · une main : Fa3 Do4 Mi4 La4 · dessus La4 · Drop 2, état fondamental · 1 5 7 3 · → La (3ce) monte sur Si (3ce de G)",
+      "- 0:11,6 G [V] · une main : Sol3 Ré4 Si4 · dessus La4 · Triade (état fondamental), état fondamental · 1 5 3",
+      "- 0:12,1 G7 [V] · une main : Sol3 Ré4 Fa4 Si4 · dessus Si4 · Drop 2, état fondamental · 1 5 b7 3",
+      "- 0:13,5 Cadd11 [I] · Do3 | Mi4 Fa4 · dessus Fa4 · Voicing libre, état fondamental · 1 3 11",
+      "- 0:14,0 C [I] · une main : Do3 Sol3 Do4 Mi4 · dessus Mi4 · Voicing ouvert (plus d'une octave au-dessus de la basse, basse à part), état fondamental · 1 5 1 3",
+      "",
+      "### Mélodie (voix du dessus : la note la plus haute de chaque attaque, notes attaquées avec les accords comprises ; moment, accord qui sonne : notes dans l'ordre)",
+      "- 0:00,1 Fmaj7 : La4",
+      "- 0:02,6 G9 : Si4",
+      "- 0:05,1 Em7 : Sol4 Ré5",
+      "- 0:07,3 Am7/G : Do5",
+      "- 0:09,1 Amadd9 : La4",
+      "- 0:09,4 Fmaj7 : La4 La4",
+      "- 0:11,6 G : La4 Si4",
+      "- 0:12,3 G7 : Si4",
+      "- 0:13,5 Cadd11 : Fa4 Mi4",
+      "- 0:14,2 C : Do4 Mi4 Sol4",
+      "",
+      "### Lignes (mélodie, gamme, lick, run, arpège : notes dans l'ordre, rôle sur l'accord qui sonne)",
+      "- 0:06,8 : Ré5(b7) (1 note) sur Em7",
+      "- 0:09,1 : La4(1) (1 note) sur Amadd9",
+      "- 0:10,2 : La4(3) (1 note) sur Fmaj7",
+      "- 0:12,3 : Si4(3) (1 note) sur G7",
+      "- 0:14,8 : Sol4(5) (1 note) sur C",
+      "",
+      "### Harmonie : tonalité probable Do majeur (confiance 71 %) · cadence V-I vers Cadd11 à 0:12,1 (G7 → Cadd11)",
+      "",
+      "### Rythme : une attaque toutes les 0,27 s environ (≈ 219 par minute) · régularité des attaques ±15 %",
+      "",
+      "### Observations calculées (hypothèses à vérifier selon l’intention, pas un bilan à recopier)",
+      "Ne déduis pas le niveau du pianiste de ces mesures. Aucune correction d’arpège, de tension ou de rythme libre sans objectif explicite. Ne montre pas les mesures internes dans la réponse courte.",
+      "Mesures descriptives (ne prouvent pas une maîtrise) :",
+      "- Voix du dessus bien conduite : elle bouge en moyenne de 2,6 demi-ton(s) d'un accord à l'autre.",
+      "- Voix du dessus mise en avant : +13 sur 127 en moyenne au-dessus des autres notes de l'accord.",
+      "Pistes possibles seulement si elles répondent au but du pianiste (aucune obligation de conseil) :",
+      "- (aucune : rien de mesurable à changer)"
+    ],
+    "key": "Do majeur"
+  },
+  "approvedEvents": [
+    {
+      "time": 0,
+      "type": "noteOn",
+      "note": 53,
+      "velocity": 0.41732283464566927
+    },
+    {
+      "time": 0.004599999994027715,
+      "type": "noteOn",
+      "note": 70,
+      "velocity": 0.6220472440944882
+    },
+    {
+      "time": 0.022799999997005216,
+      "type": "noteOn",
+      "note": 60,
+      "velocity": 0.5275590551181102
+    },
+    {
+      "time": 0.05279999999697793,
+      "type": "noteOn",
+      "note": 64,
+      "velocity": 0.4881889763779528
+    },
+    {
+      "time": 0.11459999999402772,
+      "type": "noteOff",
+      "note": 70
+    },
+    {
+      "time": 0.1265999999940277,
+      "type": "noteOn",
+      "note": 69,
+      "velocity": 0.6220472440944882
+    },
+    {
+      "time": 1.8845119999933133,
+      "type": "noteOff",
+      "note": 64
+    },
+    {
+      "time": 1.8845119999933133,
+      "type": "noteOff",
+      "note": 53
+    },
+    {
+      "time": 1.8929249999932836,
+      "type": "noteOn",
+      "note": 50,
+      "velocity": 0.49606299212598426
+    },
+    {
+      "time": 2.094836999992567,
+      "type": "noteOff",
+      "note": 60
+    },
+    {
+      "time": 2.103249999992537,
+      "type": "noteOn",
+      "note": 60,
+      "velocity": 0.49606299212598426
+    },
+    {
+      "time": 2.1780999999940605,
+      "type": "noteOff",
+      "note": 69
+    },
+    {
+      "time": 2.313574999991791,
+      "type": "noteOn",
+      "note": 66,
+      "velocity": 0.49606299212598426
+    },
+    {
+      "time": 2.498899999991045,
+      "type": "noteOff",
+      "note": 50
+    },
+    {
+      "time": 2.498899999991045,
+      "type": "noteOff",
+      "note": 60
+    },
+    {
+      "time": 2.498899999991045,
+      "type": "noteOff",
+      "note": 66
+    },
+    {
+      "time": 2.5238999999910448,
+      "type": "noteOn",
+      "note": 55,
+      "velocity": 0.49606299212598426
+    },
+    {
+      "time": 2.5472999999969517,
+      "type": "noteOn",
+      "note": 72,
+      "velocity": 0.6614173228346457
+    },
+    {
+      "time": 2.5613999999910675,
+      "type": "noteOn",
+      "note": 62,
+      "velocity": 0.5511811023622047
+    },
+    {
+      "time": 2.5884999999999536,
+      "type": "noteOn",
+      "note": 65,
+      "velocity": 0.4645669291338583
+    },
+    {
+      "time": 2.612299999996935,
+      "type": "noteOn",
+      "note": 69,
+      "velocity": 0.5748031496062992
+    },
+    {
+      "time": 2.6572999999969515,
+      "type": "noteOff",
+      "note": 72
+    },
+    {
+      "time": 2.6692999999969516,
+      "type": "noteOn",
+      "note": 71,
+      "velocity": 0.6614173228346457
+    },
+    {
+      "time": 2.7435999999939895,
+      "type": "noteOff",
+      "note": 69
+    },
+    {
+      "time": 4.390939999991036,
+      "type": "noteOff",
+      "note": 62
+    },
+    {
+      "time": 4.390939999991036,
+      "type": "noteOff",
+      "note": 55
+    },
+    {
+      "time": 4.390939999991036,
+      "type": "noteOff",
+      "note": 65
+    },
+    {
+      "time": 4.399274999991036,
+      "type": "noteOn",
+      "note": 59,
+      "velocity": 0.4251968503937008
+    },
+    {
+      "time": 4.607649999991035,
+      "type": "noteOn",
+      "note": 69,
+      "velocity": 0.4251968503937008
+    },
+    {
+      "time": 4.657599999993977,
+      "type": "noteOff",
+      "note": 71
+    },
+    {
+      "time": 4.816024999991034,
+      "type": "noteOn",
+      "note": 75,
+      "velocity": 0.4251968503937008
+    },
+    {
+      "time": 4.999399999991033,
+      "type": "noteOff",
+      "note": 59
+    },
+    {
+      "time": 4.999399999991033,
+      "type": "noteOff",
+      "note": 69
+    },
+    {
+      "time": 4.999399999991033,
+      "type": "noteOff",
+      "note": 75
+    },
+    {
+      "time": 5.024399999991033,
+      "type": "noteOn",
+      "note": 52,
+      "velocity": 0.4251968503937008
+    },
+    {
+      "time": 5.054899999990994,
+      "type": "noteOn",
+      "note": 59,
+      "velocity": 0.4566929133858268
+    },
+    {
+      "time": 5.073599999993988,
+      "type": "noteOn",
+      "note": 68,
+      "velocity": 0.6141732283464567
+    },
+    {
+      "time": 5.139299999996979,
+      "type": "noteOn",
+      "note": 62,
+      "velocity": 0.4409448818897638
+    },
+    {
+      "time": 5.183599999993988,
+      "type": "noteOff",
+      "note": 68
+    },
+    {
+      "time": 5.195599999993988,
+      "type": "noteOn",
+      "note": 67,
+      "velocity": 0.6141732283464567
+    },
+    {
+      "time": 6.136499999999955,
+      "type": "noteOff",
+      "note": 59
+    },
+    {
+      "time": 6.190199999988067,
+      "type": "noteOn",
+      "note": 59,
+      "velocity": 0.49606299212598426
+    },
+    {
+      "time": 6.709299999997029,
+      "type": "noteOff",
+      "note": 62
+    },
+    {
+      "time": 6.8401999999880445,
+      "type": "noteOff",
+      "note": 67
+    },
+    {
+      "time": 6.869199999988041,
+      "type": "noteOn",
+      "note": 74,
+      "velocity": 0.36220472440944884
+    },
+    {
+      "time": 6.95619999998803,
+      "type": "noteOff",
+      "note": 52
+    },
+    {
+      "time": 6.993699999988053,
+      "type": "noteOff",
+      "note": 59
+    },
+    {
+      "time": 7.305399999990982,
+      "type": "noteOff",
+      "note": 74
+    },
+    {
+      "time": 7.3405999999939695,
+      "type": "noteOn",
+      "note": 67,
+      "velocity": 0.2992125984251969
+    },
+    {
+      "time": 7.345299999996996,
+      "type": "noteOn",
+      "note": 57,
+      "velocity": 0.4881889763779528
+    },
+    {
+      "time": 7.373299999997016,
+      "type": "noteOn",
+      "note": 55,
+      "velocity": 0.4330708661417323
+    },
+    {
+      "time": 7.376399999991008,
+      "type": "noteOn",
+      "note": 72,
+      "velocity": 0.4409448818897638
+    },
+    {
+      "time": 7.377999999999929,
+      "type": "noteOn",
+      "note": 64,
+      "velocity": 0.2125984251968504
+    },
+    {
+      "time": 7.468199999988087,
+      "type": "noteOff",
+      "note": 55
+    },
+    {
+      "time": 8.579099999994014,
+      "type": "noteOff",
+      "note": 67
+    },
+    {
+      "time": 8.890299999996955,
+      "type": "noteOff",
+      "note": 64
+    },
+    {
+      "time": 8.890899999991007,
+      "type": "noteOn",
+      "note": 71,
+      "velocity": 0.2992125984251969
+    },
+    {
+      "time": 9.030699999988087,
+      "type": "noteOff",
+      "note": 57
+    },
+    {
+      "time": 9.13969999998801,
+      "type": "noteOff",
+      "note": 72
+    },
+    {
+      "time": 9.166499999999928,
+      "type": "noteOn",
+      "note": 69,
+      "velocity": 0.4015748031496063
+    },
+    {
+      "time": 9.27029999999695,
+      "type": "noteOff",
+      "note": 71
+    },
+    {
+      "time": 9.375,
+      "type": "noteOff",
+      "note": 69
+    },
+    {
+      "time": 9.406699999988064,
+      "type": "noteOn",
+      "note": 53,
+      "velocity": 0.5433070866141733
+    },
+    {
+      "time": 9.426399999991077,
+      "type": "noteOn",
+      "note": 69,
+      "velocity": 0.5669291338582677
+    },
+    {
+      "time": 9.691699999988032,
+      "type": "noteOn",
+      "note": 60,
+      "velocity": 0.4409448818897638
+    },
+    {
+      "time": 9.931499999999915,
+      "type": "noteOn",
+      "note": 64,
+      "velocity": 0.4645669291338583
+    },
+    {
+      "time": 10.091299999996977,
+      "type": "noteOff",
+      "note": 69
+    },
+    {
+      "time": 10.204099999994014,
+      "type": "noteOn",
+      "note": 69,
+      "velocity": 0.6692913385826772
+    },
+    {
+      "time": 11.045931999992526,
+      "type": "noteOff",
+      "note": 53
+    },
+    {
+      "time": 11.045931999992526,
+      "type": "noteOff",
+      "note": 64
+    },
+    {
+      "time": 11.053249999992545,
+      "type": "noteOn",
+      "note": 50,
+      "velocity": 0.5433070866141733
+    },
+    {
+      "time": 11.228881999993023,
+      "type": "noteOff",
+      "note": 60
+    },
+    {
+      "time": 11.236199999993042,
+      "type": "noteOn",
+      "note": 60,
+      "velocity": 0.5433070866141733
+    },
+    {
+      "time": 11.419149999993541,
+      "type": "noteOn",
+      "note": 66,
+      "velocity": 0.5433070866141733
+    },
+    {
+      "time": 11.457399999991026,
+      "type": "noteOff",
+      "note": 69
+    },
+    {
+      "time": 11.577099999994038,
+      "type": "noteOff",
+      "note": 50
+    },
+    {
+      "time": 11.577099999994038,
+      "type": "noteOff",
+      "note": 60
+    },
+    {
+      "time": 11.577099999994038,
+      "type": "noteOff",
+      "note": 66
+    },
+    {
+      "time": 11.602099999994039,
+      "type": "noteOn",
+      "note": 55,
+      "velocity": 0.5433070866141733
+    },
+    {
+      "time": 11.604399999991074,
+      "type": "noteOn",
+      "note": 62,
+      "velocity": 0.3858267716535433
+    },
+    {
+      "time": 11.62969999998802,
+      "type": "noteOn",
+      "note": 69,
+      "velocity": 0.4330708661417323
+    },
+    {
+      "time": 11.721599999994055,
+      "type": "noteOn",
+      "note": 71,
+      "velocity": 0.47244094488188976
+    },
+    {
+      "time": 11.723499999999945,
+      "type": "noteOff",
+      "note": 69
+    },
+    {
+      "time": 11.836699999988014,
+      "type": "noteOff",
+      "note": 62
+    },
+    {
+      "time": 11.890799999996943,
+      "type": "noteOn",
+      "note": 62,
+      "velocity": 0.4645669291338583
+    },
+    {
+      "time": 12.141399999990995,
+      "type": "noteOn",
+      "note": 65,
+      "velocity": 0.4409448818897638
+    },
+    {
+      "time": 12.229899999991062,
+      "type": "noteOff",
+      "note": 71
+    },
+    {
+      "time": 12.35839999999098,
+      "type": "noteOn",
+      "note": 71,
+      "velocity": 0.6850393700787402
+    },
+    {
+      "time": 13.241199999987998,
+      "type": "noteOff",
+      "note": 62
+    },
+    {
+      "time": 13.372599999994009,
+      "type": "noteOff",
+      "note": 55
+    },
+    {
+      "time": 13.374699999988025,
+      "type": "noteOff",
+      "note": 65
+    },
+    {
+      "time": 13.49839999999108,
+      "type": "noteOff",
+      "note": 71
+    },
+    {
+      "time": 13.569599999994011,
+      "type": "noteOn",
+      "note": 65,
+      "velocity": 0.28346456692913385
+    },
+    {
+      "time": 13.75489999999104,
+      "type": "noteOn",
+      "note": 48,
+      "velocity": 0.4645669291338583
+    },
+    {
+      "time": 13.78909999999405,
+      "type": "noteOn",
+      "note": 64,
+      "velocity": 0.5826771653543307
+    },
+    {
+      "time": 13.824899999990976,
+      "type": "noteOff",
+      "note": 65
+    },
+    {
+      "time": 14.019199999988018,
+      "type": "noteOn",
+      "note": 55,
+      "velocity": 0.4251968503937008
+    },
+    {
+      "time": 14.293199999988019,
+      "type": "noteOn",
+      "note": 60,
+      "velocity": 0.3937007874015748
+    },
+    {
+      "time": 14.421299999997018,
+      "type": "noteOff",
+      "note": 64
+    },
+    {
+      "time": 14.587999999999965,
+      "type": "noteOn",
+      "note": 64,
+      "velocity": 0.5196850393700787
+    },
+    {
+      "time": 14.809299999996938,
+      "type": "noteOn",
+      "note": 67,
+      "velocity": 0.7322834645669292
+    },
+    {
+      "time": 16.31259999999395,
+      "type": "noteOff",
+      "note": 60
+    },
+    {
+      "time": 16.36919999998804,
+      "type": "noteOff",
+      "note": 64
+    },
+    {
+      "time": 16.430299999997033,
+      "type": "noteOff",
+      "note": 67
+    },
+    {
+      "time": 16.437999999999988,
+      "type": "noteOff",
+      "note": 48
+    },
+    {
+      "time": 16.44219999998802,
+      "type": "noteOff",
+      "note": 55
+    }
+  ]
+}
