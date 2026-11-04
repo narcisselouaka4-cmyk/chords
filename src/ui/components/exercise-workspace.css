@@ -180,7 +180,13 @@
   background: var(--tr-surface);
   box-shadow: -16px 0 64px #0003;
 }
-:root[data-skin] #practice-tab #exercise-library > .exercise-library { width: min(100%, 1000px); }
+/* [Claude] — 2026-11-04 — La bibliothèque prend tout l'espace de l'onglet (Narcisse :
+   « c'est une bibliothèque, donc il y a beaucoup d'informations, autant tout prendre »).
+   Il faut lever les deux plafonds : le `width` de .tr-dialog-wide (1020 px) ET le
+   `max-width` de .tr-drawer (1350 px), sinon l'écran 1920 garde une bande inutilisée.
+   Le clavier MIDI virtuel reste intact : il est hors de #practice-tab, donc hors de
+   la surcouche (position: absolute, inset: 0 sur l'onglet seul). */
+:root[data-skin] #practice-tab #exercise-library > .exercise-library { width: 100%; max-width: none; }
 :root[data-skin] #exercise-library .tr-dialog-title { padding: 24px; }
 :root[data-skin] #exercise-library .exercise-library-heading h2 { font-size: 24px; }
 :root[data-skin] #exercise-library .exercise-library-body { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 24px; padding: 22px; }
