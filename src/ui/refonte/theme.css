@@ -1013,6 +1013,9 @@
    témoins de temps qui battent. */
 .tr-metronome { position: relative; display: inline-flex; }
 .tr-metronome > button.is-playing { color: var(--r-accent, var(--accent)); }
+/* Le panneau fixe reste dans le contexte de l'en-tête : le relever pendant
+   l'ouverture évite que la sous-navigation masque Lecture et capture ses clics. */
+#app > .tr-app-header:has(#global-metronome.is-open) { z-index: 140; }
 
 .tr-metronome-panel {
   /* `fixed` et non `absolute` : #app est en overflow:hidden et coupait le

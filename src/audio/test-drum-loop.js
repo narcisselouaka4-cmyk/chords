@@ -1,8 +1,10 @@
 // Contrat des boucles de batterie : chaque genre a son kit, l'étirement reste
 // dans des limites audibles, et la boucle repart en phase avec la démo.
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   createDrumLoop, drumKitFor, drumTempoFor, stretchFor, DRUM_KITS, DRUM_FILES, LOOP_BEATS,
+  setDrumManifest, drumStyles, drumKitById,
 } from './drum-loop.js';
 
 let passed = 0;
@@ -148,5 +150,18 @@ check('La position est relue après décodage, donc la batterie entre à l\'heur
 
 // Préchauffage : après warm(), plus rien à décoder.
 check('warm() décode le kit à l\'avance', (await tardif.warm('salsa')) === true && tardif.loaded().length === 2);
+
+// Le JSON public est lu à l'exécution, jamais importé comme un module Vite.
+const editable = JSON.parse(await readFile(new URL('../public/drum-loops/kits.json', import.meta.url), 'utf8'));
+check('Le manifeste public s’installe après le démarrage du module', setDrumManifest(editable));
+check('Les styles du métronome viennent du fichier éditable, avec leurs libellés',
+  drumStyles().length === editable.styles.length
+  && ['bossa', 'jazz', 'gospel', 'worship', 'rnb', 'funk'].every(id => drumStyles().some(s => s.id === id))
+  && drumStyles().find(s => s.id === 'salsa')?.label === 'Salsa / montuno');
+check('Le kit choisi et la correspondance des démos utilisent le manifeste chargé',
+  drumKitById('gospel').layers[0][0] === 'motown-beat_104bpm'
+  && drumKitFor('gospel').layers[0][0] === 'boom-bap_88bpm');
+check('Un manifeste illisible ne remplace pas les styles déjà chargés',
+  !setDrumManifest(null) && drumStyles().length === editable.styles.length);
 
 console.log(`\n=== ${passed} vérifications de boucle de batterie ===`);

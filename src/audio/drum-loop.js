@@ -18,8 +18,6 @@
 // AudioBufferSourceNode en `loop = true` suffit, et c'est Web Audio qui tient
 // la boucle au sample près — bien plus régulier que des minuteurs.
 
-import shippedKits from '../public/drum-loops/kits.json' with { type: 'json' };
-
 /** Toutes les boucles de la bibliothèque font 2 mesures à 4/4. */
 export const LOOP_BEATS = 8;
 
@@ -82,9 +80,9 @@ const ALIASES = {
 // SES boucles et choisir lui-même ce que chaque style joue : je ne peux pas
 // juger une percussion à l'oreille, lui si. La table en dur reste le repli si
 // le fichier manque ou est illisible (hors Electron, par exemple).
-// Le manifeste livré est EMBARQUÉ au build : les styles et leurs libellés sont
-// donc toujours corrects, même sans Electron. La version sur le disque, lue au
-// démarrage, le remplace si Narcisse l'a modifiée — c'est elle qui fait foi.
+// `public/` n'est pas un module JavaScript : main.js charge ce manifeste au
+// démarrage par HTTP (Vite/navigateur) ou par l'IPC Electron (file://), puis
+// rafraîchit le métronome. Aucun import statique ni copie embarquée à désynchroniser.
 let manifest = null;
 
 /** Styles proposés : ceux du manifeste, sinon ceux de la table en dur. */
@@ -110,9 +108,6 @@ export function setDrumManifest(raw) {
   };
   return true;
 }
-
-// Manifeste livré, appliqué dès le chargement du module.
-setDrumManifest(shippedKits);
 
 /** Style du manifeste par son identifiant, sans passer par les correspondances. */
 function styleById(id) {
