@@ -8,9 +8,10 @@ import { notePairs, applyTakeEdit } from './take-edit.js';
 export { notePairs, applyTakeEdit } from './take-edit.js';
 import { planPlayingChanges } from './playing-plan.js';
 import { planPassingEdit } from './playing-passage.js';
+import { playingVoicingProposals } from './playing-voicings.js';
 
 const pc = (n) => ((n % 12) + 12) % 12;
-const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'").toLowerCase();
+const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'").replace(/[‐‑‒–—]/g, '-').toLowerCase();
 const name = (n) => frenchNote(n).replace(/-?\d+$/, '');
 const simpleQuality = /^(?:m|maj)?(?:6|7|9|11|13)?(?:sus[24])?$|^add9$/;
 const chordLabel = (c) => `${name(c.rootPc + 60)} ${/sus/.test(c.quality) ? 'suspendu' : /^m(?!aj)/.test(c.quality) ? 'mineur' : /^(?:7|9|13)$/.test(c.quality) ? 'septième' : 'majeur'}`;
@@ -71,6 +72,7 @@ export function playingProposals(take) {
     }
   }
   proposals.push(...passingProposals(take, review, pairs));
+  proposals.push(...playingVoicingProposals(take, review, pairs));
   return { review, harmonicCount, proposals: proposals.filter((p) => applyTakeEdit(take, p.edit)) };
 }
 
@@ -134,7 +136,7 @@ const actions = [
   { label: 'Allège mes accords', message: 'Allège mes accords' },
 ];
 
-const requestedGoal = (text) => /mouvements?|developp|reharmonis/.test(text) ? 'develop' : /accords? de passage|accords? (?:pour|de) transition/.test(text) ? 'passing'
+const requestedGoal = (text) => /mouvements?|developp|reharmonis|ameliore.*(?:jeu|progression)|drop\s*2|upper.?structures?|(?:meme|ma|cette) progression.*(?:gospel|jazz|neo.?soul)/.test(text) ? 'develop' : /accords? de passage|accords? (?:pour|de) transition/.test(text) ? 'passing'
   : /alleg|moins charge|(?:retir|supprim).*(?:doublure|double)|simplifi.*(?:accord|accompagnement)/.test(text) ? 'lighten'
     : /enrich|(?:ajout|rajout).*(?:couleur|neuvieme|9e)|couleur.*accord|ameliore.*voicing/.test(text) ? 'enrich' : null;
 
@@ -157,7 +159,8 @@ export function personalPlayingAnswer({ message, messages = [], context, review 
   const relevant = messages.slice(Math.max(0, sourceBoundary));
   const previousReply = [...relevant].reverse().find((m) => m.role === 'assistant' && !m.isTyping && m.toolResult?.playingAdvice);
   const previous = previousReply?.toolResult.playingAdvice;
-  const hear = /fais.*(?:entendre|ecouter)|entendre|ecout|montre[- ]moi|demonstration|\bdemo\b|un exemple|joue[- ]moi/.test(text)
+  const correction = /tu.*jou.*pas.*(?:comme|mon jeu)|respecte.*(?:mon jeu|ma facon)|garde.*ma facon/.test(text);
+  const hear = (correction || /fais.*(?:entendre|ecouter)|entendre|ecout|montre[- ]moi|demonstration|\bdemo\b|un exemple|joue[- ]moi/.test(text))
     && !/(?:rejou|reecout|reentendre).*(?:ma prise|mon jeu|original|ma melodie|ma main)/.test(text);
   const lastRequest = [...relevant].reverse().filter((m) => m.role === 'user').map((m) => ({
     goal: requestedGoal(plain(m.content)), named: requestedTransition(m.content),
@@ -173,7 +176,7 @@ export function personalPlayingAnswer({ message, messages = [], context, review 
   const generic = /qu['’ ]en penses|ton avis|analyse mon jeu/.test(text);
   const retry = /^(?:et )?(?:maintenant|alors|reessaie)(?:[ ?!.]*)$/.test(text);
   const historyGoal = () => lastRequest?.goal;
-  const goal = requestedGoal(text) || ((retry || more || alternative) ? previous?.goal || historyGoal() || 'develop' : null);
+  const goal = requestedGoal(text) || (correction ? 'develop' : (retry || more || alternative) ? previous?.goal || historyGoal() || 'develop' : null);
   const source = (more || alternative) && previous?.take ? previous.take : data;
   const take = { ...source, duration: source.duration || Math.max(...source.events.map((e) => e.time)) };
   if (hear && !more && !alternative && previous && !named && !goal && (!historyGoal() || historyGoal() === previous.goal)) {
@@ -201,9 +204,12 @@ export function personalPlayingAnswer({ message, messages = [], context, review 
   const broad = desired === 'develop' || /progression|plusieurs|(?:mes|les|des) accords|tout le|ensemble/.test(text);
   if (!named && (broad || more || alternative)) {
     const updated = previous ? refreshPlayingResult({ playingAdvice: previous })?.playingAdvice : null;
-    const plan = planPlayingChanges(take, found.proposals, { goal: desired, previous: updated, more, alternative, broad });
+    const requestedTechniques = [...(/drop\s*2/.test(text) ? ['drop2'] : []), ...(/upper.?structures?/.test(text) ? ['upper'] : [])];
+    const technique = requestedTechniques.length ? requestedTechniques : null;
+    const plan = planPlayingChanges(take, found.proposals, { goal: desired, previous: updated, more, alternative, broad, technique });
     if (plan) return hear || ((more || alternative) && previousReply?.toolResult.example)
       ? demonstrate(plan) : answer(plan.text, { playingAdvice: plan }, [{ label: HEAR, message: HEAR }]);
+    if (technique) return answer('Je n’ai pas trouvé de disposition vérifiable pour cette technique qui garde ta basse et ton dessus dans cette prise. Je peux plutôt enrichir les voicings existants.', {}, [{label:'Enrichis mes accords',message:'Enrichis mes accords'}]);
     if ((more || alternative) && previous) return answer('Je n’ai pas trouvé d’autre changement compatible à ajouter à cette version. Choisis un accord précis à retravailler, ou demande une autre variante.', {}, [{ label: 'Une autre version', message: 'Propose une autre version de ma progression' }]);
   }
   const matches = (p) => !named || (p.transition?.rootPc === named[0].rootPc && /^7$/.test(named[0].quality)

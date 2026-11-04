@@ -1140,7 +1140,6 @@ export async function toggleReviewCapture() {
   renderReviewButton();
   draftTake = { ...passage, id: `take-${Date.now()}-${++takeSequence}` };
   renderDraftTake();
-  renderReviewButton('Réécoute ta prise, ajoute ta demande, puis appuie sur Envoyer.');
   return passage;
 }
 

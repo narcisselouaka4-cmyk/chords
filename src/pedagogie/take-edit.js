@@ -21,6 +21,46 @@ export function applyTakeEdit(take, edit) {
   if (!edit || !Array.isArray(take?.events)) return null;
   if (edit.type === 'plan') return applyTakePlan(take, edit.edits);
   const pairs = notePairs(take.events);
+  if (edit.type === 'voicing') {
+    const replacements = edit.replacements || [];
+    const additions = edit.additions || [];
+    const removals = edit.removals || [];
+    if (![replacements, additions, removals].every(Array.isArray) || !replacements.length && !additions.length && !removals.length) return null;
+    const changes = [...replacements, ...removals.map((on) => ({ on, remove: true }))];
+    if (new Set(changes.map((e) => e.on)).size !== changes.length) return null;
+    const selected = [...changes, ...additions].map((e) => ({ ...e, pair: pairs.find((p) => p.on === e.on) }));
+    if (selected.some((e) => !e.pair || !e.remove && (!Number.isInteger(e.note) || e.note < 21 || e.note > 108))) return null;
+    const events = take.events.map((e) => ({ ...e }));
+    const removed = new Set();
+    const newAttacks = new Set();
+    for (const e of selected.slice(0, changes.length)) {
+      if (e.remove) { removed.add(e.pair.on); removed.add(e.pair.off); }
+      else {
+        for (const i of [e.pair.on, e.pair.off]) { events[i].note = e.note; delete events[i].raw; }
+        newAttacks.add(events[e.pair.on]);
+      }
+    }
+    for (const e of selected.slice(changes.length)) for (const i of [e.pair.on, e.pair.off]) {
+      const added = { ...take.events[i], note: e.note };
+      delete added[SOURCE_INDEX]; delete added.raw;
+      events.push(added);
+      if (i === e.pair.on) newAttacks.add(added);
+    }
+    const kept = events.filter((_,i) => !removed.has(i)).sort((a,b) => a.time-b.time);
+    const resultPairs = notePairs(kept);
+    // Vérifier avant l'appariement : une seconde attaque de même hauteur ne
+    // doit pas masquer le premier appui dans notePairs.
+    const sounding = new Map();
+    for (const e of kept) {
+      if (e.type === 'note_on' && e.velocity > 0) {
+        if (sounding.has(e.note) && (newAttacks.has(e) || newAttacks.has(sounding.get(e.note)))) return null;
+        sounding.set(e.note,e);
+      } else if (e.type === 'note_off' || e.type === 'note_on' && e.velocity === 0) sounding.delete(e.note);
+    }
+    if (resultPairs.some((p) => newAttacks.has(p.event) && resultPairs.some((q) => q !== p
+      && Math.abs(q.event.note-p.event.note) <= 1 && q.event.time < p.end && q.end > p.event.time))) return null;
+    return { ...take, events: kept };
+  }
   if (edit.type === 'passing') {
     if (!Array.isArray(edit.notes) || edit.notes.length < 3 || edit.notes.some((n) => !Number.isInteger(n) || n < 21 || n > 108)) return null;
     if (!Number.isFinite(edit.start) || !Number.isFinite(edit.end) || edit.start < 0 || edit.end - edit.start < .12) return null;

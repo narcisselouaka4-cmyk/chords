@@ -58,7 +58,8 @@ for (const goal of ['Allège mes accords', 'Enrichis mes accords']) check(`${goa
     return [e.on, take.events.findIndex((off, i) => i > e.on && off.type === 'note_off' && off.note === on.note)];
   }));
   for (const [i, event] of take.events.entries()) if (!removed.has(i)) assert(changed.events.some((e) => JSON.stringify(e) === JSON.stringify(event)));
-  assert.equal(changed.events.length, take.events.length - removed.size + edits.filter((e) => e.type === 'add').length * 2);
+  const added = edits.reduce((n,e) => n+(e.type === 'add' ? 1 : e.type === 'voicing' ? e.additions?.length || 0 : 0),0);
+  assert.equal(changed.events.length, take.events.length - removed.size + added * 2);
   assert.deepEqual(changed.events.filter((e) => e.type === 'control'), take.events.filter((e) => e.type === 'control'));
   assert.deepEqual(take, original);
 });

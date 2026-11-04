@@ -59,6 +59,7 @@ import { buildScaleNotes, resolveScaleRequest, scaleTheoryAnswer, SCALE_DEFINITI
 import { sourceTransferRequest, transferFollowup, insertionFollowup } from './source-transfer.js';
 import { tutorialEvidence, evidenceLines, tutorialMeaningAnswer, tutorialPlayback, tutorialConversation } from './tutorial-evidence.js';
 import { personalPlayingAnswer } from './playing-advice.js';
+import { playingStyleAnswer } from './playing-style.js';
 import { normalizeChatResponse, hasCompletionOutput, completionFailure } from './chat-response.js';
 import { takeExample } from './take-attachment.js';
 
@@ -1813,6 +1814,8 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
  * @returns {Promise<{ok: true, content: string, toolResult: {played: object[], ignored: number}} | {ok: false, error: string}>}
  */
 export async function sendCopilotMessage({ message, messages, context, copilotStyleId = 'auto', review = false }) {
+  const style = playingStyleAnswer({ message, messages, context });
+  if (style) return style;
   const personal = personalPlayingAnswer({ message, messages, context, review });
   if (personal) return personal;
   const lastReply = [...(messages || [])].reverse().find((m) => m.role === 'assistant' && !m.isTyping);
