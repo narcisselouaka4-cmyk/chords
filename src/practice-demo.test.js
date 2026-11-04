@@ -233,7 +233,7 @@ check('Drop 2-4 de Gm11 en Ballade : rien d\'ajouté (la main gauche ne tient pa
 
 // [Claude] — 2026-09-24 — Styles Ballade, Comping swing et Plaqué (demande de Narcisse).
 console.log('\n=== Démo : styles ===');
-check('Quatre styles, chacun avec son tempo', DEMO_STYLE_IDS.join() === 'gospel,ballade,swing,plaque'
+check('Cinq styles, chacun avec son tempo', DEMO_STYLE_IDS.join() === 'gospel,ballade,swing,plaque,montuno'
   && DEMO_STYLE_IDS.every((id) => DEMO_STYLES[id].label && DEMO_STYLES[id].tempo >= 50 && DEMO_STYLES[id].tempo <= 160));
 check('Style par défaut selon le mouvement : jazz → swing, gospel / worship → gospel, sans style → ballade',
   defaultDemoStyle('jazz') === 'swing' && defaultDemoStyle('gospel') === 'gospel' && defaultDemoStyle('worship') === 'gospel' && defaultDemoStyle(undefined) === 'ballade');
@@ -300,10 +300,10 @@ check('Tous les mouvements × 12 tons en Auto + 5 techniques en Sol × 3 couleur
 console.log('\n=== Interprétations musicales ===');
 {
   const grid = movement('Turnaround III-VI-II-V-I', { key: 0, technique: 'close', difficulty: 3 });
-  for (const style of ['gospel', 'ballade', 'swing']) {
+  for (const style of ['gospel', 'ballade', 'swing', 'montuno']) {
     const takes = DEMO_VARIATIONS[style].map((_, variation) => buildDemo(grid, style, { variation }));
     const attacks = takes.map((d) => JSON.stringify(d.events.filter((e) => e.type === 'noteOn').map(({ time, note, hand }) => [time, note, hand])));
-    check(`${style} : quatre phrases différentes en rythme et en notes (pas seulement en nuance)`, new Set(attacks).size === takes.length);
+    check(`${style} : ${takes.length} phrases différentes en rythme et en notes (pas seulement en nuance)`, new Set(attacks).size === takes.length);
     check(`${style} : une interprétation choisie se rejoue à l'identique`, takes.every((d, variation) => JSON.stringify(d) === JSON.stringify(buildDemo(grid, style, { variation }))));
     check(`${style} : valeur d'interprétation invalide = première prise`, JSON.stringify(takes[0]) === JSON.stringify(buildDemo(grid, style, { variation: -4 })));
   }

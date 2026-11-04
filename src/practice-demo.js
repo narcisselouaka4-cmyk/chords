@@ -65,6 +65,10 @@ export const DEMO_STYLES = {
   ballade: { label: 'Arpégé', tempo: 60, beatsPerChord: 4, build: buildBalladeDemo },
   swing: { label: 'Rythmé', tempo: 132, beatsPerChord: 4, build: buildSwingDemo },
   plaque: { label: 'Plaqué', tempo: 72, beatsPerChord: 4, build: buildPlaqueDemo },
+  // [Claude] — 2026-11-04 — Seul style nommé d'après un procédé et non d'après
+  // une sensation : « Montuno » est le nom que Narcisse emploie, et aucun mot
+  // généraliste ne décrirait ce rythme sans le trahir.
+  montuno: { label: 'Montuno', tempo: 96, beatsPerChord: 4, build: buildMontunoDemo },
 };
 
 /** Interprétations écrites : le même choix rejoue exactement la même phrase.
@@ -90,18 +94,31 @@ export const DEMO_VARIATIONS = {
     { label: 'Espace', description: 'Des accords espacés et un dernier appui plus long.' },
   ],
   plaque: [{ label: 'Accords tenus', description: 'Les deux mains ensemble, sans ornement.' }],
+  montuno: [
+    { label: 'Guajeo', description: 'Une ligne de notes seules qui descend puis remonte, à contretemps.' },
+    { label: 'Bloque', description: 'Des accords brefs entre les temps, sans ligne mélodique.' },
+  ],
 };
 
 /** Ordre d'affichage des styles. */
-export const DEMO_STYLE_IDS = ['gospel', 'ballade', 'swing', 'plaque'];
+export const DEMO_STYLE_IDS = ['gospel', 'ballade', 'swing', 'plaque', 'montuno'];
 
 /**
  * Style par défaut d'un mouvement, d'après son style (champ `style` de la
- * bibliothèque) : jazz → Comping swing, gospel et worship → Gospel / worship ;
- * sans style (« Ma grille ») → Ballade.
+ * bibliothèque) : jazz → Comping swing, gospel et worship → Gospel / worship,
+ * les styles latins → Montuno ; sans style (« Ma grille ») → Ballade.
+ *
+ * [Claude] — 2026-11-04 — Les six styles latins des études sont mappés
+ * explicitement. Avant, ils retombaient en silence sur « Arpégé », ce qui
+ * n'avait aucun sens pour une salsa ; maintenant qu'un vrai montuno existe,
+ * le repli muet n'a plus de raison d'être.
  */
 export function defaultDemoStyle(movementStyle) {
-  return { jazz: 'swing', gospel: 'gospel', worship: 'gospel' }[movementStyle] || 'ballade';
+  return {
+    jazz: 'swing', gospel: 'gospel', worship: 'gospel',
+    salsa: 'montuno', guajira: 'montuno', danzon: 'montuno',
+    habanera: 'montuno', merengue: 'montuno', 'latin-jazz': 'montuno',
+  }[movementStyle] || 'ballade';
 }
 
 /** Démo d'une grille dans le style demandé (Gospel / worship si inconnu). */
@@ -413,7 +430,15 @@ function planPlaque(chords, beatsPerChord = 4) {
   return { bars, passing: planPassing(chords, beatsPerChord, 'none') };
 }
 
-const PASSING_PLANS = { gospel: planGospel, ballade: planBallade, swing: planSwing, plaque: planPlaque };
+/** Plan du montuno : même basse que le comping (la fondamentale), passages compris. */
+function planMontuno(chords, beatsPerChord = 4) {
+  const bars = chords.map((chord) => demoHands(chord, 'root'));
+  return { bars, passing: planPassing(chords, beatsPerChord, 'root') };
+}
+
+const PASSING_PLANS = {
+  gospel: planGospel, ballade: planBallade, swing: planSwing, plaque: planPlaque, montuno: planMontuno,
+};
 
 /**
  * Accords de passage que la démo joue dans ce style (un style inconnu vaut
@@ -442,6 +467,12 @@ function swingSecondBass(chord, root, rh) {
 /** Styles qui donnent une main gauche à la carte (option « Main gauche » de l'exercice). */
 export const LEFT_HAND_STYLES = ['gospel', 'ballade', 'swing'];
 
+// [Claude] — 2026-11-04 — Styles dont on sait calculer les mains. Le Montuno en
+// fait partie (sa basse doit apparaître dans « ce que la démo ajoute à la
+// carte », voir demoCardHands) sans pour autant devenir une option du menu
+// « Main gauche » de la carte : sa main gauche n'a de sens qu'avec son rythme.
+const DEMO_HAND_STYLES = [...LEFT_HAND_STYLES, 'montuno'];
+
 /**
  * Mains d'un style pour un accord de la carte — celles de la démo, sans le
  * rythme : Gospel / worship = fondamentale + quinte à l'octave 2 (7e sur une
@@ -452,8 +483,8 @@ export const LEFT_HAND_STYLES = ['gospel', 'ballade', 'swing'];
  * @returns {{lh: number[], rh: number[], added: number[], movedToRight: boolean}|null}
  */
 export function styleLeftHand(chord, style, { lift = true } = {}) {
-  if (!LEFT_HAND_STYLES.includes(style)) return null;
-  const kind = style === 'swing' ? 'root' : 'fifth';
+  if (!DEMO_HAND_STYLES.includes(style)) return null;
+  const kind = style === 'swing' || style === 'montuno' ? 'root' : 'fifth';
   const card = cardHands(chord);
   let hands = demoHands(chord, kind);
   const movedToRight = card.lh.length > 0 && card.rh.length === 0 && hands.rh.length > 0;
@@ -721,6 +752,130 @@ export function buildSwingDemo(chords, { beatsPerChord = 4, variation = 0 } = {}
 }
 
 /** Les valeurs extérieures à la bibliothèque reviennent à la première prise. */
+// ---------------------------------------------------------------- Montuno
+// [Claude] — 2026-11-04 — Accompagnement montuno pour « Ma grille » (Narcisse :
+// « fais le générateur montuno pour Ma grille »). Aucun des quatre styles
+// existants n'était latin, et faire passer le comping swing pour une salsa
+// aurait été un mensonge.
+//
+// Trois choses font le montuno, et elles sont toutes les trois ici :
+//   - la main droite ÉVITE les temps 1 et 3 : elle joue sur 0,5 / 1 / 1,5 puis
+//     2,5 / 3 / 3,5, avec un silence au milieu de la mesure ;
+//   - c'est une LIGNE de notes seules (un guajeo), pas un accord plaqué — un
+//     arc qui descend du dessus vers le grave puis remonte ;
+//   - la main gauche joue le tumbao : rien sur le 1, la basse entre sur le
+//     « 2 et » (1,5) et sur le 4 (3) — et sur ce 4, elle joue déjà la
+//     fondamentale de l'accord SUIVANT. C'est la basse anticipée du son
+//     montuno, et c'est le seul endroit de l'application où elle est possible
+//     sans tordre les durées : contrairement à une étude écrite, le générateur
+//     voit la grille entière, donc l'accord d'après.
+//
+// Le premier appui de chaque mesure plaque tout le voicing (le « bloque » du
+// pianiste) : la ligne qui suit n'en garde que trois voix, et le contrat des
+// démos exige que TOUTES les notes de la carte sonnent dans leur mesure.
+
+/** Les trois voix du guajeo, du dessus vers le grave : dessus, voix du milieu, grave. */
+function guajeoVoices(rh) {
+  if (!rh.length) return [];
+  const top = rh[rh.length - 1];
+  const mid = rh[Math.floor((rh.length - 1) / 2)];
+  return [top, mid, rh[0]];
+}
+
+/**
+ * Montuno (96) : guajeo de piano à contretemps sur un tumbao à basse anticipée.
+ * Deux interprétations — la ligne (guajeo) ou les accords brefs (bloque).
+ */
+export function buildMontunoDemo(chords, { beatsPerChord = 4, variation = 0 } = {}) {
+  const take = normalizeVariation('montuno', variation);
+  // Le montuno est écrit pour une mesure de quatre temps ; plus court, on
+  // retombe sur le jeu plaqué plutôt que de déformer le rythme.
+  if (beatsPerChord < 4) return buildPlaqueDemo(chords, { beatsPerChord });
+  const score = createScore();
+  const { bars, passing: passingChords } = planMontuno(chords, beatsPerChord);
+  chords.forEach((chord, i) => {
+    const t = i * beatsPerChord;
+    const hands = bars[i];
+    const { lh, rh } = hands;
+    const passing = passingChords[i];
+    const last = i === chords.length - 1 && !passing;
+    const end = t + beatsPerChord - LIFT;
+    score.step(t, i);
+
+    // --- Main droite : le bloque d'entrée, puis la ligne (ou d'autres bloques).
+    if (rh.length) {
+      // Premier appui à contretemps : tout le voicing. Il remplit le contrat
+      // « toute la carte sonne », et c'est le geste du pianiste de salsa.
+      score.hand(t + 0.5, rh, score.shade(i, 0.6), t + 0.95, { roll: 0.012, accentTop: 0.05 });
+      if (take === 1) {
+        // Bloque : des accords brefs à contretemps, sans ligne mélodique.
+        score.hand(t + 1.5, rh, score.shade(i, 0.56), t + 1.95, { roll: 0.012, accentTop: 0.05 });
+        if (last) score.hand(t + 3, rh, score.shade(i, 0.58), end, { roll: 0.012, accentTop: 0.05 });
+        else if (!passing) score.hand(t + 3, rh, score.shade(i, 0.58), t + 3.9, { roll: 0.012, accentTop: 0.05 });
+      } else {
+        const [top, mid, low] = guajeoVoices(rh);
+        // L'arc : dessus → milieu → grave, puis retour. Un passage prend le 4e
+        // temps ; la dernière mesure se pose sur l'accord entier.
+        const line = [[1, top, 0.58], [1.5, mid, 0.54]];
+        if (!passing && !last) line.push([2.5, low, 0.56], [3, mid, 0.52], [3.5, top, 0.6]);
+        else line.push([2.5, low, 0.56]);
+        line.forEach(([at, note, v]) => score.note(t + at, note, score.shade(i, v), 0.45, 'rh'));
+        if (last) score.hand(t + 3, rh, score.shade(i, 0.57), end, { roll: 0.012, accentTop: 0.05 });
+      }
+    }
+
+    // --- Main gauche : le tumbao, et la basse anticipée sur le 4e temps.
+    if (hands.stride) {
+      // [Claude] — 2026-11-04 — Une main gauche trop large pour être tenue d'un
+      // bloc ne passe PAS par playLeftHand ici : ce stride joue les temps 1 et
+      // 3, exactement les deux temps qu'un montuno doit laisser vides. Les deux
+      // moitiés alternent donc sur les contretemps — l'accord d'abord, puis la
+      // basse aux positions du tumbao.
+      const { bass, chord: upper } = hands.stride;
+      score.hand(t + 0.5, upper, score.shade(i, 0.56), t + 0.95, { roll: 0.012, hand: 'lh' });
+      score.hand(t + 1.5, bass, score.shade(i, 0.58), t + 1.95, { roll: 0.01, hand: 'lh' });
+      if (last) score.hand(t + 3, bass, score.shade(i, 0.6), end, { roll: 0.01, hand: 'lh' });
+      else if (!passing) score.hand(t + 3, bass, score.shade(i, 0.62), t + 3.9, { roll: 0.01, hand: 'lh' });
+    } else if (!rh.length && lh.length) {
+      // [Claude] — 2026-11-04 — 44 % des cartes du catalogue tiennent dans la
+      // seule main gauche (rootless, close, voicings à une main). Sans ce cas,
+      // le montuno y perdait son guajeo et se réduisait à deux notes de basse.
+      // La main gauche joue alors les bloques à contretemps elle-même : le
+      // rythme est là, à défaut d'une ligne au-dessus.
+      score.hand(t + 0.5, lh, score.shade(i, 0.58), t + 0.95, { roll: 0.012, hand: 'lh' });
+      score.hand(t + 1.5, lh, score.shade(i, 0.54), t + 1.95, { roll: 0.012, hand: 'lh' });
+      if (last) score.hand(t + 3, lh, score.shade(i, 0.56), end, { roll: 0.012, hand: 'lh' });
+      else if (!passing) score.hand(t + 3, lh, score.shade(i, 0.6), t + 3.9, { roll: 0.012, hand: 'lh' });
+    } else if (lh.length) {
+      if (last) {
+        score.hand(t + 1.5, lh, score.shade(i, 0.58), end, { roll: 0.01, hand: 'lh' });
+      } else {
+        score.hand(t + 1.5, lh, score.shade(i, 0.56), t + 2.9, { roll: 0.01, hand: 'lh' });
+        if (!passing) {
+          // La fondamentale de l'accord suivant, un temps avant sa mesure.
+          // `bass` est précisément la note qui FAIT fondamentale pour demoHands
+          // (ajoutée sous le voicing, ou la plus grave quand c'est déjà elle) :
+          // s'y fier fait marcher l'anticipation aussi sur les cartes à deux
+          // mains, et pas seulement quand le générateur invente la basse.
+          // Elle doit rester sous la main droite, sinon les mains se croisent.
+          const next = bars[i + 1];
+          const ahead = next?.bass?.length === 1 ? next.bass[0] : null;
+          const anticipated = ahead != null && ahead >= LOWEST_BASS && (!rh.length || ahead < rh[0]);
+          score.hand(t + 3, anticipated ? next.bass : lh, score.shade(i, 0.62), t + 3.9, { roll: 0.01, hand: 'lh' });
+        }
+      }
+    }
+
+    // --- Accord de passage : entier, au 4e temps, comme dans les autres styles.
+    if (passing) {
+      const p = t + beatsPerChord - 1;
+      score.passing(p, i);
+      playPassing(score, passing, p, end, score.shade(i, 0.6), { roll: 0.02 });
+    }
+  });
+  return score.finish(chords.length * beatsPerChord);
+}
+
 function normalizeVariation(style, variation) {
   const n = Number(variation);
   return Number.isInteger(n) && n >= 0 && n < DEMO_VARIATIONS[style].length ? n : 0;
