@@ -1002,7 +1002,94 @@
 /* [Claude] — 2026-11-04 — Retard du son : un chiffre, lisible d'un coup d'œil,
    qui vire au rouge au-delà du seuil où le décalage s'entend au jeu. */
 .settings-readout { flex: 1; min-width: 0; padding: 9px 12px; font-size: 0.82rem; font-variant-numeric: tabular-nums; border-radius: var(--r-radius-btn, 8px); border: 1px solid var(--r-border-strong, var(--panel-border)); background: var(--r-surface-chip, transparent); color: inherit; }
-.settings-readout.is-warning { border-color: var(--tr-red, #e47575); color: var(--tr-red, #e47575); }
+.settings-readout.is-warning { border-color: var(--r-error, #e47575); color: var(--r-error, #e47575); }
+
+/* [Claude] — 2026-11-04 — Métronome global de l'en-tête.
+   Refait après un premier jet trop brut (Narcisse : « améliore le design UX,
+   faut que ça fasse un peu plus professionnel »). Trois corrections de fond :
+   une hauteur bornée avec défilement INTERNE à la liste des styles — le panneau
+   débordait de l'écran —, une hiérarchie claire (nom du style, tempo, styles,
+   volume), et les codes d'un vrai métronome : gros chiffre, pas de −/+, et des
+   témoins de temps qui battent. */
+.tr-metronome { position: relative; display: inline-flex; }
+.tr-metronome > button.is-playing { color: var(--r-accent, var(--accent)); }
+
+.tr-metronome-panel {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 140;
+  width: 300px; max-height: min(74vh, 560px);
+  display: flex; flex-direction: column;
+  border: 1px solid var(--r-border-strong, var(--panel-border));
+  border-radius: 14px; background: var(--r-surface-raised, var(--panel-bg));
+  color: var(--r-text, var(--text));
+  box-shadow: 0 18px 48px rgb(0 0 0 / 26%), 0 2px 6px rgb(0 0 0 / 10%);
+  overflow: hidden;            /* la carte reste nette ; le défilement est interne */
+}
+.tr-metronome-panel[hidden] { display: none; }
+
+/* -- En-tête : ce qui joue, et le transport. */
+.mt-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px 12px; border-bottom: 1px solid var(--r-border, var(--panel-border)); }
+.mt-head-text { flex: 1; min-width: 0; }
+.mt-title { margin: 0; font-size: 0.64rem; letter-spacing: .14em; text-transform: uppercase; color: var(--r-text-muted, var(--muted)); }
+.mt-style-name { margin: 2px 0 0; font-size: 0.92rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt-play {
+  flex: none; width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer;
+  border-radius: 50%; border: 0; background: var(--r-accent, var(--accent)); color: var(--r-ground, #141416);
+  transition: transform .12s ease, background-color .12s ease;
+}
+.mt-play:hover { transform: scale(1.05); }
+.mt-play:active { transform: scale(.96); }
+.mt-play .mt-ico-stop { display: none; }
+.mt-play[aria-pressed='true'] .mt-ico-play { display: none; }
+.mt-play[aria-pressed='true'] .mt-ico-stop { display: block; }
+.mt-play:focus-visible { outline: 2px solid var(--r-accent, var(--accent)); outline-offset: 3px; }
+
+/* -- Tempo : le chiffre est l'élément principal, comme sur un métronome. */
+.mt-tempo { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 16px 8px; }
+.mt-step {
+  width: 32px; height: 32px; flex: none; cursor: pointer; font-size: 1.05rem; line-height: 1;
+  border-radius: 9px; border: 1px solid var(--r-border-strong, var(--panel-border));
+  background: transparent; color: var(--r-text, var(--text));
+}
+.mt-step:hover { border-color: var(--r-accent, var(--accent)); color: var(--r-accent, var(--accent)); }
+.mt-tempo-field { display: flex; align-items: baseline; gap: 4px; }
+.mt-tempo-field input {
+  width: 74px; padding: 0; border: 0; background: transparent; color: inherit;
+  font-size: 1.9rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; letter-spacing: -.02em;
+}
+.mt-tempo-field input::-webkit-outer-spin-button,
+.mt-tempo-field input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.mt-tempo-field input[type='number'] { -moz-appearance: textfield; }
+.mt-tempo-field input:focus-visible { outline: 2px solid var(--r-accent, var(--accent)); outline-offset: 4px; border-radius: 6px; }
+.mt-tempo-unit { font-size: 0.64rem; letter-spacing: .1em; color: var(--r-text-muted, var(--muted)); }
+
+/* -- Témoins de temps : on voit le tempo avant même de l'entendre. */
+.mt-beats { display: flex; justify-content: center; gap: 7px; padding: 0 16px 12px; }
+.mt-beats i { width: 7px; height: 7px; border-radius: 50%; background: var(--r-border-strong, var(--panel-border)); transition: background-color .08s ease, transform .08s ease; }
+.mt-beats i.on { background: var(--r-accent, var(--accent)); transform: scale(1.5); }
+.mt-beats i.first.on { background: var(--r-accent, var(--accent)); transform: scale(1.85); }
+
+/* -- Styles : groupés, défilants, le seul bloc qui scrolle. */
+.mt-styles { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 10px 10px; }
+.mt-group-label { margin: 10px 6px 5px; font-size: 0.6rem; letter-spacing: .13em; text-transform: uppercase; color: var(--r-text-muted, var(--muted)); }
+.mt-group-label:first-child { margin-top: 2px; }
+.mt-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.mt-style {
+  min-height: 32px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: 0.78rem; text-align: left;
+  border-radius: 9px; border: 1px solid transparent; background: transparent;
+  color: var(--r-text-muted, var(--muted));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background-color .12s ease, color .12s ease;
+}
+.mt-style:hover { background: var(--r-surface-chip, rgb(128 128 255 / 10%)); color: var(--r-text, var(--text)); }
+.mt-style.active { background: var(--r-accent-soft, rgb(128 128 255 / 18%)); border-color: var(--r-accent, var(--accent)); color: var(--r-accent-text, var(--r-text)); font-weight: 600; }
+.mt-style:focus-visible { outline: 2px solid var(--r-accent, var(--accent)); outline-offset: 1px; }
+
+/* -- Pied : volume seul, discret. */
+.mt-foot { padding: 10px 16px 14px; border-top: 1px solid var(--r-border, var(--panel-border)); }
+.mt-volume { display: flex; align-items: center; gap: 10px; color: var(--r-text-muted, var(--muted)); }
+.mt-volume input { flex: 1; min-width: 0; accent-color: var(--r-accent, var(--accent)); }
+.mt-note { margin: 0; padding: 0 16px 14px; font-size: 0.7rem; line-height: 1.45; color: var(--r-error, #e47575); }
+.mt-note[hidden] { display: none; }
 .settings-status { margin-top: 12px; min-height: 0; font-size: 0.72rem; color: var(--r-text-muted, var(--muted)); }
 .settings-status:empty { display: none; }
 .settings-note #midi-status-text, .settings-note #midi-port-count { font: inherit; color: inherit; margin: 0; }

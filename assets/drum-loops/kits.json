@@ -1,0 +1,134 @@
+{
+  "_lisezMoi": [
+    "Styles du métronome et des démonstrations. CE FICHIER EST FAIT POUR ÊTRE MODIFIÉ.",
+    "Pour ajouter un style : déposer les .mp3 dans ce dossier (nom au format",
+    "<nom>_<tempo>bpm.mp3, boucle de 2 mesures à 4/4), puis ajouter une entrée ici.",
+    "Aucun code à toucher, aucune reconstruction : relancer l'application suffit.",
+    "`layers` = couches superposées [fichier, volume 0-1]. `tempo` = tempo proposé.",
+    "Si une boucle ne plaît pas, remplacer le fichier ou changer la ligne : c'est",
+    "l'oreille de Narcisse qui décide, pas la mienne — je n'entends rien."
+  ],
+  "version": 1,
+  "styles": [
+    {
+      "id": "salsa",
+      "label": "Salsa / montuno",
+      "tempo": 96,
+      "layers": [["son-clave_104bpm", 0.8], ["conga-tumbao_100bpm", 0.9]]
+    },
+    {
+      "id": "merengue",
+      "label": "Merengue",
+      "tempo": 132,
+      "layers": [["cowbell-groove_120bpm", 0.7], ["bongo-martillo_112bpm", 0.8]]
+    },
+    {
+      "id": "latin-jazz",
+      "label": "Latin jazz",
+      "tempo": 100,
+      "layers": [["son-clave_104bpm", 0.7], ["cajon-groove_96bpm", 0.75]]
+    },
+    {
+      "id": "bossa",
+      "label": "Bossa-nova",
+      "tempo": 132,
+      "layers": [["bossa-nova_132bpm", 0.85]]
+    },
+    {
+      "id": "jazz",
+      "label": "Jazz",
+      "tempo": 104,
+      "layers": [["shuffle_96bpm", 0.8]]
+    },
+    {
+      "id": "blues",
+      "label": "Blues",
+      "tempo": 96,
+      "layers": [["shuffle_96bpm", 0.85]]
+    },
+    {
+      "id": "gospel",
+      "label": "Gospel",
+      "tempo": 100,
+      "layers": [["motown-beat_104bpm", 0.85]]
+    },
+    {
+      "id": "worship",
+      "label": "Worship",
+      "tempo": 110,
+      "layers": [["pop-beat_110bpm", 0.8]]
+    },
+    {
+      "id": "rnb",
+      "label": "R&B",
+      "tempo": 88,
+      "layers": [["boom-bap_88bpm", 0.85]]
+    },
+    {
+      "id": "funk",
+      "label": "Funk",
+      "tempo": 100,
+      "layers": [["funk-groove_100bpm", 0.85]]
+    },
+    {
+      "id": "hip-hop",
+      "label": "Hip-hop",
+      "tempo": 92,
+      "layers": [["boom-bap_92bpm", 0.85]]
+    },
+    {
+      "id": "pop",
+      "label": "Pop",
+      "tempo": 110,
+      "layers": [["pop-beat_110bpm", 0.85]]
+    },
+    {
+      "id": "rock",
+      "label": "Rock",
+      "tempo": 90,
+      "layers": [["rock-beat_90bpm", 0.85]]
+    },
+    {
+      "id": "reggae",
+      "label": "Reggae",
+      "tempo": 76,
+      "layers": [["one-drop_76bpm", 0.85]]
+    },
+    {
+      "id": "shaker",
+      "label": "Shaker seul",
+      "tempo": 100,
+      "layers": [["shaker-16ths_100bpm", 0.7]]
+    },
+    {
+      "id": "tambourin",
+      "label": "Tambourin seul",
+      "tempo": 110,
+      "layers": [["tambourine-8ths_110bpm", 0.6]]
+    }
+  ],
+  "_demoKits": [
+    "Ce que les DÉMONSTRATIONS de la bibliothèque jouent, par genre d'étude.",
+    "Séparé des styles du métronome : un même mot n'a pas le même tempo des deux",
+    "côtés (l'étude gospel est à 76, le style Gospel du métronome à 100)."
+  ],
+  "demoKits": {
+    "montuno": "salsa",
+    "guajira": "salsa",
+    "habanera": "salsa",
+    "danzon": "latin-jazz",
+    "gospel": "rnb",
+    "ballade": "reggae",
+    "swing": "blues",
+    "plaque": "rock",
+    "worship": "worship"
+  },
+  "_demoTempos": [
+    "Tempos IMPOSÉS à une démonstration, quand l'étude tombe trop loin de toute",
+    "boucle enregistrée (au-delà d'un quart d'étirement, le timbre devient faux)."
+  ],
+  "demoTempos": {
+    "danzon": 88,
+    "merengue": 132
+  }
+}

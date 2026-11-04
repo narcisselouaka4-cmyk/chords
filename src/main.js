@@ -20,7 +20,10 @@ import {
   setSustain, ensurePianoSamples, resumeAudio, setPitchBend, setModulation, getAudioContext,
   getAudioLatency,
 } from './audio/simple-synth.js';
-import { createDrumLoop, drumKitFor, drumTempoFor } from './audio/drum-loop.js';
+import {
+  createDrumLoop, drumKitFor, drumTempoFor, drumStyles, setDrumManifest,
+} from './audio/drum-loop.js';
+import { initGlobalMetronome } from './ui/global-metronome.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
 // [Claude] — 2026-10-02 — Qui est un vrai clavier (jamais notre propre port virtuel).
@@ -729,7 +732,7 @@ const demoPlayer = createDemoPlayer({
   onPassing: (after) => demoHooks.onPassing?.(after),
   // La batterie s'arrête ici et non en emballant `demoHooks.onEnd` : ce champ
   // est réassigné plus tard par initPracticeExercise, qui écraserait l'emballage.
-  onEnd: (reason) => { drumLoop.stop(); demoHooks.onEnd?.(reason); },
+  onEnd: (reason) => { releaseDrumsToMetronome(); demoHooks.onEnd?.(reason); },
 });
 
 // [Claude] — 2026-11-04 — Boucle de batterie des démonstrations. Elle est
@@ -765,6 +768,23 @@ async function readDrumLoopFile(name) {
 }
 
 const drumLoop = createDrumLoop({ getContext: getAudioContext, readFile: readDrumLoopFile });
+
+/**
+ * [Claude] — 2026-11-04 — Le manifeste des styles, lu sur le disque pour que
+ * Narcisse puisse déposer ses propres boucles et décider lui-même de ce que
+ * chaque style joue. S'il manque, la table en dur du module prend le relais.
+ */
+let globalMetronome = null;
+(async () => {
+  try {
+    const bytes = await readDrumLoopFile('kits.json');
+    if (!bytes) return;
+    const text = new TextDecoder().decode(bytes);
+    if (setDrumManifest(JSON.parse(text))) globalMetronome?.refresh();
+  } catch (e) {
+    console.warn('[Batterie] manifeste kits.json illisible, styles par défaut —', e?.message || e);
+  }
+})();
 let demoDrums = null;        // { name, tempo } de la démo en cours
 let drumsEnabled = true;     // Narcisse a demandé la batterie : allumée par défaut.
 try {
@@ -804,7 +824,18 @@ function refreshDrumsDiagnostic() {
 
 for (const method of ['stop', 'pause']) {
   const inner = demoPlayer[method].bind(demoPlayer);
-  demoPlayer[method] = (...args) => { drumLoop.stop(); return inner(...args); };
+  demoPlayer[method] = (...args) => { releaseDrumsToMetronome(); return inner(...args); };
+}
+
+/**
+ * [Claude] — 2026-11-04 — La démo et le métronome global partagent UN lecteur :
+ * deux boucles à des tempos différents en même temps seraient inécoutables. La
+ * démo prend donc la main, et le métronome reprend là où il en était quand elle
+ * s'arrête — sans quoi lancer une écoute couperait le métronome pour de bon.
+ */
+function releaseDrumsToMetronome() {
+  drumLoop.stop();
+  if (globalMetronome?.isRunning()) globalMetronome.resume();
 }
 for (const method of ['resume', 'seek', 'setRate']) {
   const inner = demoPlayer[method].bind(demoPlayer);
@@ -3890,6 +3921,10 @@ function initTabNavigation() {
   });
 
   initOnboarding();
+
+  // [Claude] — 2026-11-04 — Métronome de l'en-tête : disponible depuis tous les
+  // onglets, et non plus seulement dans Exercices.
+  globalMetronome = initGlobalMetronome({ drumLoop, styles: drumStyles, resumeAudio });
 
   if (window.location.hash === '#analysis') switchToTab('analysis');
   else if (window.location.hash === '#studio') switchToTab('studio');

@@ -16,6 +16,8 @@
 // AudioBufferSourceNode en `loop = true` suffit, et c'est Web Audio qui tient
 // la boucle au sample près — bien plus régulier que des minuteurs.
 
+import shippedKits from '../../assets/drum-loops/kits.json' with { type: 'json' };
+
 /** Toutes les boucles de la bibliothèque font 2 mesures à 4/4. */
 export const LOOP_BEATS = 8;
 
@@ -73,14 +75,97 @@ const ALIASES = {
   montuno: 'salsa', 'latin-jazz': 'salsa', jazz: 'swing', worship: 'gospel',
 };
 
-/** Kit d'un genre d'étude (salsa, danzon…) ou d'un style de démo (gospel…). */
+// [Claude] — 2026-11-04 — Le manifeste `assets/drum-loops/kits.json` remplace la
+// table ci-dessus dès qu'il est lu. Il existe pour que Narcisse puisse déposer
+// SES boucles et choisir lui-même ce que chaque style joue : je ne peux pas
+// juger une percussion à l'oreille, lui si. La table en dur reste le repli si
+// le fichier manque ou est illisible (hors Electron, par exemple).
+// Le manifeste livré est EMBARQUÉ au build : les styles et leurs libellés sont
+// donc toujours corrects, même sans Electron. La version sur le disque, lue au
+// démarrage, le remplace si Narcisse l'a modifiée — c'est elle qui fait foi.
+let manifest = null;
+
+/** Styles proposés : ceux du manifeste, sinon ceux de la table en dur. */
+export function drumStyles() {
+  if (manifest?.styles?.length) {
+    return manifest.styles.map((s) => ({ id: s.id, label: s.label || s.id, tempo: s.tempo || 100 }));
+  }
+  return Object.keys(DRUM_KITS).map((id) => ({ id, label: id, tempo: DRUM_KITS[id].tempo || 100 }));
+}
+
+/**
+ * Installe le manifeste lu sur le disque. Une entrée invalide est ignorée
+ * plutôt que de faire tomber tout le reste : un fichier édité à la main ne
+ * doit pas pouvoir casser l'application.
+ */
+export function setDrumManifest(raw) {
+  if (!raw || !Array.isArray(raw.styles)) return false;
+  const styles = raw.styles.filter((s) => s && s.id && Array.isArray(s.layers) && s.layers.length);
+  if (!styles.length) return false;
+  const obj = (v) => (v && typeof v === 'object' ? v : {});
+  manifest = {
+    styles, genres: obj(raw.genres), demoKits: obj(raw.demoKits), demoTempos: obj(raw.demoTempos),
+  };
+  return true;
+}
+
+// Manifeste livré, appliqué dès le chargement du module.
+setDrumManifest(shippedKits);
+
+/** Style du manifeste par son identifiant, sans passer par les correspondances. */
+function styleById(id) {
+  const found = manifest?.styles.find((s) => s.id === id);
+  return found ? { tempo: found.tempo, layers: found.layers, label: found.label } : null;
+}
+
+/**
+ * Kit d'un **style du métronome**, choisi explicitement par Narcisse. On ne
+ * passe PAS par les correspondances de genres : son bouton « Gospel » doit
+ * jouer le gospel, pas ce qu'une étude appelle gospel.
+ */
+export function drumKitById(id) {
+  return styleById(id) || DRUM_KITS[ALIASES[id] || id] || null;
+}
+
+/**
+ * Kit d'un **genre d'étude** (salsa, danzon, gospel…) pour une démonstration.
+ *
+ * [Claude] — 2026-11-04 — `demoKits` existe parce qu'un même mot ne veut pas
+ * dire la même chose des deux côtés : le style « Gospel » du métronome tourne
+ * à 100, alors que l'étude gospel est à 76 — la même boucle y serait étirée à
+ * 0,73×, hors des limites écoutables. Les tests ont attrapé exactement ça.
+ */
 export function drumKitFor(name) {
+  if (manifest) {
+    const id = manifest.demoKits?.[name] || manifest.genres?.[name] || name;
+    const found = styleById(id);
+    if (found) return found;
+  }
   return DRUM_KITS[ALIASES[name] || name] || null;
 }
 
-/** Tempo imposé par le kit d'un genre, ou null si le tempo de l'étude convient. */
+/**
+ * Tempo IMPOSÉ à une démonstration, ou null si celui de l'étude convient.
+ *
+ * [Claude] — 2026-11-04 — À ne pas confondre avec le `tempo` d'un style, qui
+ * est seulement la valeur proposée au métronome. Les deux ont été mélangés un
+ * instant, et le manifeste écrasait alors le tempo de CHAQUE étude — les tests
+ * l'ont attrapé. Seuls deux genres ont besoin d'être recalés, parce que leurs
+ * études tombaient trop loin de toute boucle enregistrée.
+ */
+const FORCED_DEMO_TEMPOS = { danzon: 88, merengue: 132 };
 export function drumTempoFor(name) {
-  return drumKitFor(name)?.tempo ?? null;
+  return manifest?.demoTempos?.[name] ?? FORCED_DEMO_TEMPOS[name] ?? null;
+}
+
+/**
+ * Tempo d'origine d'une boucle. Il se lit DANS LE NOM (`…_104bpm`), ce qui
+ * permet à Narcisse de déposer ses propres fichiers sans toucher au code ;
+ * la table ci-dessus ne sert que de repli pour les boucles livrées.
+ */
+export function naturalTempoOf(file) {
+  const fromName = /_(\d{2,3})bpm$/.exec(String(file || ''));
+  return fromName ? Number(fromName[1]) : (DRUM_FILES[file] || null);
 }
 
 /**
@@ -88,7 +173,7 @@ export function drumTempoFor(name) {
  * part trop : on le signale plutôt que de le cacher (voir les tests).
  */
 export function stretchFor(file, tempo) {
-  const natural = DRUM_FILES[file];
+  const natural = naturalTempoOf(file);
   return natural ? tempo / natural : 1;
 }
 
@@ -193,7 +278,7 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
       found.layers.forEach(([file, gain], i) => {
         const buffer = loaded[i];
         if (!buffer) return;
-        const natural = DRUM_FILES[file] || 100;
+        const natural = naturalTempoOf(file) || 100;
         const playbackRate = target / natural;
         const source = ctx.createBufferSource();
         source.buffer = buffer;
