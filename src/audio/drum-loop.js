@@ -6,20 +6,26 @@
 // fabriquer un clave ou une conga à l'oreille quand on n'entend rien ne pouvait
 // pas donner un résultat écoutable.
 //
-// On joue donc de vraies boucles enregistrées, en CC0, rangées dans
+// On joue donc de vraies boucles enregistrées (bibliothèque historique CC0
+// et boucles personnelles de Narcisse, voir leur provenance), rangées dans
 // `src/public/drum-loops/` (provenance et licence : LICENCE.md du même dossier).
 // Vite les sert en développement et les recopie dans `dist` au build : elles se
 // chargent donc par fetch sur l'origine de la page, ce qui marche aussi dans un
 // simple navigateur — seul endroit où je peux vérifier que le son sort. En
 // production (file://), l'IPC Electron prend le relais. Voir readDrumLoopFile.
 //
-// Chaque boucle fait exactement 8 temps (2 mesures à 4/4), vérifié fichier par
-// fichier. Du coup la lecture n'a plus besoin de planificateur : un seul
+// Les boucles historiques font 8 temps ; les ajouts déclarent `beats` dans
+// kits.json. La lecture n'a pas besoin de planificateur : un seul
 // AudioBufferSourceNode en `loop = true` suffit, et c'est Web Audio qui tient
 // la boucle au sample près — bien plus régulier que des minuteurs.
 
-/** Toutes les boucles de la bibliothèque font 2 mesures à 4/4. */
+/** Durée par défaut des boucles historiques : 2 mesures à 4/4. */
 export const LOOP_BEATS = 8;
+
+/** Les boucles personnelles peuvent déclarer leur nombre de temps. */
+export function drumBeatsFor(kit) {
+  return Number.isInteger(kit?.beats) && kit.beats > 0 ? kit.beats : LOOP_BEATS;
+}
 
 /**
  * Fichiers disponibles : nom → tempo d'origine. Le tempo sert à calculer la
@@ -112,7 +118,7 @@ export function setDrumManifest(raw) {
 /** Style du manifeste par son identifiant, sans passer par les correspondances. */
 function styleById(id) {
   const found = manifest?.styles.find((s) => s.id === id);
-  return found ? { tempo: found.tempo, layers: found.layers, label: found.label } : null;
+  return found ? { tempo: found.tempo, layers: found.layers, label: found.label, beats: drumBeatsFor(found) } : null;
 }
 
 /**
@@ -271,6 +277,7 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
       // avant laissait la batterie démarrer en retard d'autant, donc décalée
       // du piano pour toute la démo. `getBeat` donne l'état réel à cet instant.
       const beat = typeof getBeat === 'function' ? (Number(getBeat()) || 0) : fromBeat;
+      const loopBeats = drumBeatsFor(found);
       let any = false;
       found.layers.forEach(([file, gain], i) => {
         const buffer = loaded[i];
@@ -281,17 +288,17 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
         source.buffer = buffer;
         source.loop = true;
         source.loopStart = 0;
-        // Durée exacte de 8 temps au tempo d'origine : on ne boucle pas sur la
+        // Durée musicale déclarée au tempo d'origine : on ne boucle pas sur la
         // longueur du fichier (l'encodage MP3 ajoute un silence au bout), mais
         // sur la durée musicale, sinon la boucle traîne à chaque tour.
-        source.loopEnd = Math.min(buffer.duration, (LOOP_BEATS * 60) / natural);
+        source.loopEnd = Math.min(buffer.duration, (loopBeats * 60) / natural);
         source.playbackRate.value = playbackRate;
         const g = ctx.createGain();
         g.gain.value = gain;
         source.connect(g).connect(out);
         // `offset` place la boucle là où en est la démo : la batterie ne
         // redémarre pas à zéro après une reprise ou un saut.
-        const offset = (((beat % LOOP_BEATS) + LOOP_BEATS) % LOOP_BEATS) * (60 / natural);
+        const offset = (((beat % loopBeats) + loopBeats) % loopBeats) * (60 / natural);
         source.start(startAt, offset);
         sources.push(source);
         any = true;

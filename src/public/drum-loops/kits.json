@@ -2,8 +2,9 @@
   "_lisezMoi": [
     "Styles du métronome et des démonstrations. CE FICHIER EST FAIT POUR ÊTRE MODIFIÉ.",
     "Pour ajouter un style : déposer les .mp3 dans ce dossier (nom au format",
-    "<nom>_<tempo>bpm.mp3, boucle de 2 mesures à 4/4), puis ajouter une entrée ici.",
-    "Aucun code à toucher, aucune reconstruction : relancer l'application suffit.",
+    "<nom>_<tempo>bpm.mp3), puis ajouter une entrée ici.",
+    "`beats` = nombre de temps de la boucle : 8 par défaut, 16 pour 4 mesures, 32 pour 8 mesures à 4/4.",
+    "En développement, relancer l'application suffit. Une version construite nécessite un nouveau build.",
     "`layers` = couches superposées [fichier, volume 0-1]. `tempo` = tempo proposé.",
     "Si une boucle ne plaît pas, remplacer le fichier ou changer la ligne : c'est",
     "l'oreille de Narcisse qui décide, pas la mienne — je n'entends rien."
@@ -15,6 +16,20 @@
       "label": "Salsa / montuno",
       "tempo": 96,
       "layers": [["son-clave_104bpm", 0.8], ["conga-tumbao_100bpm", 0.9]]
+    },
+    {
+      "id": "salsa-montuno",
+      "label": "Salsa — Montuno",
+      "tempo": 118,
+      "beats": 16,
+      "layers": [["drum-montuno_118bpm", 0.85]]
+    },
+    {
+      "id": "salsa-latin",
+      "label": "Salsa — Latin drums",
+      "tempo": 100,
+      "beats": 32,
+      "layers": [["salsa-latin-drums_100bpm", 0.85]]
     },
     {
       "id": "merengue",

@@ -33,7 +33,7 @@ Téléchargées le 04/11/2026, converties en MP3 **320 kb/s** 44,1 kHz (même fo
 | `pop-beat_110bpm.mp3` | 110 | 4,364 s | idem |
 | `tambourine-8ths_110bpm.mp3` | 110 | 4,364 s | [VCSL · Tambourine](https://github.com/sgossner/VCSL/tree/master/Idiophones/Struck%20Idiophones/Tambourine%201) |
 
-**Toutes font exactement 8 temps (2 mesures à 4/4)** — vérifié fichier par fichier
+**Les 16 boucles du tableau font exactement 8 temps (2 mesures à 4/4)** — vérifié fichier par fichier
 avant conversion (`durée × tempo / 60 = 8,00`). C'est ce qui permet de les boucler
 sans trou : le lecteur cale `loopEnd` sur cette durée exacte.
 
@@ -50,7 +50,24 @@ fichiers ont été réencodés **depuis les WAV d'origine** en 320 kb/s.
 ## Ajouter ses propres boucles
 
 Le fichier `kits.json` de ce dossier est fait pour être modifié. Déposer un
-`.mp3` nommé `<nom>_<tempo>bpm.mp3` (boucle de **2 mesures à 4/4**), puis
-ajouter une entrée dans `styles`. Aucun code à toucher, aucune reconstruction :
-relancer l'application suffit. C'est la seule façon fiable d'améliorer le
-rendu — je n'entends rien, Narcisse si.
+`.mp3` nommé `<nom>_<tempo>bpm.mp3`, puis ajouter une entrée dans `styles`.
+Le champ `beats` indique le nombre de temps du cycle : **8** par défaut
+(2 mesures à 4/4), **16** pour 4 mesures, **32** pour 8 mesures.
+En développement, relancer l'application suffit ; pour une version construite,
+reconstruire l'application afin de recopier les fichiers publics dans `dist`.
+
+## Boucles personnelles ajoutées le 04/11/2026
+
+Ces deux fichiers sont fournis par Narcisse et ne proviennent pas de la
+bibliothèque CC0 ci-dessus. Leur provenance et leur licence restent à renseigner.
+
+| Fichier | Tempo indiqué | Durée MP3 mesurée | Cycle déclaré |
+|---|---|---|---|
+| `drum-montuno_118bpm.mp3` | 118 | 8,176 s | 16 temps (4 mesures) |
+| `salsa-latin-drums_100bpm.mp3` | 100 | 19,226 s | 32 temps (8 mesures) |
+
+Deux choix indépendants du métronome : **Salsa — Montuno** et
+**Salsa — Latin drums**. Le lecteur ferme leurs cycles à 8,136 s et 19,200 s
+respectivement, selon le tempo indiqué et le nombre de temps déclaré.
+Les durées sont compatibles avec ces cycles, mais le premier temps, le tempo
+réel et la qualité des raccords restent à confirmer par une écoute humaine.

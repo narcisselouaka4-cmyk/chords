@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import {
   createDrumLoop, drumKitFor, drumTempoFor, stretchFor, DRUM_KITS, DRUM_FILES, LOOP_BEATS,
   setDrumManifest, drumStyles, drumKitById,
+  drumBeatsFor,
 } from './drum-loop.js';
 
 let passed = 0;
@@ -163,5 +164,31 @@ check('Le kit choisi et la correspondance des démos utilisent le manifeste char
   && drumKitFor('gospel').layers[0][0] === 'boom-bap_88bpm');
 check('Un manifeste illisible ne remplace pas les styles déjà chargés',
   !setDrumManifest(null) && drumStyles().length === editable.styles.length);
+
+// Boucles personnelles longues : fin ET reprise respectent le cycle entier.
+for (const [id, file, tempo, beats] of [
+  ['salsa-montuno', 'drum-montuno_118bpm', 118, 16],
+  ['salsa-latin', 'salsa-latin-drums_100bpm', 100, 32],
+]) {
+  const kit = drumKitById(id);
+  assert.equal(kit.layers.length, 1);
+  assert.equal(kit.layers[0][0], file);
+  await readFile(new URL(`../public/drum-loops/${file}.mp3`, import.meta.url));
+  const longCtx = fakeContext();
+  longCtx.decodeAudioData = async () => ({ duration: beats * 60 / tempo + 0.04 });
+  const player = createDrumLoop({ getContext: () => longCtx, readFile: read });
+  await player.start({ kit, fromBeat: beats - 1 });
+  check(`${id} joue seul et boucle sur ${beats} temps`,
+    longCtx.started.length === 1 && longCtx.started[0].node.loopEnd === beats * 60 / tempo
+    && longCtx.started[0].node.playbackRate.value === 1);
+  check(`${id} reprend dans la dernière mesure, sans se replier sur 8 temps`,
+    longCtx.started[0].offset === (beats - 1) * (60 / tempo));
+  await player.start({ kit, fromBeat: beats + 3 });
+  check(`${id} replie la reprise après un cycle complet`,
+    longCtx.started[1].offset === 3 * (60 / tempo));
+  player.stop();
+}
+check('Une durée absente ou invalide conserve les 8 temps historiques',
+  [undefined, 0, -4, 1.5, '16'].every(beats => drumBeatsFor({ beats }) === 8));
 
 console.log(`\n=== ${passed} vérifications de boucle de batterie ===`);

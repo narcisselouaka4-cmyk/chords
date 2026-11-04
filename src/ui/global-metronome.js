@@ -6,11 +6,11 @@
 // l'icône, plusieurs styles différents : salsa, jazz, blues, worship, R&B… »
 //
 // Il réutilise le lecteur de boucles des démonstrations (src/audio/drum-loop.js)
-// et les mêmes fichiers CC0. Les styles viennent du manifeste
+// et les mêmes fichiers audio. Les styles viennent du manifeste
 // `src/public/drum-loops/kits.json`, qu'il peut modifier : ajouter un style ou
-// remplacer une boucle ne demande aucune reconstruction.
+// remplacer une boucle ne demande aucune reconstruction en développement.
 
-import { drumKitById, LOOP_BEATS } from '../audio/drum-loop.js';
+import { drumKitById, drumBeatsFor } from '../audio/drum-loop.js';
 
 const STORAGE = 'global-metronome';
 const STEP = 2;            // le pas des boutons − / +
@@ -22,7 +22,7 @@ const STEP = 2;            // le pas des boutons − / +
  * une entrée au manifeste n'oblige jamais à revenir toucher cette liste.
  */
 const GROUPS = [
-  { label: 'Latin', ids: ['salsa', 'merengue', 'latin-jazz', 'bossa'] },
+  { label: 'Latin', ids: ['salsa', 'salsa-montuno', 'salsa-latin', 'merengue', 'latin-jazz', 'bossa'] },
   { label: 'Jazz & blues', ids: ['jazz', 'blues'] },
   { label: 'Gospel & worship', ids: ['gospel', 'worship'] },
   { label: 'Groove', ids: ['rnb', 'funk', 'hip-hop', 'pop', 'rock', 'reggae'] },
@@ -94,6 +94,7 @@ export function initGlobalMetronome({ drumLoop, styles, resumeAudio = null }) {
   }
   function runBeats(startedAt) {
     stopBeats();
+    const loopBeats = drumBeatsFor(drumKitById(state.style));
     const perBeat = 60000 / Math.max(1, state.tempo);
     let shown = -1;
     const tick = () => {
@@ -103,7 +104,7 @@ export function initGlobalMetronome({ drumLoop, styles, resumeAudio = null }) {
         const index = beat % 4;
         dots().forEach((d, i) => {
           d.classList.toggle('on', i === index);
-          d.classList.toggle('first', i === 0 && beat % LOOP_BEATS === 0);
+          d.classList.toggle('first', i === 0 && beat % loopBeats === 0);
         });
       }
       beatTimer = requestAnimationFrame(tick);
@@ -128,7 +129,9 @@ export function initGlobalMetronome({ drumLoop, styles, resumeAudio = null }) {
     if (resumeAudio) { try { await resumeAudio(); } catch (e) { /* le contexte se réveillera au clic suivant */ } }
     state.running = true;
     renderState();
-    const ok = await drumLoop.start({ kit: drumKitById(state.style), tempo: state.tempo });
+    const kit = drumKitById(state.style);
+    // Le tempo du manifeste est une suggestion ; le réglage affiché fait foi.
+    const ok = await drumLoop.start({ kit: kit ? { ...kit, tempo: state.tempo } : null, tempo: state.tempo });
     if (ok) runBeats(performance.now()); else stopBeats();
     renderState();
   }
@@ -193,6 +196,9 @@ export function initGlobalMetronome({ drumLoop, styles, resumeAudio = null }) {
   stylesHost.addEventListener('click', (e) => {
     const chip = e.target.closest('button[data-style]');
     if (!chip) return;
+    // renderStyles remplace le bouton : le clic ne doit pas devenir un clic
+    // « extérieur » quand il remonte ensuite vers document.
+    e.stopPropagation();
     state.style = chip.dataset.style;
     // Le tempo suit le style tant que Narcisse n'en a pas choisi un lui-même :
     // une salsa et une ballade n'ont pas la même allure, et devoir régler le
