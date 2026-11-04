@@ -45,11 +45,85 @@ function attachExpression(nodes) {
 }
 
 // [Claude] — 2026-07-07 — Bus de sortie permanent du synthé.
-// Toutes les notes passent par ce gain, qui est branché sur la destination système.
-// Pour l'enregistrement Studio, on branche temporairement une MediaStreamDestination
-// sur ce bus au moment de l'appel à getMediaStream().
+// Toutes les notes passent par ce gain. Il ne va plus droit à la sortie : il
+// traverse d'abord l'ambiance ci-dessous (voir programOut).
 const synthOutput = audioCtx.createGain();
-synthOutput.connect(audioCtx.destination);
+
+/**
+ * [Claude] — 2026-11-04 — Ambiance de la pièce.
+ *
+ * Narcisse : « le jeu, en tout cas, dans l'application, est sec […] est-ce que
+ * c'est parce que j'ai pas de reverb ? » — c'était bien ça : jusqu'ici
+ * `synthOutput` allait DROIT à `audioCtx.destination`, sans aucune
+ * réverbération. Chaque note s'arrêtait net, donc les démos (et son propre jeu)
+ * sonnaient détachées, sans liant entre deux accords.
+ *
+ * Une réverbération à convolution, avec une réponse impulsionnelle calculée ici
+ * (aucun fichier à charger : la CSP d'Electron bloque les ressources externes).
+ * Le chemin « mouillé » est filtré des deux côtés : passe-haut pour que la
+ * basse du tumbao ne se transforme pas en bouillie, passe-bas pour une queue
+ * chaude plutôt que sifflante. Un pré-délai donne la profondeur.
+ */
+const AMBIENCE = {
+  seconds: 1.8,   // longueur de la queue
+  preDelay: 0.018,
+  highPass: 180,  // sous ce seuil, la réverbération embrouille les basses
+  lowPass: 3800,  // au-dessus, la queue siffle
+  dry: 0.92,
+  wet: 0.3,       // discret : de l'air, pas une cathédrale
+};
+
+/** Réponse impulsionnelle : bruit décroissant, légèrement décorrélé entre les
+ * deux canaux (la largeur stéréo) et adouci par un passe-bas à un pôle. */
+function buildImpulseResponse(ctx, seconds) {
+  const length = Math.max(1, Math.floor(ctx.sampleRate * seconds));
+  const ir = ctx.createBuffer(2, length, ctx.sampleRate);
+  for (let channel = 0; channel < 2; channel += 1) {
+    const data = ir.getChannelData(channel);
+    let previous = 0;
+    for (let i = 0; i < length; i += 1) {
+      const progress = i / length;
+      // Décroissance exponentielle, précédée d'une très courte montée : une
+      // pièce ne renvoie pas son maximum d'énergie au premier échantillon.
+      const decay = Math.exp(-5.2 * progress) * Math.min(1, progress * 220);
+      previous = previous * 0.42 + (Math.random() * 2 - 1) * 0.58;
+      data[i] = previous * decay;
+    }
+  }
+  return ir;
+}
+
+/** Sortie finale : le mélange sec + ambiance. C'est elle qu'on enregistre. */
+const programOut = audioCtx.createGain();
+programOut.connect(audioCtx.destination);
+
+{
+  const dry = audioCtx.createGain();
+  dry.gain.value = AMBIENCE.dry;
+  synthOutput.connect(dry);
+  dry.connect(programOut);
+
+  const preDelay = audioCtx.createDelay(0.2);
+  preDelay.delayTime.value = AMBIENCE.preDelay;
+  const highPass = audioCtx.createBiquadFilter();
+  highPass.type = 'highpass';
+  highPass.frequency.value = AMBIENCE.highPass;
+  const lowPass = audioCtx.createBiquadFilter();
+  lowPass.type = 'lowpass';
+  lowPass.frequency.value = AMBIENCE.lowPass;
+  const convolver = audioCtx.createConvolver();
+  convolver.normalize = true;
+  convolver.buffer = buildImpulseResponse(audioCtx, AMBIENCE.seconds);
+  const wet = audioCtx.createGain();
+  wet.gain.value = AMBIENCE.wet;
+
+  synthOutput.connect(preDelay);
+  preDelay.connect(highPass);
+  highPass.connect(lowPass);
+  lowPass.connect(convolver);
+  convolver.connect(wet);
+  wet.connect(programOut);
+}
 
 export function midiToFrequency(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
@@ -77,18 +151,20 @@ export function getAudioContext() {
 }
 
 export function getMediaStream() {
-  // Crée une destination temporaire branchée sur le bus permanent du synthé.
+  // Crée une destination temporaire branchée sur la sortie finale du synthé.
   // Ainsi, toutes les notes jouées (même après l'appel) sont capturées.
+  // [Claude] — 2026-11-04 — `programOut` et non `synthOutput` : on enregistre
+  // le son avec son ambiance, pas la version sèche.
   const destination = audioCtx.createMediaStreamDestination();
-  synthOutput.connect(destination);
+  programOut.connect(destination);
   return destination.stream;
 }
 
 export function connectOutput(destination) {
-  // Branche le bus permanent du synthé sur une destination externe.
-  // Utilisé par le Studio pour mixer le synthé dans un seul MediaStream.
+  // Branche la sortie finale du synthé (ambiance comprise) sur une destination
+  // externe. Utilisé par le Studio pour mixer le synthé dans un seul MediaStream.
   if (destination && destination.context === audioCtx) {
-    synthOutput.connect(destination);
+    programOut.connect(destination);
   }
 }
 
@@ -502,7 +578,9 @@ export function setSustain(value) {
     // comme les étouffoirs qui retombent d'un coup sur les cordes.
     for (const [midi, nodes] of activeOscillators) {
       if (releasedWithSustain.has(midi)) {
-        stopOscillators(nodes, 0.22);
+        // Remontée de pédale : un peu plus douce que 0,22 s, pour que les
+        // étouffoirs ne coupent pas la résonance d'un coup sec.
+        stopOscillators(nodes, 0.34);
         activeOscillators.delete(midi);
         releasedWithSustain.delete(midi);
       }
@@ -513,7 +591,13 @@ export function setSustain(value) {
 // Notes physiquement relâchées mais maintenues par la pédale.
 const releasedWithSustain = new Set();
 
-function stopOscillators({ oscillators, gains, masterGain, filter }, releaseSec = 0.18) {
+// [Claude] — 2026-11-04 — Extinction d'une note relâchée. 0,18 s était plus
+// court qu'un étouffoir de piano : deux accords qui se suivent ne se touchaient
+// jamais, d'où le jeu « sec » signalé par Narcisse. 0,3 s les laisse se
+// rejoindre sans brouiller une suite rapide. La re-frappe d'une note tenue
+// garde, elle, son fondu très court (0,05 s) : c'est un vol de voix, pas un
+// relâchement musical.
+function stopOscillators({ oscillators, gains, masterGain, filter }, releaseSec = 0.3) {
   const now = audioCtx.currentTime;
   try {
     masterGain.gain.cancelScheduledValues(now);
@@ -553,6 +637,6 @@ export function releaseNote(midi) {
     releasedWithSustain.add(midi);
     return;
   }
-  stopOscillators(activeOscillators.get(midi), 0.18);
+  stopOscillators(activeOscillators.get(midi));
   activeOscillators.delete(midi);
 }

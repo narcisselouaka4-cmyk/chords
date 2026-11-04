@@ -2047,8 +2047,13 @@ function initPracticeExercise() {
         || (item.chords || []).some((c) => c.toLowerCase().includes(q))
         || item.tags.some((tag) => tag.toLowerCase().includes(q)));
     }
-    // Catégories de la bibliothèque par ordre alphabétique, Perso (vos grilles) en dernier.
-    const categoryOrder = ['Progressions', 'Passages A → B', 'Gestes & voix', PERSO_CATEGORY, 'Archives · grilles seules'];
+    // Catégories de la bibliothèque, Perso (vos grilles) puis les archives en dernier.
+    // [Claude] — 2026-11-04 — Les trois catégories « Latino » sont un parcours, dans l'ordre :
+    // premiers pas → montuno & tumbao → avancé. C'est la difficulté pédagogique demandée par
+    // Narcisse, SANS rétablir les étoiles/niveaux de pianiste retirés par l'ADR-064.
+    const categoryOrder = ['Progressions', 'Passages A → B', 'Gestes & voix',
+      'Latino · premiers pas', 'Latino · montuno & tumbao', 'Latino · avancé',
+      PERSO_CATEGORY, 'Archives · grilles seules'];
     const categories = categoryOrder;
     if (els.exerciseLibraryCategories) {
       els.exerciseLibraryCategories.innerHTML = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="" aria-pressed="${!libraryCategory}">Études<span class="exercise-library-count">${active.length}</span></button>`]
