@@ -16,7 +16,10 @@ import {
   setPcKeyboardToMidiEnabled,
   isPcKeyboardToMidiEnabled,
 } from './virtual-keyboard.js';
-import { setSustain, ensurePianoSamples, resumeAudio, setPitchBend, setModulation } from './audio/simple-synth.js';
+import {
+  setSustain, ensurePianoSamples, resumeAudio, setPitchBend, setModulation, getAudioContext,
+} from './audio/simple-synth.js';
+import { createDrumLoop, drumPatternFor } from './audio/drum-loop.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
 // [Claude] — 2026-10-02 — Qui est un vrai clavier (jamais notre propre port virtuel).
@@ -719,8 +722,44 @@ const demoPlayer = createDemoPlayer({
   send: feedDemoEvent,
   onStep: (step) => demoHooks.onStep?.(step),
   onPassing: (after) => demoHooks.onPassing?.(after),
-  onEnd: (reason) => demoHooks.onEnd?.(reason),
+  // La batterie s'arrête ici et non en emballant `demoHooks.onEnd` : ce champ
+  // est réassigné plus tard par initPracticeExercise, qui écraserait l'emballage.
+  onEnd: (reason) => { drumLoop.stop(); demoHooks.onEnd?.(reason); },
 });
+
+// [Claude] — 2026-11-04 — Boucle de batterie des démonstrations. Elle est
+// branchée directement sur la sortie (pas sur le bus du piano) : un métronome
+// doit rester net, sans la réverbération du piano.
+//
+// On EMBALLE les commandes du lecteur plutôt que de guetter chaque appel :
+// `demoPlayer.stop()` est appelé depuis une douzaine d'endroits, et une
+// batterie qui continue après la fin serait pire que pas de batterie du tout.
+const DRUMS_STORAGE = 'exercise-demo-drums';
+const drumLoop = createDrumLoop({ getContext: getAudioContext });
+let demoDrums = null;        // { name, tempo } de la démo en cours
+let drumsEnabled = true;     // Narcisse a demandé la batterie : allumée par défaut.
+try {
+  const saved = window.localStorage?.getItem(DRUMS_STORAGE);
+  if (saved === 'off') drumsEnabled = false;
+} catch (e) { /* Réglage gardé pour cette séance seulement. */ }
+
+/** Relance la batterie à la position courante de la démo (reprise, saut, vitesse). */
+function syncDemoDrums() {
+  if (!demoDrums || !drumsEnabled || !demoPlayer.isPlaying()) { drumLoop.stop(); return; }
+  drumLoop.start({
+    patternName: demoDrums.name, tempo: demoDrums.tempo,
+    rate: demoPlayer.rate(), fromBeat: demoPlayer.position(),
+  });
+}
+
+for (const method of ['stop', 'pause']) {
+  const inner = demoPlayer[method].bind(demoPlayer);
+  demoPlayer[method] = (...args) => { drumLoop.stop(); return inner(...args); };
+}
+for (const method of ['resume', 'seek', 'setRate']) {
+  const inner = demoPlayer[method].bind(demoPlayer);
+  demoPlayer[method] = (...args) => { const out = inner(...args); syncDemoDrums(); return out; };
+}
 
 function logMidiEvent(event) {
   if (!els.midiLog) return;
@@ -2583,6 +2622,45 @@ function initPracticeExercise() {
     });
   });
 
+  /**
+   * Lance la boucle de batterie d'une démo. `name` est un genre d'étude
+   * (salsa, danzon…) ou un identifiant de style (gospel, montuno…) ; sans
+   * motif connu, la démo joue simplement sans batterie.
+   */
+  function startDemoDrums(name, tempo) {
+    demoDrums = drumPatternFor(name) ? { name, tempo } : null;
+    if (demoDrums && drumsEnabled) {
+      drumLoop.start({ patternName: name, tempo, rate: demoPlayer.rate() });
+    } else {
+      drumLoop.stop();
+    }
+    refreshDrumsToggle();
+  }
+
+  /** Bouton « Batterie » : état visible, et libellé qui dit ce qui jouera. */
+  function refreshDrumsToggle() {
+    const btn = document.getElementById('exercise-demo-drums');
+    if (!btn) return;
+    btn.classList.toggle('is-on', drumsEnabled);
+    btn.setAttribute('aria-pressed', String(drumsEnabled));
+    btn.title = drumsEnabled
+      ? 'Boucle de batterie allumée — cliquer pour la couper'
+      : 'Boucle de batterie coupée — cliquer pour l\'allumer';
+  }
+
+  document.getElementById('exercise-demo-drums')?.addEventListener('click', () => {
+    drumsEnabled = !drumsEnabled;
+    try {
+      window.localStorage?.setItem(DRUMS_STORAGE, drumsEnabled ? 'on' : 'off');
+    } catch (e) {
+      // Réglage gardé pour cette séance seulement.
+    }
+    // La batterie s'allume ou se coupe sans interrompre la démo en cours.
+    if (drumsEnabled) syncDemoDrums(); else drumLoop.stop();
+    refreshDrumsToggle();
+  });
+  refreshDrumsToggle();
+
   async function startDemo(chords, context, movementStyle, entry = null) {
     if (!chords?.length) return;
     try {
@@ -2596,7 +2674,12 @@ function initPracticeExercise() {
     const variation = choice === 'cycle' ? (nextVariation[styleId] || 0) : choice;
     if (choice === 'cycle') nextVariation[styleId] = (variation + 1) % DEMO_VARIATIONS[styleId].length;
     currentVariation = { styleId, variation };
-    demoPlayer.play(buildDemo(chords, styleId, { variation }), { tempo: entry?.score?.tempo || DEMO_STYLES[styleId].tempo });
+    const tempo = entry?.score?.tempo || DEMO_STYLES[styleId].tempo;
+    demoPlayer.play(buildDemo(chords, styleId, { variation }), { tempo });
+    // [Claude] — 2026-11-04 — La boucle de batterie suit la démo. Pour une étude
+    // écrite, c'est son GENRE qui choisit le motif (salsa, merengue, danzón…) ;
+    // pour une grille libre, l'identifiant du style joué.
+    startDemoDrums(written ? (entry?.style || styleId) : styleId, tempo);
     demoContext = context;
     previewId = context.kind === 'preview' ? context.previewId : null;
     refreshDemoButtons(practiceExercise.getState());
