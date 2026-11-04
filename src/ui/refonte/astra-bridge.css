@@ -705,7 +705,9 @@
 .copilot-take-time { font: 11px var(--tr-mono); color: var(--tr-muted); white-space: nowrap; }
 .copilot-take-action { display: inline-grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--tr-text); cursor: pointer; padding: 0; }
 .copilot-take-action:hover { background: var(--tr-raised); }
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > #copilot-mic-btn.copilot-mic-btn { display: inline-grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; padding: 0; line-height: 1; cursor: pointer; }
+/* Le micro reste avec Envoyer, même sans le sélecteur de style. */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools { column-gap: 8px; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > #copilot-mic-btn.copilot-mic-btn { display: inline-grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; margin-left: auto; padding: 0; line-height: 1; cursor: pointer; }
 .copilot-mic-btn > span { display: none; }
 .copilot-mic-btn > svg, .copilot-take-action > svg { display: block; flex-shrink: 0; }
 .copilot-mic-btn[aria-pressed="true"] { color: var(--tr-red); border-color: currentColor; }
