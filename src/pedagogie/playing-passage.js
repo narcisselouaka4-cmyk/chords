@@ -59,8 +59,8 @@ function heldPedal(events, start, end) {
 }
 
 /** Modifier uniquement l'accompagnement qui occupe la place du passage ; la source reste intacte. */
-export function planPassingEdit(take, review, pairs, target, previous, notes, anchor) {
-  const timing = rhythmicWindow(review, pairs, target);
+export function planPassingEdit(take, review, pairs, target, previous, notes, anchor, placement = null) {
+  const timing = placement || rhythmicWindow(review, pairs, target);
   if (!timing || heldPedal(take.events, timing.start, timing.end)) return null;
   const allowed = new Set([0, 4, 7, 10].map((n) => pc(notes[0] + n)));
   const melodyFloor = Math.min(Math.max(...previous.notes), Math.max(...target.notes));

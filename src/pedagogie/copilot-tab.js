@@ -638,6 +638,16 @@ function exampleIdOf(msg) {
   return msg.exampleId;
 }
 
+/** Chaque proposition a son lecteur stable ; aucun choix obligatoire dans le chat. */
+export function variantMessages(msg) {
+  const variants=msg.toolResult?.variants;
+  if(!variants?.length)return [msg];
+  const id=exampleIdOf(msg);
+  return variants.map((v,i)=>({...msg,exampleId:i===0?id:`${id}-${v.id}`,toolResult:{
+    ...msg.toolResult,example:v.example,playingAdvice:v.advice,variants:undefined,
+  }}));
+}
+
 /** [Claude] — 2026-10-04 — L'exemple a une pédale (qu'on peut enlever). */
 export function hasPedalEvents(example) {
   return (example?.events || []).some((e) => e?.type === 'sustain');
@@ -790,15 +800,6 @@ function buildTransport(box, example, id) {
   ]);
   for (const m of markerSpans(example, duration)) {
     track.appendChild(el('span', { className: `copilot-transport-mark is-${m.kind}`, style: `left: ${m.left}%; width: ${m.width}%`, title: m.title }));
-  }
-  for (const c of example.comparison?.changes || []) {
-    const removed = c.kind === 'removed';
-    const perBeat = 60 / (example.tempo || 60);
-    track.appendChild(el('span', {
-      className: 'copilot-transport-mark is-copilot-change',
-      style: `left: ${c.start * perBeat / duration * 100}%`,
-      title: `${removed ? 'Note retirée ou écourtée' : 'Ajout ou modification'} : ${frenchNote(c.note)}`,
-    }));
   }
   const time = el('span', { className: 'copilot-transport-time' });
   const range = el('input', {
@@ -1324,7 +1325,7 @@ function renderOneMessage(msg, { last = false } = {}) {
   // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
   if (msg.toolResult?.example) {
     if (msg.toolResult.originalTake) content.append(createTakePlayer(msg.toolResult.originalTake, { id: `${exampleIdOf(msg)}-original`, title: 'Ton jeu original' }));
-    content.appendChild(renderExampleCard(msg));
+    for(const variant of variantMessages(msg)) content.appendChild(renderExampleCard(variant));
   } else if (msg.toolResult?.played?.length) {
     // Anciennes conversations : notes jouées à l'époque, pour mémoire.
     const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
@@ -1889,7 +1890,7 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
     if (lastTake || playing) context = { ...(base || { type: 'autonomous' }) };
     if (lastTake?.lines?.length) context.take = lastTake.lines;
     if (playing) context.playing = playing;
-    const copilotStyleId = els.styleSelect?.value || 'auto';
+    const copilotStyleId = 'auto';
     const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId, review });
 
     // Une réponse lente ne doit jamais atterrir dans une autre conversation.
@@ -2015,9 +2016,6 @@ export async function initCopilotTab() {
   els.newConvSidebarBtn?.addEventListener('click', onNewConversation);
   els.deleteEmptyBtn?.addEventListener('click', onDeleteEmptyConversations);
   els.modeToggleBtn?.addEventListener('click', onModeToggleClick);
-
-  // Sélecteur de style pianistique.
-  els.styleSelect = document.getElementById('copilot-style-select');
 
   // Chips statiques sous la zone de messages.
   els.quickActions = document.getElementById('copilot-quick-actions');

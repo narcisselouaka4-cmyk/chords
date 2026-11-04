@@ -21,6 +21,29 @@ export function applyTakeEdit(take, edit) {
   if (!edit || !Array.isArray(take?.events)) return null;
   if (edit.type === 'plan') return applyTakePlan(take, edit.edits);
   const pairs = notePairs(take.events);
+  if (edit.type === 'ornament') {
+    const anchor = pairs.find((p) => p.on === edit.on);
+    if (!anchor || !Array.isArray(edit.notes) || !edit.notes.length || edit.notes.length > 8) return null;
+    const duration = Math.max(take.duration || 0,...take.events.map((e) => e.time));
+    const added = [];
+    for (const n of edit.notes) {
+      if (!Number.isInteger(n.note) || n.note < 21 || n.note > 108 || !Number.isFinite(n.time)
+        || !Number.isFinite(n.end) || n.time < 0 || n.end-n.time < .035 || n.end > duration) return null;
+      // Les approches résolvent vers l'attaque source, sans la décaler.
+      if (edit.approach && (n.end > anchor.event.time || anchor.event.time-n.end > .04 || Math.abs(n.note-anchor.event.note)>2)) return null;
+      const controls=take.events.filter(e=>e.type==='control'&&e.controller===64);
+      if(controls.filter(e=>e.time<=n.time).at(-1)?.value>=64
+        ||controls.some(e=>e.time>n.time&&e.time<n.end&&e.value>=64))return null;
+      if (pairs.some((p) => Math.abs(p.event.note-n.note)<=1 && p.event.time<n.end && p.end>n.time)) return null;
+      if (added.some((p) => p.note===n.note && p.time<n.end && p.end>n.time)) return null;
+      added.push({note:n.note,time:n.time,end:n.end});
+    }
+    const events = take.events.map((e) => ({...e}));
+    for (const n of added) events.push(
+      {type:'note_on',note:n.note,time:n.time,velocity:anchor.event.velocity,channel:anchor.event.channel || 0},
+      {type:'note_off',note:n.note,time:n.end,velocity:0,channel:anchor.event.channel || 0});
+    return {...take,events:events.sort((a,b) => a.time-b.time)};
+  }
   if (edit.type === 'voicing') {
     const replacements = edit.replacements || [];
     const additions = edit.additions || [];

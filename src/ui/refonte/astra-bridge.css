@@ -2477,12 +2477,6 @@
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--tr-muted);
 }
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-mark.is-copilot-change {
-  width: 2px;
-  min-width: 2px;
-  border-radius: 1px;
-  background: #f2b705;
-}
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-range {
   -webkit-appearance: none;
   appearance: none;

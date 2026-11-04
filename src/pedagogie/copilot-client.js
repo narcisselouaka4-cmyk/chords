@@ -60,6 +60,7 @@ import { sourceTransferRequest, transferFollowup, insertionFollowup } from './so
 import { tutorialEvidence, evidenceLines, tutorialMeaningAnswer, tutorialPlayback, tutorialConversation } from './tutorial-evidence.js';
 import { personalPlayingAnswer } from './playing-advice.js';
 import { playingStyleAnswer } from './playing-style.js';
+import { personalVariantsAnswer } from './playing-variants.js';
 import { normalizeChatResponse, hasCompletionOutput, completionFailure } from './chat-response.js';
 import { takeExample } from './take-attachment.js';
 
@@ -1816,6 +1817,8 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
 export async function sendCopilotMessage({ message, messages, context, copilotStyleId = 'auto', review = false }) {
   const style = playingStyleAnswer({ message, messages, context });
   if (style) return style;
+  const variants = personalVariantsAnswer({ message, messages, context });
+  if (variants) return variants;
   const personal = personalPlayingAnswer({ message, messages, context, review });
   if (personal) return personal;
   const lastReply = [...(messages || [])].reverse().find((m) => m.role === 'assistant' && !m.isTyping);
