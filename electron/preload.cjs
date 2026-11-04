@@ -50,6 +50,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // sampler (assets/piano-samples), résolu côté main pour couvrir dev ET
     // build asar. Le renderer n'a pas à connaître la disposition du disque.
     pianoSamplesDir: () => ipcRenderer.invoke('assets:piano-samples-dir'),
+    // [Claude] — 2026-11-04 — Dossier des boucles de batterie (assets/drum-loops).
+    drumLoopsDir: () => ipcRenderer.invoke('assets:drum-loops-dir'),
   },
   log: (msg) => ipcRenderer.invoke('app:log', msg),
   // [Claude] — 2026-10-19 — Réglages › Assistant IA : « Générer une clé » ouvre la page du

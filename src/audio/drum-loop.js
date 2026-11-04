@@ -1,167 +1,112 @@
-// [Claude] — 2026-11-04 — Boucle de batterie des démonstrations (Narcisse :
-// « chaque style aura sa boucle de batterie […] une sorte de métronome »).
+// [Claude] — 2026-11-04 — Boucle de batterie des démonstrations.
 //
-// Elle ne passe PAS par les événements de la démo : ceux-ci décrivent deux
-// mains de piano et sont vérifiés comme tels (mains 'lh'/'rh', notes 28–96).
-// La batterie est donc un accompagnement séparé, calé sur l'horloge de
-// l'AudioContext — comme le métronome — pour rester régulière là où la lecture
-// des notes, elle, passe par des minuteurs.
+// Deuxième version. La première synthétisait les percussions (oscillateurs +
+// bruit filtré) ; Narcisse : « les boucles de batterie sont catastrophiques […]
+// prends plutôt des boucles qui existent déjà sur Internet ». Il avait raison :
+// fabriquer un clave ou une conga à l'oreille quand on n'entend rien ne pouvait
+// pas donner un résultat écoutable.
 //
-// Aucun échantillon : la CSP d'Electron interdit de charger un fichier, et le
-// reste de l'application synthétise déjà son son. Chaque percussion est donc
-// construite avec des oscillateurs et du bruit.
+// On joue donc de vraies boucles enregistrées, en CC0, rangées dans
+// `assets/drum-loops/` (provenance et licence : LICENCE.md du même dossier).
+// Elles sont chargées comme les échantillons de piano — par l'IPC Electron,
+// pas par fetch : la CSP de l'application bloque la lecture d'un fichier local.
+//
+// Chaque boucle fait exactement 8 temps (2 mesures à 4/4), vérifié fichier par
+// fichier. Du coup la lecture n'a plus besoin de planificateur : un seul
+// AudioBufferSourceNode en `loop = true` suffit, et c'est Web Audio qui tient
+// la boucle au sample près — bien plus régulier que des minuteurs.
 
-/** Une mesure de 4 temps ; les positions sont en temps depuis le début de la boucle. */
-const BAR = 4;
+/** Toutes les boucles de la bibliothèque font 2 mesures à 4/4. */
+export const LOOP_BEATS = 8;
 
 /**
- * Motifs par style. `bars` = longueur de la boucle en mesures de 4 temps,
- * `hits` = [position en temps, voix, nuance].
- *
- * Les motifs latins suivent ce que les sources documentent déjà pour les
- * études : clave son 3-2 (0 / 1,5 / 3 puis 5 / 6), cinquillo (0 / 1 / 1,5 /
- * 2,5 / 3), tresillo (0 / 1,5 / 3). Voir les notes du coffre.
+ * Fichiers disponibles : nom → tempo d'origine. Le tempo sert à calculer la
+ * vitesse de lecture (`playbackRate`) pour caler la boucle sur la démo.
  */
-export const DRUM_PATTERNS = {
-  // Métronome simple : le style « Accords seuls » ne demande rien de plus.
-  plaque: { bars: 1, hits: [[0, 'click', 0.9], [1, 'click', 0.5], [2, 'click', 0.6], [3, 'click', 0.5]] },
-  gospel: {
-    bars: 1,
-    hits: [[0, 'kick', 0.9], [1, 'snare', 0.7], [2.5, 'kick', 0.6], [3, 'snare', 0.75],
-      ...[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5].map((t) => [t, 'hat', 0.28])],
-  },
-  ballade: {
-    bars: 1,
-    hits: [[1, 'rim', 0.5], [3, 'rim', 0.5], [0, 'shaker', 0.2], [2, 'shaker', 0.2]],
-  },
-  swing: {
-    bars: 1,
-    // Ride swingué : 1, 2, le « et » swingué du 2, 3, 4, le « et » swingué du 4.
-    hits: [[0, 'ride', 0.5], [1, 'ride', 0.6], [1 + 2 / 3, 'ride', 0.4],
-      [2, 'ride', 0.5], [3, 'ride', 0.6], [3 + 2 / 3, 'ride', 0.4],
-      [1, 'hat', 0.45], [3, 'hat', 0.45]],
-  },
-  // Salsa : clave son 3-2 sur deux mesures, congas et shaker à contretemps.
-  montuno: {
-    bars: 2,
-    hits: [
-      [0, 'clave', 0.75], [1.5, 'clave', 0.7], [3, 'clave', 0.7],
-      [5, 'clave', 0.75], [6, 'clave', 0.7],
-      [2, 'conga', 0.5], [3.5, 'congaOpen', 0.6], [6, 'conga', 0.5], [7.5, 'congaOpen', 0.6],
-      ...[0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5].map((t) => [t, 'shaker', 0.22]),
-    ],
-  },
-  // Danzón / habanera / guajira : le cinquillo au bloc de bois, basse sur 1 et 3.
-  cinquillo: {
-    bars: 1,
-    hits: [[0, 'clave', 0.6], [1, 'clave', 0.5], [1.5, 'clave', 0.55], [2.5, 'clave', 0.5], [3, 'clave', 0.6],
-      [0, 'kick', 0.55], [2, 'kick', 0.45], ...[0.5, 1.5, 2.5, 3.5].map((t) => [t, 'shaker', 0.2])],
-  },
-  tresillo: {
-    bars: 1,
-    hits: [[0, 'clave', 0.65], [1.5, 'clave', 0.6], [3, 'clave', 0.6],
-      [0, 'kick', 0.55], [2, 'kick', 0.4], ...[0.5, 1.5, 2.5, 3.5].map((t) => [t, 'shaker', 0.2])],
-  },
-  // Merengue : vite, à deux temps. La boucle tient en une mesure de 4 temps
-  // (deux mesures de 2/4), güira en doubles croches et tambora sur les levées.
-  merengue: {
-    bars: 1,
-    hits: [[0, 'kick', 0.8], [1, 'kick', 0.6], [2, 'kick', 0.8], [3, 'kick', 0.6],
-      [1.5, 'tom', 0.6], [1.75, 'tom', 0.45], [3.5, 'tom', 0.6], [3.75, 'tom', 0.45],
-      ...Array.from({ length: 16 }, (_, k) => [k * 0.25, 'shaker', k % 2 ? 0.14 : 0.24])],
-  },
+export const DRUM_FILES = {
+  'son-clave_104bpm': 104,
+  'conga-tumbao_100bpm': 100,
+  'shaker-16ths_100bpm': 100,
+  'cajon-groove_96bpm': 96,
+  'cowbell-groove_120bpm': 120,
+  'bongo-martillo_112bpm': 112,
+  'boom-bap_88bpm': 88,
+  'one-drop_76bpm': 76,
+  'shuffle_96bpm': 96,
+  'rock-beat_90bpm': 90,
 };
 
 /**
- * Motif d'un style de démo ou d'un genre d'étude. Les études latines portent
- * leur genre dans `style` (salsa, danzon…) ; les démos libres portent
- * l'identifiant du style (gospel, swing…).
+ * Ce que chaque style entend. Une entrée = une ou plusieurs boucles
+ * superposées, comme une vraie section de percussions (le clave et la conga se
+ * jouent ensemble en salsa, ils ne s'excluent pas).
+ *
+ * `gain` équilibre les couches entre elles. `tempo` (facultatif) impose le
+ * tempo de la démo pour ce genre, quand l'étude existante tombait trop loin de
+ * toute boucle disponible : étirer un enregistrement de plus de ~25 % le rend
+ * faux (la hauteur part avec la vitesse). Les deux cas sont signalés ci-dessous.
+ *
+ * TABLE À RETOUCHER EN PREMIER si le rendu ne plaît pas : tout le choix
+ * esthétique est ici, et nulle part ailleurs. Je n'ai entendu aucune de ces
+ * boucles — le choix vient du genre annoncé et du tempo, pas de l'oreille.
  */
-export function drumPatternFor(name) {
-  const key = {
-    salsa: 'montuno', 'latin-jazz': 'montuno', montuno: 'montuno',
-    danzon: 'cinquillo', habanera: 'tresillo', guajira: 'tresillo',
-    merengue: 'merengue', jazz: 'swing', worship: 'gospel',
-  }[name] || name;
-  return DRUM_PATTERNS[key] || null;
+export const DRUM_KITS = {
+  // --- Latin -------------------------------------------------------------
+  salsa: { layers: [['son-clave_104bpm', 0.8], ['conga-tumbao_100bpm', 0.9]] },
+  guajira: { layers: [['son-clave_104bpm', 0.75], ['shaker-16ths_100bpm', 0.5]] },
+  habanera: { layers: [['son-clave_104bpm', 0.8]] },
+  // Danzón : l'étude était à 72, soit 0,69× la boucle de clave — trop lent,
+  // les claves y perdaient leur claquement. 88 reste un danzón plausible.
+  danzon: { tempo: 88, layers: [['son-clave_104bpm', 0.75], ['cajon-groove_96bpm', 0.6]] },
+  // Merengue : l'étude était à 144, soit 1,2× à 1,29× les boucles disponibles.
+  // 132 reste rapide et ramène l'étirement sous 1,2×.
+  merengue: { tempo: 132, layers: [['cowbell-groove_120bpm', 0.7], ['bongo-martillo_112bpm', 0.8]] },
+  // --- Styles de démo libres ---------------------------------------------
+  gospel: { layers: [['boom-bap_88bpm', 0.8]] },
+  ballade: { layers: [['one-drop_76bpm', 0.6]] },
+  swing: { layers: [['shuffle_96bpm', 0.8]] },
+  plaque: { layers: [['rock-beat_90bpm', 0.7]] },
+};
+
+/** Genres et styles qui partagent un même kit. */
+const ALIASES = {
+  montuno: 'salsa', 'latin-jazz': 'salsa', jazz: 'swing', worship: 'gospel',
+};
+
+/** Kit d'un genre d'étude (salsa, danzon…) ou d'un style de démo (gospel…). */
+export function drumKitFor(name) {
+  return DRUM_KITS[ALIASES[name] || name] || null;
 }
 
-/** Bruit court et réutilisable, pour les peaux et les cymbales. */
-function noiseBuffer(ctx) {
-  const length = Math.floor(ctx.sampleRate * 0.4);
-  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < length; i += 1) data[i] = Math.random() * 2 - 1;
-  return buffer;
+/** Tempo imposé par le kit d'un genre, ou null si le tempo de l'étude convient. */
+export function drumTempoFor(name) {
+  return drumKitFor(name)?.tempo ?? null;
 }
 
 /**
- * Une percussion. `gain` est la nuance (0–1) ; `when` l'instant AudioContext.
- * Rien n'est tenu : chaque voix s'éteint seule et se débranche.
+ * Étirement d'une boucle pour atteindre `tempo`. Au-delà de ±25 %, le timbre
+ * part trop : on le signale plutôt que de le cacher (voir les tests).
  */
-function hit(ctx, out, noise, voice, when, gain) {
-  const g = ctx.createGain();
-  g.connect(out);
-  const tone = (type, from, to, dur, peak) => {
-    const osc = ctx.createOscillator();
-    osc.type = type;
-    osc.frequency.setValueAtTime(from, when);
-    if (to !== from) osc.frequency.exponentialRampToValueAtTime(to, when + dur);
-    const env = ctx.createGain();
-    env.gain.setValueAtTime(0.0001, when);
-    env.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), when + 0.003);
-    env.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-    osc.connect(env).connect(g);
-    osc.start(when);
-    osc.stop(when + dur + 0.02);
-  };
-  const hiss = (hz, dur, peak, type = 'highpass', q = 0.7) => {
-    const src = ctx.createBufferSource();
-    src.buffer = noise;
-    const filter = ctx.createBiquadFilter();
-    filter.type = type;
-    filter.frequency.value = hz;
-    filter.Q.value = q;
-    const env = ctx.createGain();
-    env.gain.setValueAtTime(0.0001, when);
-    env.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), when + 0.002);
-    env.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-    src.connect(filter).connect(env).connect(g);
-    src.start(when);
-    src.stop(when + dur + 0.02);
-  };
-  switch (voice) {
-    case 'kick': tone('sine', 120, 45, 0.22, gain * 0.9); break;
-    case 'snare': hiss(1800, 0.16, gain * 0.5); tone('triangle', 220, 160, 0.09, gain * 0.3); break;
-    case 'rim': tone('square', 1700, 1500, 0.035, gain * 0.22); break;
-    case 'hat': hiss(8000, 0.045, gain * 0.3); break;
-    case 'ride': hiss(6500, 0.22, gain * 0.18); break;
-    case 'shaker': hiss(7000, 0.05, gain * 0.3); break;
-    case 'clave': tone('triangle', 2400, 2300, 0.055, gain * 0.5); break;
-    case 'conga': tone('sine', 310, 250, 0.16, gain * 0.5); hiss(500, 0.05, gain * 0.15, 'bandpass', 2); break;
-    case 'congaOpen': tone('sine', 480, 400, 0.2, gain * 0.5); hiss(900, 0.06, gain * 0.18, 'bandpass', 2); break;
-    case 'tom': tone('sine', 220, 150, 0.14, gain * 0.55); break;
-    case 'click': default: tone('triangle', gain > 0.7 ? 1600 : 1100, gain > 0.7 ? 1600 : 1100, 0.05, gain * 0.35);
-  }
-  setTimeout(() => { try { g.disconnect(); } catch (e) { /* déjà parti */ } }, (when - ctx.currentTime + 1) * 1000);
+export function stretchFor(file, tempo) {
+  const natural = DRUM_FILES[file];
+  return natural ? tempo / natural : 1;
 }
 
-const LOOKAHEAD = 0.25;   // on programme un quart de seconde à l'avance
-const TICK = 60;          // et on réveille le planificateur toutes les 60 ms
-
 /**
- * Boucle de batterie. `getContext` rend l'AudioContext partagé, `getOutput`
- * le nœud où se brancher (la sortie du synthé, pour passer par son ambiance).
+ * Lecteur de boucles.
+ *
+ * `getContext` rend l'AudioContext partagé ; `readFile(name)` doit rendre un
+ * ArrayBuffer (l'IPC Electron), ou null si les fichiers sont hors de portée —
+ * dans ce cas il n'y a simplement pas de batterie, jamais de synthèse de
+ * remplacement : mieux vaut rien qu'un faux clave.
  */
-export function createDrumLoop({ getContext, getOutput = null, setTimer = setInterval, clearTimer = clearInterval }) {
-  let timer = null;
+export function createDrumLoop({ getContext, readFile, getOutput = null }) {
+  const buffers = new Map();   // nom de fichier → AudioBuffer décodé
   let master = null;
-  let noise = null;
-  let pattern = null;
-  let secondsPerBeat = 0.5;
-  let startedAt = 0;   // instant AudioContext du temps 0 de la boucle
-  let nextBeat = 0;    // prochain temps (dans la boucle) à programmer
-  let volume = 0.55;
+  let sources = [];
+  let current = null;          // { kitName, tempo, rate }
+  let volume = 0.7;
+  let loadToken = 0;
 
   function output() {
     const ctx = getContext();
@@ -169,60 +114,98 @@ export function createDrumLoop({ getContext, getOutput = null, setTimer = setInt
       master = ctx.createGain();
       const target = getOutput?.();
       master.connect(target && target.context === ctx ? target : ctx.destination);
-      noise = noiseBuffer(ctx);
     }
     master.gain.value = volume;
     return master;
   }
 
-  function schedule() {
-    if (!pattern) return;
-    const ctx = getContext();
-    const out = output();
-    const loopBeats = pattern.bars * BAR;
-    const horizon = ctx.currentTime + LOOKAHEAD;
-    // On avance temps par temps ; chaque tour place les frappes qui tombent
-    // dans ce temps-là, c'est-à-dire sur [beatInLoop, beatInLoop + 1[.
-    while (startedAt + nextBeat * secondsPerBeat < horizon) {
-      const beatInLoop = ((nextBeat % loopBeats) + loopBeats) % loopBeats;
-      for (const [at, voice, gain] of pattern.hits) {
-        if (at < beatInLoop || at >= beatInLoop + 1) continue;
-        const when = startedAt + (nextBeat + (at - beatInLoop)) * secondsPerBeat;
-        if (when >= ctx.currentTime) hit(ctx, out, noise, voice, when, gain);
-      }
-      nextBeat += 1;
+  /** Décode une boucle, une seule fois, et la garde. */
+  async function load(file) {
+    if (buffers.has(file)) return buffers.get(file);
+    if (!readFile) return null;
+    try {
+      const bytes = await readFile(`${file}.mp3`);
+      if (!bytes) return null;
+      const array = bytes.buffer
+        ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+        : bytes;
+      const buffer = await getContext().decodeAudioData(array);
+      buffers.set(file, buffer);
+      return buffer;
+    } catch (e) {
+      // Un fichier manquant ne casse pas la démo : elle joue sans batterie.
+      buffers.set(file, null);
+      return null;
     }
+  }
+
+  function stopSources() {
+    for (const source of sources) {
+      try { source.stop(); } catch (e) { /* déjà arrêtée */ }
+      try { source.disconnect(); } catch (e) { /* déjà partie */ }
+    }
+    sources = [];
   }
 
   return {
     /**
-     * Démarre la boucle. `fromBeat` = position de la démo au départ, pour que
-     * la boucle reste en phase après un saut ou une reprise.
+     * Démarre la boucle d'un genre ou d'un style. `fromBeat` = position de la
+     * démo, pour que la boucle reparte en phase après un saut ou une reprise.
      */
-    start({ tempo = 100, patternName = null, rate = 1, fromBeat = 0, delay = 0 } = {}) {
-      const found = patternName && typeof patternName === 'object' ? patternName : drumPatternFor(patternName);
-      if (!found) { this.stop(); return false; }
+    async start({ kit = null, tempo = 100, rate = 1, fromBeat = 0 } = {}) {
+      const found = typeof kit === 'string' ? drumKitFor(kit) : kit;
+      stopSources();
+      if (!found) { current = null; return false; }
+      const token = ++loadToken;
       const ctx = getContext();
-      pattern = found;
-      secondsPerBeat = 60 / (Math.max(20, tempo) * (rate || 1));
-      startedAt = ctx.currentTime + Math.max(0, delay) - fromBeat * secondsPerBeat;
-      nextBeat = Math.max(0, Math.floor(fromBeat));
-      if (timer) clearTimer(timer);
-      schedule();
-      timer = setTimer(schedule, TICK);
-      return true;
+      // Un kit peut imposer son tempo (voir DRUM_KITS) ; sinon celui de la démo.
+      const target = (found.tempo || tempo) * (rate || 1);
+      const loaded = await Promise.all(found.layers.map(([file]) => load(file)));
+      // Une autre démo a démarré pendant le décodage : on abandonne celle-ci.
+      if (token !== loadToken) return false;
+      const out = output();
+      const startAt = ctx.currentTime + 0.03;
+      let any = false;
+      found.layers.forEach(([file, gain], i) => {
+        const buffer = loaded[i];
+        if (!buffer) return;
+        const natural = DRUM_FILES[file] || 100;
+        const playbackRate = target / natural;
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.loopStart = 0;
+        // Durée exacte de 8 temps au tempo d'origine : on ne boucle pas sur la
+        // longueur du fichier (l'encodage MP3 ajoute un silence au bout), mais
+        // sur la durée musicale, sinon la boucle traîne à chaque tour.
+        source.loopEnd = Math.min(buffer.duration, (LOOP_BEATS * 60) / natural);
+        source.playbackRate.value = playbackRate;
+        const g = ctx.createGain();
+        g.gain.value = gain;
+        source.connect(g).connect(out);
+        // `offset` place la boucle là où en est la démo : la batterie ne
+        // redémarre pas à zéro après une reprise ou un saut.
+        const offset = (((fromBeat % LOOP_BEATS) + LOOP_BEATS) % LOOP_BEATS) * (60 / natural);
+        source.start(startAt, offset);
+        sources.push(source);
+        any = true;
+      });
+      current = any ? { kit: found, tempo: target, rate } : null;
+      return any;
     },
     stop() {
-      if (timer) clearTimer(timer);
-      timer = null;
-      pattern = null;
+      loadToken += 1;
+      stopSources();
+      current = null;
     },
-    isRunning: () => Boolean(timer),
+    isRunning: () => sources.length > 0,
     /** Nuance de la batterie (0 = muette). */
     setVolume(value) {
       volume = Math.max(0, Math.min(1, Number(value) || 0));
       if (master) master.gain.value = volume;
     },
     volume: () => volume,
+    /** Boucles déjà décodées (pour les tests et le diagnostic). */
+    loaded: () => [...buffers.keys()].filter((k) => buffers.get(k)),
   };
 }

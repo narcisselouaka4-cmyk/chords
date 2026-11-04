@@ -19,7 +19,7 @@ import {
 import {
   setSustain, ensurePianoSamples, resumeAudio, setPitchBend, setModulation, getAudioContext,
 } from './audio/simple-synth.js';
-import { createDrumLoop, drumPatternFor } from './audio/drum-loop.js';
+import { createDrumLoop, drumKitFor, drumTempoFor } from './audio/drum-loop.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
 // [Claude] — 2026-10-02 — Qui est un vrai clavier (jamais notre propre port virtuel).
@@ -278,6 +278,7 @@ const els = {
   exerciseLibrary: document.getElementById('exercise-library'),
   exerciseLibrarySearch: document.getElementById('exercise-library-search'),
   exerciseLibraryCategories: document.getElementById('exercise-library-categories'),
+  exerciseLibraryPanels: document.getElementById('exercise-library-panels'),
   exerciseLibraryGrid: document.getElementById('exercise-library-grid'),
   practiceViewMidiSessions: document.getElementById('practice-view-midi-sessions'),
   practiceViewCoach: document.getElementById('practice-view-coach'),
@@ -735,7 +736,26 @@ const demoPlayer = createDemoPlayer({
 // `demoPlayer.stop()` est appelé depuis une douzaine d'endroits, et une
 // batterie qui continue après la fin serait pire que pas de batterie du tout.
 const DRUMS_STORAGE = 'exercise-demo-drums';
-const drumLoop = createDrumLoop({ getContext: getAudioContext });
+
+/**
+ * Lecture d'une boucle depuis `assets/drum-loops`, par l'IPC Electron — comme
+ * les échantillons de piano, et pour la même raison : la CSP de l'application
+ * interdit de lire un fichier local par fetch. Hors Electron (navigateur
+ * ordinaire), il n'y a pas de batterie du tout, et c'est voulu : mieux vaut
+ * rien qu'une percussion synthétisée au jugé.
+ */
+let drumLoopsDir = null;
+async function readDrumLoopFile(name) {
+  const files = window.electronAPI?.files;
+  if (!files?.readBinary) return null;
+  if (drumLoopsDir === null) {
+    drumLoopsDir = (await window.electronAPI?.assets?.drumLoopsDir?.()) || '';
+  }
+  if (!drumLoopsDir) return null;
+  return files.readBinary(`${drumLoopsDir}/${name}`);
+}
+
+const drumLoop = createDrumLoop({ getContext: getAudioContext, readFile: readDrumLoopFile });
 let demoDrums = null;        // { name, tempo } de la démo en cours
 let drumsEnabled = true;     // Narcisse a demandé la batterie : allumée par défaut.
 try {
@@ -747,7 +767,7 @@ try {
 function syncDemoDrums() {
   if (!demoDrums || !drumsEnabled || !demoPlayer.isPlaying()) { drumLoop.stop(); return; }
   drumLoop.start({
-    patternName: demoDrums.name, tempo: demoDrums.tempo,
+    kit: demoDrums.name, tempo: demoDrums.tempo,
     rate: demoPlayer.rate(), fromBeat: demoPlayer.position(),
   });
 }
@@ -1989,6 +2009,8 @@ function initPracticeExercise() {
   // [Claude] — 2026-09-24 — Fenêtre centrée (.tr-overlay, ouverte et fermée par
   // astra-shell.js : fond, Échap, ✕) ; onglet Progressions retiré avec le mode.
   let libraryCategory = null;
+  // [Claude] — 2026-11-04 — Panneau actif À L'INTÉRIEUR de la catégorie (''= tout).
+  let libraryPanel = '';
   // Ma grille : accords choisis, dans l'ordre ({ root, quality, top }).
   let gridChords = [];
   // Grilles enregistrées (catégorie Perso de la bibliothèque).
@@ -2017,6 +2039,9 @@ function initPracticeExercise() {
   // [Claude] — 2026-09-24 — Catégorie Perso : grilles enregistrées depuis « Ma
   // grille » (Narcisse : « une nouvelle catégorie Perso pour y stocker toutes nos grilles »).
   const PERSO_CATEGORY = 'Perso';
+  const ARCHIVE_CATEGORY = 'Archives · grilles seules';
+  // [Claude] — 2026-11-04 — Une seule case Latino, par demande explicite.
+  const LATIN_CATEGORY = 'Latino';
   /** Résumé d'une grille enregistrée : accords, passages entre parenthèses, notes du dessus (« Dm11 ♪ C → (D7b9) → G13 »). */
   const gridSummary = (grid) => {
     const chords = grid.chords.map((c) => gridChordFrom(c.name, c.top, c.role));
@@ -2068,12 +2093,48 @@ function initPracticeExercise() {
     return [...movements, ...perso];
   }
 
+  /**
+   * [Claude] — 2026-11-04 — Les « panneaux » : une seconde rangée de filtres,
+   * À L'INTÉRIEUR de la catégorie choisie (Narcisse : « dans cette case-là,
+   * ensuite après, tu rajoutes des sortes de panneaux débutant, avancé, etc.
+   * Montuno, Tumbao »). Les panneaux sortent des `tags` des fiches montrées :
+   * rien à tenir à jour ici quand une étude arrive. Les niveaux passent en
+   * premier, le reste suit par ordre alphabétique.
+   */
+  const PANEL_ORDER = ['Débutant', 'Intermédiaire', 'Avancé'];
+  function renderLibraryPanels(items) {
+    const host = els.exerciseLibraryPanels;
+    if (!host) return;
+    const counts = new Map();
+    for (const item of items) {
+      for (const tag of item.tags || []) counts.set(tag, (counts.get(tag) || 0) + 1);
+    }
+    // Un panneau qui contiendrait TOUTES les fiches ne trie rien : on l'omet.
+    const tags = [...counts.keys()]
+      .filter((t) => counts.get(t) < items.length || counts.size > 1)
+      .sort((a, b) => {
+        const ia = PANEL_ORDER.indexOf(a);
+        const ib = PANEL_ORDER.indexOf(b);
+        if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+        return a.localeCompare(b);
+      });
+    // Le panneau actif a pu disparaître en changeant de catégorie.
+    if (libraryPanel && !tags.includes(libraryPanel)) libraryPanel = '';
+    host.hidden = tags.length < 2;
+    if (host.hidden) { host.innerHTML = ''; return; }
+    host.innerHTML = [`<button type="button" class="exercise-library-panel${libraryPanel ? '' : ' active'}" data-panel="" aria-pressed="${!libraryPanel}">Tout</button>`]
+      .concat(tags.map((tag) => {
+        const on = libraryPanel === tag;
+        return `<button type="button" class="exercise-library-panel${on ? ' active' : ''}" data-panel="${escapeAttr(tag)}" aria-pressed="${on}">${escapeHtml(tag)}<span class="exercise-library-count">${counts.get(tag)}</span></button>`;
+      })).join('');
+  }
+
   function renderLibrary() {
     const all = getLibraryItems();
     const active = all.filter((i) => i.kind !== 'archive');
     const libraryStyle = document.getElementById('exercise-library-style');
-    if (libraryStyle) renderDemoStyleMenu(libraryStyle, !['Archives · grilles seules', PERSO_CATEGORY].includes(libraryCategory));
-    let items = libraryCategory === 'Archives · grilles seules' ? all : active;
+    if (libraryStyle) renderDemoStyleMenu(libraryStyle, ![ARCHIVE_CATEGORY, PERSO_CATEGORY].includes(libraryCategory));
+    let items = libraryCategory === ARCHIVE_CATEGORY ? all : active;
     const q = librarySearch.trim().toLowerCase();
     if (q) {
       items = items.filter((item) =>
@@ -2087,12 +2148,13 @@ function initPracticeExercise() {
         || item.tags.some((tag) => tag.toLowerCase().includes(q)));
     }
     // Catégories de la bibliothèque, Perso (vos grilles) puis les archives en dernier.
-    // [Claude] — 2026-11-04 — Les trois catégories « Latino » sont un parcours, dans l'ordre :
-    // premiers pas → montuno & tumbao → avancé. C'est la difficulté pédagogique demandée par
-    // Narcisse, SANS rétablir les étoiles/niveaux de pianiste retirés par l'ADR-064.
+    // [Claude] — 2026-11-04 — « Latino » est UNE case (Narcisse : « autant tout mettre
+    // dans une même case »). Ce qui distinguait les trois anciennes catégories —
+    // Débutant/Avancé, Montuno, Tumbao — devient un panneau à l'intérieur (voir
+    // plus bas). Les Archives marchent pareil : leurs familles musicales, qu'on
+    // écrasait, redeviennent des panneaux.
     const categoryOrder = ['Progressions', 'Passages A → B', 'Gestes & voix',
-      'Latino · premiers pas', 'Latino · montuno & tumbao', 'Latino · avancé',
-      PERSO_CATEGORY, 'Archives · grilles seules'];
+      LATIN_CATEGORY, PERSO_CATEGORY, ARCHIVE_CATEGORY];
     const categories = categoryOrder;
     if (els.exerciseLibraryCategories) {
       els.exerciseLibraryCategories.innerHTML = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="" aria-pressed="${!libraryCategory}">Études<span class="exercise-library-count">${active.length}</span></button>`]
@@ -2103,6 +2165,8 @@ function initPracticeExercise() {
         })).join('');
     }
     if (libraryCategory) items = items.filter((i) => i.category === libraryCategory);
+    renderLibraryPanels(items);
+    if (libraryPanel) items = items.filter((i) => (i.tags || []).includes(libraryPanel));
     items.sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category) || a.name.localeCompare(b.name));
     if (!els.exerciseLibraryGrid) return;
     const current = practiceExercise.getState().progression?.name;
@@ -2492,6 +2556,17 @@ function initPracticeExercise() {
     if (!chip) return;
     const cat = chip.dataset.category || null;
     libraryCategory = libraryCategory === cat ? null : cat;
+    // Changer de case remet les panneaux à zéro : ceux de l'ancienne case
+    // n'ont aucun sens dans la nouvelle.
+    libraryPanel = '';
+    renderLibrary();
+  });
+
+  els.exerciseLibraryPanels?.addEventListener('click', (e) => {
+    const chip = e.target.closest('button[data-panel]');
+    if (!chip) return;
+    const panel = chip.dataset.panel || '';
+    libraryPanel = libraryPanel === panel ? '' : panel;
     renderLibrary();
   });
 
@@ -2628,9 +2703,9 @@ function initPracticeExercise() {
    * motif connu, la démo joue simplement sans batterie.
    */
   function startDemoDrums(name, tempo) {
-    demoDrums = drumPatternFor(name) ? { name, tempo } : null;
+    demoDrums = drumKitFor(name) ? { name, tempo } : null;
     if (demoDrums && drumsEnabled) {
-      drumLoop.start({ patternName: name, tempo, rate: demoPlayer.rate() });
+      drumLoop.start({ kit: name, tempo, rate: demoPlayer.rate() });
     } else {
       drumLoop.stop();
     }
@@ -2674,12 +2749,17 @@ function initPracticeExercise() {
     const variation = choice === 'cycle' ? (nextVariation[styleId] || 0) : choice;
     if (choice === 'cycle') nextVariation[styleId] = (variation + 1) % DEMO_VARIATIONS[styleId].length;
     currentVariation = { styleId, variation };
-    const tempo = entry?.score?.tempo || DEMO_STYLES[styleId].tempo;
-    demoPlayer.play(buildDemo(chords, styleId, { variation }), { tempo });
     // [Claude] — 2026-11-04 — La boucle de batterie suit la démo. Pour une étude
-    // écrite, c'est son GENRE qui choisit le motif (salsa, merengue, danzón…) ;
+    // écrite, c'est son GENRE qui choisit le kit (salsa, merengue, danzón…) ;
     // pour une grille libre, l'identifiant du style joué.
-    startDemoDrums(written ? (entry?.style || styleId) : styleId, tempo);
+    const kitName = written ? (entry?.style || styleId) : styleId;
+    // Deux genres imposent leur tempo (danzón, merengue) : leurs études
+    // tombaient trop loin de toute boucle enregistrée, et étirer un
+    // enregistrement de plus d'un quart le rend faux. Le PIANO suit ce tempo
+    // aussi, sinon les deux ne seraient plus ensemble.
+    const tempo = drumTempoFor(kitName) || entry?.score?.tempo || DEMO_STYLES[styleId].tempo;
+    demoPlayer.play(buildDemo(chords, styleId, { variation }), { tempo });
+    startDemoDrums(kitName, tempo);
     demoContext = context;
     previewId = context.kind === 'preview' ? context.previewId : null;
     refreshDemoButtons(practiceExercise.getState());
@@ -2900,7 +2980,7 @@ function initPracticeExercise() {
     const written = Boolean(entry?.score);
     demoStyleSelects.forEach((select) => {
       const useStudy = select.id === 'exercise-library-style'
-        ? !['Archives · grilles seules', PERSO_CATEGORY].includes(libraryCategory) : written;
+        ? ![ARCHIVE_CATEGORY, PERSO_CATEGORY].includes(libraryCategory) : written;
       renderDemoStyleMenu(select, useStudy);
     });
     const studyInfo = document.getElementById('exercise-study-info');

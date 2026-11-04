@@ -306,6 +306,31 @@
 .exercise-study-reference p { margin: 8px 0; }
 .exercise-study-reference a { display: block; width: fit-content; margin-top: 6px; color: var(--tr-accent, var(--accent)); text-decoration: underline; text-underline-offset: 3px; }
 
+/* [Claude] — 2026-11-04 — Les « panneaux » : second niveau de filtre, à
+   l'intérieur d'une catégorie. Visuellement plus légers que les catégories
+   (pas de pleine largeur, pas de fond) pour qu'on voie tout de suite lequel
+   des deux niveaux on manipule. */
+.exercise-library-panels { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px; }
+.exercise-library-panels[hidden] { display: none; }
+.exercise-library-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tr-secondary, var(--text-dim));
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.exercise-library-panel:hover { color: var(--tr-text, var(--text)); border-color: var(--tr-border, var(--border)); }
+.exercise-library-panel.active { color: var(--tr-text, var(--text)); background: var(--tr-accent-soft, rgba(128,128,255,.14)); border-color: var(--tr-accent, var(--accent)); }
+.exercise-library-panel .exercise-library-count { opacity: .65; font-size: 9.5px; }
+.exercise-library-panel:focus-visible { outline: 2px solid var(--tr-accent, var(--accent)); outline-offset: 1px; }
+
 /* [Claude] — 2026-11-04 — Bouton « Batterie » de la rangée d'écoute. La rangée
    est définie en deux colonnes (libellé + menu) dans astra-bridge.css ; on lui
    en ajoute une troisième depuis ce fichier, avec un ID de plus pour passer

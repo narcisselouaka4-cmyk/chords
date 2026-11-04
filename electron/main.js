@@ -2754,6 +2754,12 @@ app.whenReady().then(() => {
     return path.join(__dirname, '..', 'assets', 'piano-samples');
   });
 
+  // [Claude] — 2026-11-04 — Même chose pour les boucles de batterie des
+  // démonstrations (assets/drum-loops, CC0 — voir le LICENCE.md du dossier).
+  ipcMain.handle('assets:drum-loops-dir', () => {
+    return path.join(__dirname, '..', 'assets', 'drum-loops');
+  });
+
   ipcMain.handle('app:log', (event, msg) => {
     console.log(`[RENDERER] ${msg}`);
   });
