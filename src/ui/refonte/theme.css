@@ -1015,7 +1015,9 @@
 .tr-metronome > button.is-playing { color: var(--r-accent, var(--accent)); }
 
 .tr-metronome-panel {
-  position: absolute; top: calc(100% + 10px); right: 0; z-index: 140;
+  /* `fixed` et non `absolute` : #app est en overflow:hidden et coupait le
+     panneau. La position exacte est calculée dans global-metronome.js. */
+  position: fixed; z-index: 140;
   width: 300px; max-height: min(74vh, 560px);
   display: flex; flex-direction: column;
   border: 1px solid var(--r-border-strong, var(--panel-border));

@@ -7,16 +7,18 @@
 // pas donner un résultat écoutable.
 //
 // On joue donc de vraies boucles enregistrées, en CC0, rangées dans
-// `assets/drum-loops/` (provenance et licence : LICENCE.md du même dossier).
-// Elles sont chargées comme les échantillons de piano — par l'IPC Electron,
-// pas par fetch : la CSP de l'application bloque la lecture d'un fichier local.
+// `src/public/drum-loops/` (provenance et licence : LICENCE.md du même dossier).
+// Vite les sert en développement et les recopie dans `dist` au build : elles se
+// chargent donc par fetch sur l'origine de la page, ce qui marche aussi dans un
+// simple navigateur — seul endroit où je peux vérifier que le son sort. En
+// production (file://), l'IPC Electron prend le relais. Voir readDrumLoopFile.
 //
 // Chaque boucle fait exactement 8 temps (2 mesures à 4/4), vérifié fichier par
 // fichier. Du coup la lecture n'a plus besoin de planificateur : un seul
 // AudioBufferSourceNode en `loop = true` suffit, et c'est Web Audio qui tient
 // la boucle au sample près — bien plus régulier que des minuteurs.
 
-import shippedKits from '../../assets/drum-loops/kits.json' with { type: 'json' };
+import shippedKits from '../public/drum-loops/kits.json' with { type: 'json' };
 
 /** Toutes les boucles de la bibliothèque font 2 mesures à 4/4. */
 export const LOOP_BEATS = 8;
@@ -75,7 +77,7 @@ const ALIASES = {
   montuno: 'salsa', 'latin-jazz': 'salsa', jazz: 'swing', worship: 'gospel',
 };
 
-// [Claude] — 2026-11-04 — Le manifeste `assets/drum-loops/kits.json` remplace la
+// [Claude] — 2026-11-04 — Le manifeste `src/public/drum-loops/kits.json` remplace la
 // table ci-dessus dès qu'il est lu. Il existe pour que Narcisse puisse déposer
 // SES boucles et choisir lui-même ce que chaque style joue : je ne peux pas
 // juger une percussion à l'oreille, lui si. La table en dur reste le repli si

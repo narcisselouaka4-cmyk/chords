@@ -7,7 +7,7 @@
 //
 // Il réutilise le lecteur de boucles des démonstrations (src/audio/drum-loop.js)
 // et les mêmes fichiers CC0. Les styles viennent du manifeste
-// `assets/drum-loops/kits.json`, qu'il peut modifier : ajouter un style ou
+// `src/public/drum-loops/kits.json`, qu'il peut modifier : ajouter un style ou
 // remplacer une boucle ne demande aucune reconstruction.
 
 import { drumKitById, LOOP_BEATS } from '../audio/drum-loop.js';
@@ -150,12 +150,33 @@ export function initGlobalMetronome({ drumLoop, styles, resumeAudio = null }) {
     if (state.running) start();
   }
 
+  /**
+   * [Claude] — 2026-11-04 — Le panneau est placé en coordonnées FIXES, calculées
+   * ici. En `position: absolute` il dépendait de ses ancêtres, et `#app` est en
+   * `overflow: hidden` : Narcisse l'a reçu tronqué, en-tête et bouton Lecture
+   * coupés — donc impossible à démarrer. En `fixed`, aucun ancêtre ne peut plus
+   * le rogner, et on le borne nous-mêmes à la fenêtre.
+   */
+  function place() {
+    const b = button.getBoundingClientRect();
+    const marge = 8;
+    const largeur = panel.offsetWidth || 300;
+    const left = Math.max(marge, Math.min(b.right - largeur, window.innerWidth - largeur - marge));
+    const top = b.bottom + 10;
+    panel.style.left = `${Math.round(left)}px`;
+    panel.style.top = `${Math.round(top)}px`;
+    // Ce qui reste sous le bouton, jamais moins que de quoi rester utilisable.
+    panel.style.maxHeight = `${Math.max(240, Math.round(window.innerHeight - top - marge))}px`;
+  }
+
   function setOpen(open) {
     panel.hidden = !open;
     button.setAttribute('aria-expanded', String(open));
     root.classList.toggle('is-open', open);
-    if (open) renderStyles();
+    if (open) { renderStyles(); place(); }
   }
+
+  window.addEventListener('resize', () => { if (!panel.hidden) place(); });
 
   button.addEventListener('click', (e) => { e.stopPropagation(); setOpen(panel.hidden); });
   document.addEventListener('click', (e) => {

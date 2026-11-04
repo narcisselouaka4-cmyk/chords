@@ -459,6 +459,14 @@ function requestMidiPermission() {
 // dans un dossier autorisé ne fasse pas sortir discrètement du périmètre.
 const APP_DATA_ROOT = path.join(os.homedir(), 'PianoJazzChords');
 const APP_ASSETS_ROOT = path.join(__dirname, '..', 'assets');
+// [Claude] — 2026-11-04 — Les boucles de batterie ont quitté `assets/` pour
+// `src/public/` (afin que Vite les serve) ; sans ces deux racines, le garde-fou
+// de chemins refuserait de les lire. Ce sont des fichiers de l'application,
+// livrés avec elle, au même titre que les échantillons de piano.
+const APP_LOOP_ROOTS = [
+  path.join(__dirname, '..', 'src', 'public', 'drum-loops'),
+  path.join(__dirname, '..', 'dist', 'drum-loops'),
+];
 const externallyApprovedPaths = new Set();
 
 // [Claude] — 2026-10-19 — Chemin calculé à l'appel, pas au chargement du module : app.getPath()
@@ -536,6 +544,7 @@ async function assertAllowedPath(rawPath) {
     }
   }
   if (isWithinRoot(APP_DATA_ROOT, real) || isWithinRoot(APP_ASSETS_ROOT, real)) return real;
+  if (APP_LOOP_ROOTS.some((root) => isWithinRoot(root, real))) return real;
   for (const approved of externallyApprovedPaths) {
     if (real === approved || isWithinRoot(approved, real)) return real;
   }
@@ -2771,10 +2780,15 @@ app.whenReady().then(() => {
     return path.join(__dirname, '..', 'assets', 'piano-samples');
   });
 
-  // [Claude] — 2026-11-04 — Même chose pour les boucles de batterie des
-  // démonstrations (assets/drum-loops, CC0 — voir le LICENCE.md du dossier).
+  // [Claude] — 2026-11-04 — Boucles de batterie (CC0, voir le LICENCE.md du
+  // dossier). Elles vivent dans `src/public/drum-loops` pour que Vite les
+  // serve en développement — c'est ce qui permet de les essayer dans un simple
+  // navigateur — et les recopie dans `dist/drum-loops` au build. Ce chemin
+  // n'est utilisé qu'en dernier recours, quand fetch est refusé (file://).
   ipcMain.handle('assets:drum-loops-dir', () => {
-    return path.join(__dirname, '..', 'assets', 'drum-loops');
+    const built = path.join(__dirname, '..', 'dist', 'drum-loops');
+    const source = path.join(__dirname, '..', 'src', 'public', 'drum-loops');
+    return fsSync.existsSync(built) ? built : source;
   });
 
   ipcMain.handle('app:log', (event, msg) => {

@@ -753,8 +753,25 @@ const DRUMS_STORAGE = 'exercise-demo-drums';
  */
 let drumLoopsDir = null;
 async function readDrumLoopFile(name) {
+  // [Claude] — 2026-11-04 — DEUX chemins, et c'est voulu.
+  //
+  // Les boucles vivent dans `src/public/drum-loops`, donc Vite les sert en
+  // développement et les recopie dans `dist` au build. On tente donc d'abord
+  // un fetch sur l'origine de la page : la CSP l'autorise (`connect-src
+  // 'self'`), ça marche dans Electron en développement ET dans un simple
+  // navigateur — ce dernier point compte, c'est le seul endroit où je peux
+  // VÉRIFIER que le son sort. La batterie est restée muette deux fois de
+  // suite faute de pouvoir l'essayer.
+  //
+  // En production, la page est chargée en file:// où fetch est refusé : l'IPC
+  // Electron prend alors le relais, comme pour les échantillons de piano.
+  try {
+    const res = await fetch(new URL(`drum-loops/${name}`, document.baseURI).href);
+    if (res.ok) return new Uint8Array(await res.arrayBuffer());
+  } catch (e) { /* file://, ou dossier absent : on passe à l'IPC */ }
+
   const files = window.electronAPI?.files;
-  if (!files?.readBinary) throw new Error('hors Electron : pas d\'accès aux fichiers');
+  if (!files?.readBinary) throw new Error('fichier introuvable et pas d\'accès disque');
   if (!window.electronAPI?.assets?.drumLoopsDir) {
     // Cas vécu le 04/11/2026 : l'IPC a été ajouté pendant qu'Electron tournait.
     // Le processus principal ne se recharge pas à chaud — d'où un silence total.
