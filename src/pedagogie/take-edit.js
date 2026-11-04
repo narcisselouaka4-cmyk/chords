@@ -1,3 +1,4 @@
+import { applyFixedHarmony } from './fixed-harmony-edit.js';
 // Les éditions restent indexées sur la prise originale, même quand plusieurs changements sont combinés.
 const SOURCE_INDEX = Symbol('copilot-source-event');
 
@@ -21,6 +22,7 @@ export function applyTakeEdit(take, edit) {
   if (!edit || !Array.isArray(take?.events)) return null;
   if (edit.type === 'plan') return applyTakePlan(take, edit.edits);
   const pairs = notePairs(take.events);
+  if (edit.type === 'fixed-harmony') return applyFixedHarmony(take, edit, pairs);
   if (edit.type === 'ornament') {
     const anchor = pairs.find((p) => p.on === edit.on);
     if (!anchor || !Array.isArray(edit.notes) || !edit.notes.length || edit.notes.length > 8) return null;

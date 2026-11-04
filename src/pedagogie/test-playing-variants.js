@@ -1,138 +1,156 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {buildPlayingVariants,personalVariantsAnswer,variationAffinity} from './playing-variants.js';
-import {playingProposals} from './playing-advice.js';
+import {buildPlayingVariants,personalVariantsAnswer} from './playing-variants.js';
+import {fixedFrames,harmonyVoicings} from './fixed-harmony.js';
 import {applyTakeEdit,notePairs} from './take-edit.js';
+import {refreshPlayingResult} from './playing-advice.js';
 import {variantMessages} from './copilot-tab.js';
 import {sendCopilotMessage} from './copilot-client.js';
-const take=JSON.parse(readFileSync(new URL('./fixtures/copilot-development-take.json',import.meta.url)));
-const latin=JSON.parse(readFileSync(new URL('./fixtures/copilot-latin-takes.json',import.meta.url))).takes[1];
-const approved=JSON.parse(readFileSync(new URL('./fixtures/copilot-approved-links.json',import.meta.url)));
+import {realizesChord} from '../practice-exercise.js';
+const pc=n=>(n%12+12)%12;
+const blockTake=blocks=>({duration:blocks.length*2,events:blocks.flatMap((notes,i)=>notes.flatMap(note=>[
+ {type:'note_on',note,time:i*2,velocity:.7,channel:0},
+ {type:'note_off',note,time:i*2+1.8,velocity:0,channel:0},
+])).sort((a,b)=>a.time-b.time)});
+const take=blockTake([[48,55,60,64],[50,57,60,65],[52,59,62,67]]);
 const context={playing:{passage:take}};
-const variants=buildPlayingVariants(take);
+const message='En do majeur, enrichis mes accords';
+const variants=buildPlayingVariants(take,{message});
 let count=0;async function check(title,test){await test();count++;console.log(`✓ ${title}`);}
-await check('Deux interprétations liées et réellement différentes, sans arpège de remplissage',()=>{
- assert.equal(variants.length,2);
- assert.equal(new Set(variants.map(v=>JSON.stringify(v.example.events))).size,2);
- assert(variants.every(v=>!v.advice.changes.some(p=>p.technique==='arpeggio')));
- assert(variants.some(v=>v.advice.changes.some(p=>p.technique==='approach')));
- assert(variants.some(v=>v.advice.changes.some(p=>p.goal==='passing')));
+await check('Les propositions sont des voicings fixes réellement distincts',()=>{
+ assert(variants.length>=2);
+ assert.equal(new Set(variants.map(v=>JSON.stringify(v.example.events))).size,variants.length);
+ assert(variants.every(v=>v.advice.edit.type==='fixed-harmony'));
+ assert(variants.every(v=>v.advice.changes.every(p=>p.goal==='enrich')));
+ assert(variants.every(v=>!/liaison|arpege|mouvement/i.test(v.title)));
 });
-await check('Chaque version garde les attaques originales, la basse et les notes principales',()=>{
- const before=JSON.stringify(take);
+await check('Do majeur 9 garde Sol au-dessus de toutes ses voix',()=>{
+ const vs=harmonyVoicings({notes:[48,64,67],bassMidi:48,topMidi:67},{rootPc:0,quality:'maj9',preserveBass:true});
+ assert(vs.length);assert(vs.every(v=>Math.max(...v.notes)===67));
+ assert(vs.every(v=>v.notes.some(n=>pc(n)===11)&&v.notes.some(n=>pc(n)===2)));
+});
+await check('Do majeur 9 avec Mi au sommet existe même sans position publiée dans le catalogue',()=>{
+ const vs=harmonyVoicings({notes:[48,60,64],bassMidi:48,topMidi:64},{rootPc:0,quality:'maj9',preserveBass:true});
+ assert(vs.length);assert(vs.every(v=>Math.max(...v.notes)===64&&realizesChord(v.notes,0,'maj9')));
+});
+await check('La mineur 11 peut remplacer Do tout en gardant le Sol exact',()=>{
+ const vs=harmonyVoicings({notes:[48,64,67],bassMidi:48,topMidi:67},{rootPc:9,quality:'m11',preserveBass:false});
+ assert(vs.length);assert(vs.every(v=>Math.max(...v.notes)===67&&pc(v.notes[0])===9));
+});
+await check('La mélodie Mi–Fa–Sol conserve chaque attaque, nuance et relâchement',()=>{
+ const {frames}=fixedFrames(take), before=JSON.stringify(take);
+ assert.equal(frames.length,3);
  for(const v of variants){
   const changed=applyTakeEdit(take,v.advice.edit);assert(changed);
-  for(const e of take.events.filter(e=>e.type==='note_on'&&e.velocity>0))assert(changed.events.some(n=>n.type===e.type&&n.note===e.note&&n.time===e.time&&n.velocity===e.velocity));
-  assert.equal(v.example.beats,take.duration);
-  assert(changed.events.every(e=>e.time>=0&&e.time<=take.duration));
-  assert(changed.events.every(e=>!Object.getOwnPropertySymbols(e).length));
+  for(const f of frames){
+   const original=f.source.find(p=>p.event.note===f.topMidi);
+   assert(changed.events.some(e=>JSON.stringify(e)===JSON.stringify(original.event)));
+   assert(changed.events.some(e=>JSON.stringify(e)===JSON.stringify(take.events[original.off])));
+  }
  }
  assert.equal(JSON.stringify(take),before);
 });
-await check('La prise du retour utilisateur conserve exactement sa version Approches et liaisons',()=>{
- const vs=buildPlayingVariants(approved.take);
- assert.equal(vs[0].id,'connect');
- assert.deepEqual(vs[0].example.events,approved.approvedEvents);
- assert(!vs.some(v=>v.id==='flow'||v.title==='Harmonie liée'));
-});
-await check('La version développée garde les liaisons et ajoute de vrais voicings compatibles',()=>{
- for(const source of [take,approved.take]) {
-  const [links,developed]=buildPlayingVariants(source);
-  assert.equal(developed.id,'developed');
-  assert(developed.advice.changes.length>links.advice.changes.length);
-  assert(developed.advice.changes.some(p=>p.technique==='colors'));
-  for(const p of links.advice.changes)assert(developed.advice.changes.some(q=>JSON.stringify(p.edit)===JSON.stringify(q.edit)));
-  assert.notDeepEqual(links.example.events,developed.example.events);
-  const pairs=notePairs(applyTakeEdit(source,developed.advice.edit).events);
-  for(const e of source.events.filter(e=>e.type==='note_on'&&e.velocity>0))assert(pairs.some(p=>p.event.time===e.time&&p.event.note===e.note&&p.event.velocity===e.velocity));
+await check('Aucun nouvel instant, arpège, approche ou accord inséré entre deux appuis',()=>{
+ const times=new Set(take.events.filter(e=>e.type==='note_on').map(e=>e.time));
+ for(const v of variants){
+  const changed=applyTakeEdit(take,v.advice.edit);
+  assert(changed.events.filter(e=>e.type==='note_on').every(e=>times.has(e.time)));
+  assert(v.example.beats===take.duration);
  }
 });
-await check('Les approches résolvent sur les vraies notes source sans les retarder',()=>{
- const v=variants.find(v=>v.id==='connect');
- for(const p of v.advice.changes.filter(p=>p.technique==='approach')) {
-  const target=take.events[p.edit.on];
-  for(const n of p.edit.notes){assert(n.end<target.time);assert(target.time-n.end<=.04);assert(Math.abs(target.note-n.note)<=2);}
+await check('La version conservatrice garde les classes de basse originales',()=>{
+ const v=variants.find(v=>v.id==='enrich');assert(v);
+ for(const f of v.advice.edit.frames){
+  const original=f.source.map(i=>take.events[i].note);
+  assert.equal(pc(Math.min(...f.notes)),pc(Math.min(...original)));
  }
 });
-await check('Le passage Mi7 prépare La mineur suffisamment tôt et garde son arrivée',()=>{
- const p=variants.find(v=>v.id==='connect').advice.changes.find(p=>p.edit.notes?.join(',')==='52,62,68');
- assert(p);assert.equal(p.edit.placement,'held-cadence');
- const arrival=take.events[p.edit.on];assert(p.edit.start<=arrival.time-.4);assert(p.edit.end<arrival.time);
- const changed=applyTakeEdit(take,p.edit);
- assert(changed.events.some(e=>e.type==='note_on'&&e.note===arrival.note&&e.time===arrival.time));
- assert(p.edit.attacks.every(t=>t>=p.edit.start&&t<p.edit.end));
+await check('Le diminué sous Fa est la partie supérieure de Mi7b9, suivi de Lam9 sous Sol',()=>{
+ const v=variants.find(v=>v.id==='resolution');assert(v);
+ const tension=v.advice.changes.find(c=>c.chord.includes('sans fondamentale'));
+ assert(tension);assert.equal(tension.topMidi,65);assert.equal(tension.technique,'drop2');
+ assert.deepEqual(new Set(tension.notes.map(pc)),new Set([8,11,2,5]));
+ assert(!tension.notes.some(n=>pc(n)===6));
+ const resolved=v.advice.changes.find(c=>c.chord==='La mineur 9'&&c.topMidi===67&&pc(c.notes[0])===9);
+ assert(resolved);assert(resolved.notes.includes(57)); // Sol#3 monte réellement sur La3.
+
 });
-await check('Liaisons prioritaires et exclusion des familles éloignées',()=>{
- assert.equal(variants[0].id,'connect');
- assert(variants.every(v=>v.affinity!=null));
- const review=playingProposals(take).review;
- assert.equal(variationAffinity(take,take,review,'jazz','latin'),null);
- assert.equal(variationAffinity(take,take,review,'latin','worship'),null);
- const jazz=buildPlayingVariants(take,{message:'Je joue du jazz, propose plusieurs versions'});
- assert(jazz.every(v=>v.family==='jazz'&&!/salsa|montuno|worship/i.test(v.title)));
+await check('Un demi-ton aigu appartenant au voicing ne rend pas Lam9 impossible',()=>{
+ const vs=harmonyVoicings({notes:[45,60,64,67],bassMidi:45,topMidi:67},{rootPc:9,quality:'m9',preserveBass:false});
+ assert(vs.some(v=>v.notes.some(n=>pc(n)===11)&&v.notes.some(n=>pc(n)===0)));
 });
-await check('Le montuno conserve sa famille et les attaques du motif, sans figure gospel imposée',()=>{
- const vs=buildPlayingVariants(latin);assert(vs.length>=2);
- const times=new Set(latin.events.filter(e=>e.type==='note_on').map(e=>e.time));
- for(const v of vs){
-  assert.equal(v.family,'latin');assert(!/worship|gospel/i.test(v.title));
-  assert(v.example.events.filter(e=>e.type==='noteOn').every(e=>times.has(e.time)));
-  assert(!v.advice.changes.some(p=>p.technique==='approach'||p.technique==='arpeggio'));
+const ascending=blockTake([[48,57,60,65],[48,60,64,67],[50,60,65,69],[43,59,62,71],[48,64,67,72]]);
+await check('Fa–Sol–La–Si–Do peut porter le parcours de basses Do–Fa–Sib–Mib–Lab',()=>{
+ for(const request of ['Basses : Do Fa Sib Mib Lab','Des basses par quartes']){
+  const vs=buildPlayingVariants(ascending,{message:request});assert(vs.length);
+  const frames=vs[0].advice.edit.frames;assert.equal(frames.length,5);
+  assert.deepEqual(frames.map(f=>pc(Math.min(...f.notes))),[0,5,10,3,8]);
+  assert.deepEqual(frames.map(f=>Math.max(...f.notes)),[65,67,69,71,72]);
  }
 });
-await check('Sans genre établi, aucun nom de genre ni score de confiance inventé dans la réponse',()=>{
- const r=personalVariantsAnswer({message:'Améliore mon jeu',context});
- assert(r.toolResult.variants.every(v=>v.family==='unclassified'));
- assert.doesNotMatch(r.content,/choisis|laquelle|score|probabil|worship|salsa|gospel|jazz/i);
+await check('La basse choisie n’est pas confondue avec la fondamentale de l’accord',()=>{
+ const vs=harmonyVoicings({notes:[43,59,62,67],bassMidi:43,topMidi:67},{rootPc:7,quality:'9',bassPc:11,preserveBass:false});
+ assert(vs.length);
+ assert(vs.every(v=>pc(v.notes[0])===11&&v.notes.at(-1)===67&&realizesChord(v.notes,7,'9')));
+ assert(vs.every(v=>v.label.includes('/ Si')));
 });
-await check('Chaque proposition se réécoute avec un identifiant stable et son propre exemple',()=>{
- const msg={timestamp:'fixture',toolResult:{variants,example:variants[0].example,playingAdvice:variants[0].advice,originalTake:take}};
- const views=variantMessages(msg);assert.equal(new Set(views.map(v=>v.exampleId)).size,2);
- views.forEach((v,i)=>{assert.equal(v.toolResult.example,variants[i].example);assert.equal(v.toolResult.playingAdvice,variants[i].advice);});
- assert.deepEqual(variantMessages(msg).map(v=>v.exampleId),views.map(v=>v.exampleId));
- assert.equal(JSON.parse(JSON.stringify(msg)).toolResult.variants.length,2);
+await check('Une liste de basses incomplète n’est pas complétée arbitrairement',()=>{
+ assert.deepEqual(buildPlayingVariants(ascending,{message:'Basses : Do Fa'}),[]);
 });
-await check('Une demande d’écoute retrouve toutes les propositions ; une nouvelle prise délimite le suivi',()=>{
- const first=personalVariantsAnswer({message:'Améliore mon jeu',context});
- const heard=personalVariantsAnswer({message:'Fais-moi entendre un exemple',context,messages:[{role:'assistant',...first}]});
- assert(heard.autoplay);assert.equal(heard.toolResult.variants.length,2);
- const next=personalVariantsAnswer({message:'Fais-moi entendre un exemple',context,messages:[{role:'assistant',...first},{role:'user',content:'Nouvelle prise',take}]});
- assert.equal(next,null);
+await check('Les basses chromatiques explicites sont respectées et ne deviennent pas des bécarres',()=>{
+ const vs=buildPlayingVariants(ascending,{message:'Basses : Do Fa# Sib Mib Lab'});
+ assert(vs.length);assert.equal(pc(vs[0].advice.edit.frames[1].notes[0]),6);
 });
-await check('Le modèle ne remplace pas ces versions de prise par une progression générique',async()=>{
- const r=await sendCopilotMessage({message:'Améliore mon jeu avec plusieurs propositions et fais-moi une démonstration',context,messages:[]});
- assert(r.autoplay);assert.equal(r.toolResult.variants.length,2);assert.equal(r.toolResult.originalTake,take);
+await check('Une contrainte de dessus falsifiée ou un accord mal nommé est refusé',()=>{
+ const edit=structuredClone(variants[0].advice.edit);
+ edit.frames[0].notes.push(76);assert.equal(applyTakeEdit(take,edit),null);
+ const wrong=structuredClone(variants[0].advice.edit);
+ wrong.frames[0].quality='dim7';assert.equal(applyTakeEdit(take,wrong),null);
 });
-await check('La porte d’entrée Rends mes accords plus beaux propose aussi plusieurs versions',()=>{
- const r=personalVariantsAnswer({message:'Rends mes accords plus beaux et joue-moi un exemple',context});
- assert(r.autoplay);assert.equal(r.toolResult.variants.length,2);
+await check('La copie JSON et la réouverture gardent chaque lecteur et son plan fixe',()=>{
+ const msg={timestamp:'fixture',toolResult:{fixedHarmony:true,variants,example:variants[0].example,playingAdvice:variants[0].advice,originalTake:take}};
+ const saved=JSON.parse(JSON.stringify(msg));
+ const views=variantMessages(saved);assert.equal(new Set(views.map(v=>v.exampleId)).size,variants.length);
+ for(const view of views)assert(refreshPlayingResult(view.toolResult)?.example);
 });
-await check('La demande de mouvements et accords enrichis développe plusieurs gestes sur la prise',()=>{
- const r=personalVariantsAnswer({message:'Rajoute des mouvements et des accords enrichis',context});
- assert.equal(r.toolResult.variants.length,2);
- assert(r.toolResult.variants.some(v=>v.advice.changes.some(p=>p.goal==='passing')));
- assert(r.toolResult.variants.every(v=>!v.advice.changes.some(p=>p.technique==='arpeggio')));
-});
-await check('Le retour sur les anciens arpèges et Va plus loin repartent de la prise sans réécrire l’historique',()=>{
- const old={role:'assistant',toolResult:{variants:[{id:'flow',advice:{changes:[{technique:'arpeggio'}]}}]}};
+await check('Les nouvelles demandes ne reprennent pas les mouvements d’un ancien message',()=>{
+ const old={role:'assistant',toolResult:{variants:[{id:'connect',advice:{version:3}}]}};
  const before=JSON.stringify(old);
- for(const message of ['Approches et liaisons est mieux, les arpèges font robot','Va plus loin.']) {
-  const r=personalVariantsAnswer({message,context,messages:[old]});
-  assert.equal(r.toolResult.variants[0].id,'connect');
-  assert.equal(r.toolResult.variants.length,2);
- }
+ const r=personalVariantsAnswer({message:'Fais-moi entendre un exemple',context,messages:[old]});
+ assert(r.toolResult.fixedHarmony);assert(r.toolResult.variants.every(v=>v.advice.edit.type==='fixed-harmony'));
  assert.equal(JSON.stringify(old),before);
 });
-await check('Les demandes de style, d’explication ou de technique précise gardent leur chemin dédié',()=>{
- for(const message of ['Quel style je joue ?','Explique-moi le Fa','Montre-moi un drop 2','Allège mes accords'])assert.equal(personalVariantsAnswer({message,context}),null);
+await check('Une nouvelle prise délimite le suivi des propositions',()=>{
+ const r=personalVariantsAnswer({message,context});
+ assert.equal(personalVariantsAnswer({message:'Fais-moi entendre un exemple',context,messages:[{role:'assistant',...r},{role:'user',take}]}),null);
 });
-await check('Une pédale tenue ne prolonge pas silencieusement une approche sur les accords suivants',()=>{
- const p=notePairs(take.events).find(p=>p.event.note===69&&p.event.time>1);
- const pedal={...take,events:[{type:'control',controller:64,value:127,time:0},...take.events,{type:'control',controller:64,value:0,time:take.duration}].sort((a,b)=>a.time-b.time)};
- const t=p.event.time-.15;
- assert.equal(applyTakeEdit(pedal,{type:'ornament',on:p.on+1,approach:true,notes:[{note:70,time:t,end:p.event.time-.012}]}),null);
+await check('Le chemin réel Copilot reste local et propose les voicings de la prise',async()=>{
+ const r=await sendCopilotMessage({message:message+' et joue-moi un exemple',context,messages:[]});
+ assert(r.autoplay);assert(r.toolResult.fixedHarmony);assert.equal(r.toolResult.originalTake,take);
 });
-await check('Pas de trois versions factices quand la source ne donne pas de base harmonique',()=>{
+await check('Les deux prises réelles restent utilisables sans nouveaux instants musicaux',()=>{
+ for(const file of ['copilot-development-take.json','copilot-approved-links.json']){
+  const data=JSON.parse(readFileSync(new URL(`./fixtures/${file}`,import.meta.url))),source=data.take||data;
+  const vs=buildPlayingVariants(source,{message:'Enrichis mes accords'});assert(vs.length,file);
+  for(const v of vs){
+   const changed=applyTakeEdit(source,v.advice.edit);assert(changed);
+   const times=new Set(source.events.filter(e=>e.type==='note_on').map(e=>e.time));
+   assert(changed.events.filter(e=>e.type==='note_on').every(e=>times.has(e.time)));
+  }
+ }
+});
+await check('La règle de résolution se transpose et conserve les hauteurs cibles exactes',()=>{
+ const shifted={...take,events:take.events.map(e=>({...e,note:e.note+1}))};
+ const vs=buildPlayingVariants(shifted,{message:'En réb majeur, enrichis mes accords'});
+ const v=vs.find(v=>v.id==='resolution');assert(v);
+ assert(v.harmony.some(c=>c.topMidi===66&&c.chord.includes('sans fondamentale')));
+ assert(v.harmony.some(c=>c.topMidi===68&&pc(c.bassMidi)===10));
+});
+await check('Des basses imposées ne sont pas remplacées en silence si la pédale empêche la substitution',()=>{
+ const held={...ascending,events:[{type:'control',controller:64,value:127,time:0},...ascending.events,{type:'control',controller:64,value:0,time:ascending.duration}]};
+ assert.deepEqual(buildPlayingVariants(held,{message:'Basses : Do Fa Sib Mib Lab'}),[]);
+});
+await check('Aucune harmonie inventée à partir d’une prise vide',()=>{
  assert.deepEqual(buildPlayingVariants({events:[],duration:0}),[]);
 });
 console.log(`${count}/${count} vérifications réussies`);

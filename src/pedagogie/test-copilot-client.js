@@ -2028,7 +2028,8 @@ async function testResponseRecoveryAndPlans() {
     global.fetch = async () => { calls++; throw new Error('Aucun appel nécessaire pour ce plan'); };
     const first = await sendCopilotMessage({ message: 'Ajoute des mouvements ou des accords enrichis à ma progression et fais-moi une démonstration', context, messages: [] });
     const next = await sendCopilotMessage({ message: "c'est tout ? tu peut rien ajouter de plus ?", context, messages: [{ role: 'assistant', content: first.content, toolResult: first.toolResult }] });
-    check('Progression réelle : plan puis complément sans dépendre du fournisseur', first.ok && next.ok && calls === 0 && next.toolResult.example.noteCount > first.toolResult.example.noteCount);
+    const fixedOnly = (r) => r.toolResult.fixedHarmony && (!r.toolResult.example || r.toolResult.playingAdvice.edit.type === 'fixed-harmony');
+    check('Progression réelle : voicings fixes ou absence de démo, sans mouvements ni appel fournisseur', first.ok && next.ok && calls === 0 && fixedOnly(first) && fixedOnly(next));
   } finally { global.fetch = originalFetch; }
 }
 

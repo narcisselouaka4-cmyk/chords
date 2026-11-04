@@ -114,7 +114,7 @@ function passingProposals(take, review, pairs) {
 export function refreshPlayingResult(result) {
   const advice = result?.playingAdvice;
   if (!advice) return result;
-  if (advice.version === 3 || advice.edit?.type === 'plan') {
+  if (advice.version === 3 || advice.version === 4 || advice.edit?.type === 'plan') {
     if (result.example?.comparison?.version === 1) return result;
     const changed = applyTakeEdit(advice.take, advice.edit);
     const example = changed && comparedTakeExample(advice.take, changed);
