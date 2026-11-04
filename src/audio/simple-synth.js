@@ -1,4 +1,29 @@
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// [Claude] — 2026-11-04 — `latencyHint: 'interactive'` demandé EXPLICITEMENT.
+// Narcisse joue sur un clavier MIDI et s'enregistre : un retard entre la touche
+// et le son lui fait décaler son jeu, et c'est ce jeu décalé qui part dans
+// l'enregistrement (« si moi je suis dans le tempo, l'application n'est pas
+// dans le tempo »). C'est déjà la valeur par défaut des navigateurs, mais la
+// demander la rend visible et empêche qu'on la perde par inadvertance.
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+
+/**
+ * Retard mesuré entre l'ordre de jouer et le son qui sort des haut-parleurs.
+ *
+ * `baseLatency` = ce que le navigateur met à traiter ; `outputLatency` = ce que
+ * le système et la carte son ajoutent (sous Linux, c'est souvent là que tout se
+ * joue). Les deux s'additionnent du point de vue de l'oreille.
+ * @returns {{base: number, output: number, total: number, sampleRate: number}} en millisecondes
+ */
+export function getAudioLatency() {
+  const base = (audioCtx.baseLatency || 0) * 1000;
+  const output = (audioCtx.outputLatency || 0) * 1000;
+  return {
+    base: Math.round(base * 10) / 10,
+    output: Math.round(output * 10) / 10,
+    total: Math.round((base + output) * 10) / 10,
+    sampleRate: audioCtx.sampleRate,
+  };
+}
 const activeOscillators = new Map();
 let synthMode = 'piano';
 let pitchBend = 0;

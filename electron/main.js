@@ -46,6 +46,23 @@ app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-software-rasterizer');
 
+// [Claude] — 2026-11-04 — Retard entre la touche et le son. Narcisse joue au
+// clavier MIDI et s'enregistre : s'il entend son jeu en retard, il décale son
+// jeu pour compenser, et c'est ce décalage qui part dans l'enregistrement.
+//
+// Chromium choisit par défaut un tampon de sortie confortable (souvent 20 ms ou
+// plus sous Linux, selon PulseAudio / PipeWire). 256 trames à 48 kHz font
+// 5,3 ms : assez court pour que le retard ne s'entende plus, assez long pour ne
+// pas craquer sur une machine sans accélération matérielle — ce qui est le cas
+// ici, le GPU étant désactivé juste au-dessus.
+//
+// AUDIO_BUFFER_SIZE permet de remonter la valeur sans toucher au code si la
+// machine n'arrive pas à suivre (craquements) : AUDIO_BUFFER_SIZE=512 npm run dev
+const audioBufferSize = process.env.AUDIO_BUFFER_SIZE || '256';
+if (audioBufferSize !== 'off') {
+  app.commandLine.appendSwitch('audio-buffer-size', audioBufferSize);
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let mainWindow = null;

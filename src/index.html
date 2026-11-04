@@ -1893,6 +1893,17 @@
                     <input type="number" id="tolerance" value="200" min="50" max="500" step="10" />
                   </div>
                 </div>
+                <!-- [Claude] — 2026-11-04 — Retard entre la touche et le son. Narcisse a dû
+                     découvrir lui-même, en changeant la sortie audio de son PC, qu'il y avait
+                     un écart : l'application ne le mesurait nulle part. Elle le dit maintenant. -->
+                <div class="settings-row">
+                  <label for="audio-latency-value">Retard du son</label>
+                  <div class="settings-control">
+                    <output id="audio-latency-value" class="settings-readout">mesure…</output>
+                    <button type="button" id="audio-latency-refresh" title="Remesurer le retard entre la touche et le son" aria-label="Remesurer le retard du son">↻</button>
+                  </div>
+                  <small class="settings-note" id="audio-latency-note">Délai entre l'appui sur une touche et le son du piano intégré.</small>
+                </div>
               </div>
               <div class="settings-status" id="status-bar" role="status" aria-live="polite"></div>
              </div>

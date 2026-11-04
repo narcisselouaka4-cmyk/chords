@@ -15,7 +15,11 @@ function node(kind) {
   const value = {
     kind, connections: [], gain: new Param(), frequency: new Param(),
     detune: new Param(), playbackRate: new Param(1), Q: new Param(),
-    connect(target) { this.connections.push(target); },
+    // [Claude] — 2026-11-04 — L'ambiance ajoutée au bus de sortie se branche dès
+    // le chargement du module : le faux contexte doit savoir répondre à ses
+    // nœuds, sinon le test échoue à l'import sans rien dire du synthé.
+    delayTime: new Param(), buffer: null, normalize: true,
+    connect(target) { this.connections.push(target); return target; },
     disconnect() { this.connections = []; },
     start() {}, stop() { this.stopped = true; },
   };
@@ -30,6 +34,14 @@ global.window = { AudioContext: class {
   createOscillator() { return node('oscillator'); }
   createBiquadFilter() { return node('filter'); }
   createBufferSource() { return node('sample'); }
+  createDelay() { return node('delay'); }
+  createConvolver() { return node('convolver'); }
+  createBuffer(channels, length) {
+    return { numberOfChannels: channels, length, getChannelData: () => new Float32Array(length) };
+  }
+  sampleRate = 48000;
+  baseLatency = 0.01;
+  outputLatency = 0.02;
   async decodeAudioData() { return {}; }
 } };
 const synth = await import('./simple-synth.js');

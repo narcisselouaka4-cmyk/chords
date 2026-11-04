@@ -18,6 +18,7 @@ import {
 } from './virtual-keyboard.js';
 import {
   setSustain, ensurePianoSamples, resumeAudio, setPitchBend, setModulation, getAudioContext,
+  getAudioLatency,
 } from './audio/simple-synth.js';
 import { createDrumLoop, drumKitFor, drumTempoFor } from './audio/drum-loop.js';
 
@@ -288,6 +289,9 @@ const els = {
 
   transposeInput: document.getElementById('transpose'),
   toleranceInput: document.getElementById('tolerance'),
+  audioLatencyValue: document.getElementById('audio-latency-value'),
+  audioLatencyRefresh: document.getElementById('audio-latency-refresh'),
+  audioLatencyNote: document.getElementById('audio-latency-note'),
   silentMode: document.getElementById('silent-mode'),
   pcKeyboardMidi: document.getElementById('pc-keyboard-midi'),
   midiDiagnosticPanel: document.getElementById('midi-diagnostic-panel'),
@@ -1282,6 +1286,36 @@ function initSettings() {
   els.spelling?.addEventListener('change', update);
   els.transposeInput.addEventListener('change', update);
   els.toleranceInput?.addEventListener('change', update);
+
+  /**
+   * [Claude] — 2026-11-04 — Affiche le retard entre la touche et le son, en
+   * clair. Narcisse a dû le découvrir seul en changeant la sortie audio de son
+   * PC ; l'application ne le mesurait nulle part. Le seuil de 20 ms est celui
+   * à partir duquel un pianiste commence à décaler son jeu pour compenser.
+   */
+  function refreshAudioLatency() {
+    const out = els.audioLatencyValue;
+    if (!out) return;
+    const { base, output, total, sampleRate } = getAudioLatency();
+    out.textContent = `${total.toFixed(1)} ms`;
+    out.classList.toggle('is-warning', total >= 20);
+    const detail = output > 0
+      ? `${base.toFixed(1)} ms de traitement + ${output.toFixed(1)} ms de sortie système`
+      : `${base.toFixed(1)} ms de traitement (la sortie système ne se déclare pas)`;
+    if (els.audioLatencyNote) {
+      els.audioLatencyNote.textContent = total >= 20
+        ? `${detail} · ${sampleRate} Hz. Au-delà de 20 ms, le décalage s'entend : on joue en avance sans le vouloir, et l'enregistrement part décalé.`
+        : `${detail} · ${sampleRate} Hz. En dessous de 20 ms, le retard ne se sent pas au jeu.`;
+    }
+  }
+
+  els.audioLatencyRefresh?.addEventListener('click', refreshAudioLatency);
+  // La mesure n'a de sens qu'une fois le contexte audio réveillé (politique
+  // d'autoplay) : on la rafraîchit à l'ouverture des réglages.
+  document.getElementById('app-settings-toggle')?.addEventListener('click', () => {
+    setTimeout(refreshAudioLatency, 50);
+  });
+  refreshAudioLatency();
   els.silentMode.addEventListener('change', update);
   els.pcKeyboardMidi?.addEventListener('change', update);
   els.colorNote.addEventListener('input', update);
