@@ -747,11 +747,16 @@ const DRUMS_STORAGE = 'exercise-demo-drums';
 let drumLoopsDir = null;
 async function readDrumLoopFile(name) {
   const files = window.electronAPI?.files;
-  if (!files?.readBinary) return null;
-  if (drumLoopsDir === null) {
-    drumLoopsDir = (await window.electronAPI?.assets?.drumLoopsDir?.()) || '';
+  if (!files?.readBinary) throw new Error('hors Electron : pas d\'accès aux fichiers');
+  if (!window.electronAPI?.assets?.drumLoopsDir) {
+    // Cas vécu le 04/11/2026 : l'IPC a été ajouté pendant qu'Electron tournait.
+    // Le processus principal ne se recharge pas à chaud — d'où un silence total.
+    throw new Error('IPC drumLoopsDir absent — relancer Electron (npm run dev)');
   }
-  if (!drumLoopsDir) return null;
+  if (!drumLoopsDir) {
+    drumLoopsDir = (await window.electronAPI.assets.drumLoopsDir()) || '';
+  }
+  if (!drumLoopsDir) throw new Error('dossier des boucles introuvable');
   return files.readBinary(`${drumLoopsDir}/${name}`);
 }
 
@@ -767,9 +772,30 @@ try {
 function syncDemoDrums() {
   if (!demoDrums || !drumsEnabled || !demoPlayer.isPlaying()) { drumLoop.stop(); return; }
   drumLoop.start({
-    kit: demoDrums.name, tempo: demoDrums.tempo,
-    rate: demoPlayer.rate(), fromBeat: demoPlayer.position(),
-  });
+    kit: demoDrums.name, tempo: demoDrums.tempo, rate: demoPlayer.rate(),
+    // Relue après décodage : voir le commentaire dans drum-loop.js.
+    getBeat: () => demoPlayer.position(),
+  }).then(() => refreshDrumsDiagnostic());
+}
+
+/**
+ * [Claude] — 2026-11-04 — Dire POURQUOI la batterie ne sonne pas. Elle est
+ * restée muette chez Narcisse sans qu'aucune trace n'existe nulle part : un
+ * échec silencieux coûte un aller-retour complet. Le bouton porte désormais la
+ * raison, et la console la répète une fois.
+ */
+let lastDrumsWarning = null;
+function refreshDrumsDiagnostic() {
+  const btn = document.getElementById('exercise-demo-drums');
+  const why = drumLoop.lastError();
+  if (why && why !== lastDrumsWarning) {
+    lastDrumsWarning = why;
+    console.warn(`[Batterie] silencieuse — ${why}`);
+  }
+  if (!why) lastDrumsWarning = null;
+  if (!btn) return;
+  btn.classList.toggle('is-silent', Boolean(why) && drumsEnabled);
+  if (why && drumsEnabled) btn.title = `Batterie sans son — ${why}`;
 }
 
 for (const method of ['stop', 'pause']) {
@@ -2223,8 +2249,17 @@ function initPracticeExercise() {
   function openLibrary() {
     libraryCategory = null;
     librarySearch = '';
+    libraryPanel = '';
     if (els.exerciseLibrarySearch) els.exerciseLibrarySearch.value = '';
     renderLibrary();
+    // [Claude] — 2026-11-04 — On décode les boucles pendant qu'il choisit son
+    // étude : à la première écoute, la batterie doit entrer en même temps que
+    // le piano, pas après le temps de décodage.
+    if (drumsEnabled) {
+      Promise.all(['salsa', 'gospel'].map((k) => drumLoop.warm(k)))
+        .then(() => refreshDrumsDiagnostic())
+        .catch(() => refreshDrumsDiagnostic());
+    }
   }
 
   function closeLibrary() {
@@ -2705,7 +2740,12 @@ function initPracticeExercise() {
   function startDemoDrums(name, tempo) {
     demoDrums = drumKitFor(name) ? { name, tempo } : null;
     if (demoDrums && drumsEnabled) {
-      drumLoop.start({ kit: name, tempo, rate: demoPlayer.rate() });
+      drumLoop.start({
+        kit: name, tempo, rate: demoPlayer.rate(),
+        // Au tout premier lancement il faut décoder : la position est relue
+        // ensuite, pour que la batterie entre là où le piano en est vraiment.
+        getBeat: () => demoPlayer.position(),
+      }).then(() => refreshDrumsDiagnostic());
     } else {
       drumLoop.stop();
     }

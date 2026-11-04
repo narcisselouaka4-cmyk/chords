@@ -107,6 +107,7 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
   let current = null;          // { kitName, tempo, rate }
   let volume = 0.7;
   let loadToken = 0;
+  let lastError = null;        // dernière raison d'un silence, pour le diagnostic
 
   function output() {
     const ctx = getContext();
@@ -119,13 +120,21 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
     return master;
   }
 
-  /** Décode une boucle, une seule fois, et la garde. */
+  /**
+   * Décode une boucle, une seule fois, et la garde.
+   *
+   * [Claude] — 2026-11-04 — Un échec n'est PAS mis en cache. La première
+   * version gardait `null` pour la séance entière : si le dossier n'était pas
+   * encore joignable au premier essai (typiquement un Electron lancé avant
+   * l'ajout de l'IPC), la batterie restait morte jusqu'au redémarrage même une
+   * fois le problème réglé. On retente, et on dit pourquoi ça a raté.
+   */
   async function load(file) {
     if (buffers.has(file)) return buffers.get(file);
-    if (!readFile) return null;
+    if (!readFile) { lastError = 'aucun lecteur de fichiers (hors Electron)'; return null; }
     try {
       const bytes = await readFile(`${file}.mp3`);
-      if (!bytes) return null;
+      if (!bytes) { lastError = `fichier illisible : ${file}.mp3`; return null; }
       const array = bytes.buffer
         ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
         : bytes;
@@ -133,10 +142,19 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
       buffers.set(file, buffer);
       return buffer;
     } catch (e) {
-      // Un fichier manquant ne casse pas la démo : elle joue sans batterie.
-      buffers.set(file, null);
+      // Une panne ne casse pas la démo : elle joue sans batterie, mais on
+      // garde la raison pour pouvoir la montrer au lieu d'un silence inexpliqué.
+      lastError = `${file}.mp3 : ${e?.message || e}`;
       return null;
     }
+  }
+
+  /** Précharge les boucles d'un kit, pour que `start` n'ait plus à attendre. */
+  async function warm(kitName) {
+    const kit = typeof kitName === 'string' ? drumKitFor(kitName) : kitName;
+    if (!kit) return false;
+    const loaded = await Promise.all(kit.layers.map(([file]) => load(file)));
+    return loaded.every(Boolean);
   }
 
   function stopSources() {
@@ -152,10 +170,11 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
      * Démarre la boucle d'un genre ou d'un style. `fromBeat` = position de la
      * démo, pour que la boucle reparte en phase après un saut ou une reprise.
      */
-    async start({ kit = null, tempo = 100, rate = 1, fromBeat = 0 } = {}) {
+    async start({ kit = null, tempo = 100, rate = 1, fromBeat = 0, getBeat = null } = {}) {
       const found = typeof kit === 'string' ? drumKitFor(kit) : kit;
       stopSources();
-      if (!found) { current = null; return false; }
+      lastError = null;
+      if (!found) { current = null; lastError = `aucun kit pour « ${kit} »`; return false; }
       const token = ++loadToken;
       const ctx = getContext();
       // Un kit peut imposer son tempo (voir DRUM_KITS) ; sinon celui de la démo.
@@ -165,6 +184,11 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
       if (token !== loadToken) return false;
       const out = output();
       const startAt = ctx.currentTime + 0.03;
+      // [Claude] — 2026-11-04 — La position est relue APRÈS le décodage. Au
+      // premier lancement, décoder prend un instant : une position capturée
+      // avant laissait la batterie démarrer en retard d'autant, donc décalée
+      // du piano pour toute la démo. `getBeat` donne l'état réel à cet instant.
+      const beat = typeof getBeat === 'function' ? (Number(getBeat()) || 0) : fromBeat;
       let any = false;
       found.layers.forEach(([file, gain], i) => {
         const buffer = loaded[i];
@@ -185,12 +209,13 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
         source.connect(g).connect(out);
         // `offset` place la boucle là où en est la démo : la batterie ne
         // redémarre pas à zéro après une reprise ou un saut.
-        const offset = (((fromBeat % LOOP_BEATS) + LOOP_BEATS) % LOOP_BEATS) * (60 / natural);
+        const offset = (((beat % LOOP_BEATS) + LOOP_BEATS) % LOOP_BEATS) * (60 / natural);
         source.start(startAt, offset);
         sources.push(source);
         any = true;
       });
       current = any ? { kit: found, tempo: target, rate } : null;
+      if (!any && !lastError) lastError = 'aucune boucle du kit n\'a pu être décodée';
       return any;
     },
     stop() {
@@ -205,7 +230,15 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
       if (master) master.gain.value = volume;
     },
     volume: () => volume,
+    /** Précharge un kit : `start` n'aura plus rien à attendre. */
+    warm,
     /** Boucles déjà décodées (pour les tests et le diagnostic). */
     loaded: () => [...buffers.keys()].filter((k) => buffers.get(k)),
+    /**
+     * Pourquoi la batterie ne sonne pas, ou null si tout va bien. Un silence
+     * sans explication est le pire des retours : Narcisse a dû signaler
+     * lui-même « je ne l'entends pas » sans qu'aucune trace n'existe.
+     */
+    lastError: () => lastError,
   };
 }

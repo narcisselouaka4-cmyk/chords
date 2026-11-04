@@ -356,6 +356,8 @@
 .exercise-demo-drums.is-on { color: var(--tr-text, var(--text)); background: var(--tr-accent-soft, rgba(128,128,255,.14)); border-color: var(--tr-accent, var(--accent)); }
 /* Coupée : l'icône est barrée, pour que l'état se voie sans lire le libellé. */
 .exercise-demo-drums:not(.is-on) svg { opacity: .55; }
+/* Allumée mais sans son : l'état doit se voir, pas se deviner. */
+.exercise-demo-drums.is-silent { border-color: var(--tr-red, #e47575); color: var(--tr-red, #e47575); background: transparent; }
 .exercise-demo-drums:focus-visible { outline: 2px solid var(--tr-accent, var(--accent)); outline-offset: 2px; }
 .exercise-study-chords { font-family: var(--font-mono, monospace); }
 .exercise-study-archive { font-size: 11px; opacity: .65; }

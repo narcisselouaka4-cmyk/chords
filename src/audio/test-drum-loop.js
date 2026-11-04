@@ -108,4 +108,45 @@ const sansIPC = createDrumLoop({ getContext: () => fakeContext(), readFile: null
 check('Hors Electron, la démo tourne simplement sans batterie',
   (await sansIPC.start({ kit: 'salsa', tempo: 96 })) === false);
 
+// --- Les trois défauts du 04/11/2026, signalés par Narcisse (« je ne l'entends pas »).
+check('Un silence est toujours expliqué', typeof sansIPC.lastError() === 'string' && sansIPC.lastError().length > 0,
+  sansIPC.lastError());
+check('Un kit inconnu dit pourquoi', (await sansIPC.start({ kit: 'polka' })) === false && /polka/.test(sansIPC.lastError()));
+
+// Un échec ne doit PAS condamner la séance : dès que la lecture remarche, ça joue.
+let marche = false;
+const ctx2 = fakeContext();
+const capricieux = createDrumLoop({
+  getContext: () => ctx2,
+  readFile: async () => {
+    if (!marche) throw new Error('IPC pas encore prêt');
+    return { buffer: new ArrayBuffer(8), byteOffset: 0, byteLength: 8 };
+  },
+});
+check('Premier essai raté : pas de batterie, et la raison est gardée',
+  (await capricieux.start({ kit: 'salsa', tempo: 96 })) === false && /pas encore prêt/.test(capricieux.lastError()));
+marche = true;
+check('Second essai : la batterie repart (l\'échec n\'est pas gardé pour la séance)',
+  (await capricieux.start({ kit: 'salsa', tempo: 96 })) === true && capricieux.lastError() === null);
+
+// La phase est relue APRÈS le décodage, pas avant.
+const ctx3 = fakeContext();
+const tardif = createDrumLoop({
+  getContext: () => ctx3,
+  readFile: async () => {
+    await new Promise((r) => setTimeout(r, 5));
+    return { buffer: new ArrayBuffer(8), byteOffset: 0, byteLength: 8 };
+  },
+});
+let position = 0;
+const demarrage = tardif.start({ kit: 'salsa', tempo: 96, getBeat: () => position });
+position = 2;                       // la démo a avancé pendant le décodage
+await demarrage;
+const offsetTardif = Number(ctx3.started[0].offset.toFixed(3));
+check('La position est relue après décodage, donc la batterie entre à l\'heure',
+  offsetTardif === Number((2 * (60 / 104)).toFixed(3)), `offset ${offsetTardif}`);
+
+// Préchauffage : après warm(), plus rien à décoder.
+check('warm() décode le kit à l\'avance', (await tardif.warm('salsa')) === true && tardif.loaded().length === 2);
+
 console.log(`\n=== ${passed} vérifications de boucle de batterie ===`);
