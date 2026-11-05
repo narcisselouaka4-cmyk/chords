@@ -25,3 +25,34 @@ for(let shift=1;shift<12;shift++){
 console.log('✓ La grammaire se transpose sans identifiant de session ni horodatage dans le code de génération');
 const other=read('copilot-development-take.json');assert(buildPhraseArrangement(other.take||other));
 console.log('✓ Une autre prise produit un plan ; pas de rejeu conditionné à Session_017');
+
+const {sendCopilotMessage}=await import('./copilot-client.js');
+const {harmonicRewriteCoverage}=await import('./phrase-variants.js');
+const {refreshPlayingResult}=await import('./playing-advice.js');
+const {variantMessages}=await import('./copilot-tab.js');
+for(const message of ['Fais-moi entendre une proposition à partir de mon jeu.','Fais-moi des propositions','Transforme tous mes accords en gardant ma top note']){
+ // Nouvelle conversation : pas de référence ni de proposition dans l'historique.
+ const response=await sendCopilotMessage({message,messages:[],context:{type:'session',playing:{session:source}}});
+ const variants=response.toolResult.variants;assert(variants?.length>=2,message);
+ const main=variants.find(v=>v.id==='arrangement');assert(main&&main.advice.version===8);
+ for(let i=0;i<approved.plan.length;i++)assert.deepEqual(main.harmony[i].notes,approved.plan[i].notes,`${message} / position ${i}`);
+ for(const x of variants){const coverage=harmonicRewriteCoverage(source,x);assert(coverage.topPreserved&&coverage.ratio>=.8);}
+ assert.equal(new Set(variants.map(v=>JSON.stringify(v.example.events))).size,variants.length);
+ const persisted=JSON.parse(JSON.stringify(response.toolResult));assert(refreshPlayingResult(persisted));
+ assert.equal(variantMessages({role:'assistant',toolResult:persisted}).length,variants.length);
+}
+console.log('✓ Nouvelle conversation via le client normal : 16 positions de référence présentes, deux versions différentes, au moins 80 % des positions transformées, top notes conservées et cartes persistées');
+const strong=await sendCopilotMessage({message:'Enrichis mon jeu',messages:[],context:{type:'session',playing:{session:source}}});
+const old={...strong.toolResult,proposalPolicy:undefined};
+const follow=await sendCopilotMessage({message:'Fais-moi entendre un exemple',messages:[{role:'assistant',toolResult:old}],context:{type:'session',playing:{session:source}}});
+assert.equal(follow.toolResult.proposalPolicy,8);
+console.log('✓ Une ancienne réponse sans la nouvelle politique est recalculée, pas recyclée silencieusement');
+
+for(const file of ['copilot-development-take.json','copilot-approved-links.json','copilot-arpeggiated-take.json']){
+ const data=read(file),take=data.take||data,before=JSON.stringify(take);
+ const r=await sendCopilotMessage({message:'Fais-moi des propositions',messages:[],context:{type:'session',playing:{session:take}}});
+ assert(r.toolResult.variants?.length,file);
+ for(const x of r.toolResult.variants){const c=harmonicRewriteCoverage(take,x);assert(c.ratio>=.8&&c.topPreserved,file);}
+ assert.equal(JSON.stringify(take),before);
+}
+console.log('✓ Trois autres prises dans le client normal : majorité retravaillée, top notes exactes, originaux intacts');

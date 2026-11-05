@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buildPlayingVariants,personalVariantsAnswer} from './playing-variants.js';
-import {fixedFrames,harmonyVoicings} from './fixed-harmony.js';
+import {fixedFrames,harmonyVoicings,buildFixedHarmonyVariants} from './fixed-harmony.js';
 import {applyTakeEdit,notePairs} from './take-edit.js';
 import {refreshPlayingResult} from './playing-advice.js';
 import {variantMessages} from './copilot-tab.js';
@@ -16,11 +16,13 @@ const take=blockTake([[48,55,60,64],[50,57,60,65],[52,59,62,67]]);
 const context={playing:{passage:take}};
 const message='En do majeur, enrichis mes accords, uniquement des accords fixes';
 const variants=buildPlayingVariants(take,{message});
+const fixedCandidates=buildFixedHarmonyVariants(take,{message});
+assert(!variants.some(v=>v.id==='enrich'),'Le candidat ne changeant qu’un accord sur trois est écarté');
 let count=0;async function check(title,test){await test();count++;console.log(`✓ ${title}`);}
 await check('Les propositions sont des voicings fixes réellement distincts',()=>{
  assert(variants.length>=2);
  assert.equal(new Set(variants.map(v=>JSON.stringify(v.example.events))).size,variants.length);
- assert(variants.every(v=>v.advice.edit.type==='fixed-harmony'));
+ assert(variants.every(v=>['fixed-harmony','arrangement'].includes(v.advice.edit.type)));
  assert(variants.every(v=>v.advice.changes.every(p=>p.goal==='enrich')));
  assert(variants.every(v=>!/liaison|arpege|mouvement/i.test(v.title)));
 });
@@ -58,15 +60,15 @@ await check('Aucun nouvel instant, arpège, approche ou accord inséré entre de
   assert(v.example.beats===take.duration);
  }
 });
-await check('La version conservatrice garde les classes de basse originales',()=>{
- const v=variants.find(v=>v.id==='enrich');assert(v);
+await check('Le candidat conservateur garde les basses, même s’il est filtré des propositions trop faibles',()=>{
+ const v=fixedCandidates.find(v=>v.id==='enrich');assert(v);
  for(const f of v.advice.edit.frames){
   const original=f.source.map(i=>take.events[i].note);
   assert.equal(pc(Math.min(...f.notes)),pc(Math.min(...original)));
  }
 });
 await check('Le diminué sous Fa est la partie supérieure de Mi7b9, suivi de Lam9 sous Sol',()=>{
- const v=variants.find(v=>v.id==='resolution');assert(v);
+ const v=fixedCandidates.find(v=>v.id==='resolution');assert(v);
  const tension=v.advice.changes.find(c=>c.chord.includes('sans fondamentale'));
  assert(tension);assert.equal(tension.topMidi,65);assert.equal(tension.technique,'drop2');
  assert.deepEqual(new Set(tension.notes.map(pc)),new Set([8,11,2,5]));
@@ -102,9 +104,9 @@ await check('Les basses chromatiques explicites sont respectées et ne deviennen
  assert(vs.length);assert.equal(pc(vs[0].advice.edit.frames[1].notes[0]),6);
 });
 await check('Une contrainte de dessus falsifiée ou un accord mal nommé est refusé',()=>{
- const edit=structuredClone(variants[0].advice.edit);
+ const edit=structuredClone(fixedCandidates[0].advice.edit);
  edit.frames[0].notes.push(76);assert.equal(applyTakeEdit(take,edit),null);
- const wrong=structuredClone(variants[0].advice.edit);
+ const wrong=structuredClone(fixedCandidates[0].advice.edit);
  wrong.frames[0].quality='dim7';assert.equal(applyTakeEdit(take,wrong),null);
 });
 await check('La copie JSON et la réouverture gardent chaque lecteur et son plan fixe',()=>{
@@ -141,7 +143,7 @@ await check('Les deux prises réelles restent utilisables sans nouveaux instants
 });
 await check('La règle de résolution se transpose et conserve les hauteurs cibles exactes',()=>{
  const shifted={...take,events:take.events.map(e=>({...e,note:e.note+1}))};
- const vs=buildPlayingVariants(shifted,{message:'En réb majeur, enrichis mes accords'});
+ const vs=buildFixedHarmonyVariants(shifted,{message:'En réb majeur, enrichis mes accords'});
  const v=vs.find(v=>v.id==='resolution');assert(v);
  assert(v.harmony.some(c=>c.topMidi===66&&c.chord.includes('sans fondamentale')));
  assert(v.harmony.some(c=>c.topMidi===68&&pc(c.bassMidi)===10));

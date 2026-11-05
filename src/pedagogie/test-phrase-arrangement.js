@@ -31,7 +31,7 @@ const noPedal=buildPhraseArrangement(t,{message:'Améliore sans pédale'});asser
 const sustain={...t,events:[{type:'control',controller:64,value:127,time:0},...t.events,{type:'control',controller:64,value:0,time:t.duration}]};
 const kept=buildPhraseArrangement(sustain);assert(kept);assert.equal(kept.advice.edit.pedal.length,0);assert(!kept.harmony.some(h=>h.kind==='dominant'));
 const bass=buildPhraseArrangement(t,{message:'Garde ma basse'});if(bass)assert(!bass.harmony.some(h=>h.goal==='passing'));assert(buildPhraseVariants(t,{message:'Améliore mon jeu, garde ma basse'}).length);assert.equal(buildPhraseArrangement(t,{latin:true}),null);
-assert.equal(buildPhraseArrangement(t,{message:'uniquement des accords fixes'}),null);
+const fixed=buildPhraseArrangement(t,{message:'uniquement des accords fixes'});assert(fixed);assert(fixed.harmony.every(h=>['enrich','original'].includes(h.kind)));
 assert.equal(buildPhraseArrangement(t,{message:'Basses : Do Fa Ré Sol'}),null);
 assert.equal(buildPhraseArrangement({duration:1,events:t.events.slice(0,2)}),null);
 assert.equal(applyTakeEdit(t,{...v.advice.edit,remove:[...v.advice.edit.remove,v.advice.edit.keep[0]]}),null);
@@ -39,10 +39,11 @@ assert.equal(applyTakeEdit(t,{...v.advice.edit,pedal:[{time:0,value:127}]}),null
 assert.equal(applyTakeEdit(t,{...v.advice.edit,notes:[{note:120,time:0,end:1,velocity:.4}]}),null);
 console.log('✓ Contraintes de basse, pédale, accords fixes et Latin ; refus des plans corrompus et prises insuffisantes');
 const saved=JSON.parse(JSON.stringify({example:v.example,playingAdvice:v.advice}));assert(refreshPlayingResult(saved));assert.deepEqual(applyTakeEdit(t,saved.playingAdvice.edit).events,changed.events);
-const first=buildPhraseVariants(t,{message:'Améliore mon jeu'});assert(first.every(v=>v.id!=='arrangement'));
-const session=await sendCopilotMessage({message:'Améliore mon jeu',messages:[],context:{type:'session',playing:{session:t}}});assert(session.toolResult.variants.every(v=>v.id!=='arrangement'));
-const hearRejected=await sendCopilotMessage({message:'Fais-moi entendre un exemple',context:{playing:{passage:t}},messages:[{role:'assistant',toolResult:{originalTake:t,example:v.example,playingAdvice:v.advice,variants:[v]}}]});assert(hearRejected.toolResult.variants.every(v=>v.id!=='arrangement'));
-console.log('✓ Essai écarté des propositions et relances, session et persistance des données de recherche');
+const first=buildPhraseVariants(t,{message:'Améliore mon jeu'});assert(first.some(v=>v.id==='arrangement'&&v.advice.version===8));
+const session=await sendCopilotMessage({message:'Améliore mon jeu',messages:[],context:{type:'session',playing:{session:t}}});assert(session.toolResult.variants.some(v=>v.id==='arrangement'&&v.advice.version===8));
+const legacy={...v,advice:{...v.advice,version:6}};
+const hearRejected=await sendCopilotMessage({message:'Fais-moi entendre un exemple',context:{playing:{passage:t}},messages:[{role:'assistant',toolResult:{originalTake:t,example:v.example,playingAdvice:legacy.advice,variants:[legacy]}}]});assert(hearRejected.toolResult.variants.some(v=>v.id==='arrangement'&&v.advice.version===8));assert(hearRejected.toolResult.variants.every(v=>v.advice.version!==6));
+console.log('✓ Version 8 exposée dans le parcours normal, version 6 rejetée jamais réutilisée, session et persistance');
 
 for(const file of ['copilot-development-take.json','copilot-approved-links.json','copilot-arpeggiated-take.json']){
  const data=JSON.parse(fs.readFileSync(new URL('./fixtures/'+file,import.meta.url))),source=data.take||data;
@@ -54,4 +55,4 @@ console.log('✓ Trois autres prises réelles, arpèges protégés, collection d
 
 const random=await sendCopilotMessage({message:"J'ai joué n'importe quoi, améliore mon jeu",messages:[],context:{playing:{passage:t}}});assert.equal(random.toolResult.example,null);console.log('✓ Une exploration déclarée au hasard ne reçoit pas un arrangement présenté comme une analyse musicale');
 
-assert.equal(variantMessages({toolResult:{playingAdvice:v.advice,example:v.example}}).length,0);assert.equal(variantMessages({toolResult:{variants:[v]}}).length,0);console.log('✓ Cartes rejetées masquées aussi dans les anciens historiques');
+assert.equal(variantMessages({toolResult:{playingAdvice:legacy.advice,example:legacy.example}}).length,0);assert.equal(variantMessages({toolResult:{variants:[legacy]}}).length,0);console.log('✓ Cartes rejetées masquées aussi dans les anciens historiques');

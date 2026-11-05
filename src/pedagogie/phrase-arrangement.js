@@ -46,17 +46,17 @@ function qualityChoices(f){
   return ['maj9','6/9','maj7'];
 }
 
-function choose(f,rootPc,qualities,previous,melody,start,end,{preserveBass=false,target=null,palette=null}={}){
+function choose(f,rootPc,qualities,previous,melody,start,end,{preserveBass=false,target=null,palette=null,reference=true}={}){
   const sounding=melody.filter(p=>p.event.time<end&&p.end>start);
   const checkpoints=[start,...sounding.flatMap(p=>[p.event.time,p.end]).filter(t=>t>start&&t<end)];
   const tops=checkpoints.map(t=>sounding.filter(p=>p.event.time<=t+.00001&&p.end>t+.00001)
     .map(p=>p.event.note).filter(n=>n>f.bassMidi+5)).filter(ns=>ns.length).map(ns=>Math.max(...ns));
   const ceiling=Math.min(f.topMidi,...tops);
-  const reference=referenceVoicing(f,rootPc,qualities,ceiling,target);
-  if(reference&&(!preserveBass||pc(reference.notes[0])===pc(f.bassMidi))
-    &&(palette==null||reference.notes.every(n=>[0,2,4,5,7,9,11].some(i=>pc(palette+i)===pc(n))))) {
+  const preferred=reference&&referenceVoicing(f,rootPc,qualities,ceiling,target);
+  if(preferred&&(!preserveBass||pc(preferred.notes[0])===pc(f.bassMidi))
+    &&(palette==null||preferred.notes.every(n=>[0,2,4,5,7,9,11].some(i=>pc(palette+i)===pc(n))))) {
     const fun=target?{kind:'dominant',targetRootPc:target.rootPc}:null;
-    if(!target||resolvingVoices({...reference,function:fun},target))return {...reference,function:fun};
+    if(!target||resolvingVoices({...preferred,function:fun},target))return {...preferred,function:fun};
   }
   const candidates=[];
   // Un dessus joué pendant la fenêtre reste la limite réelle du voicing.
@@ -75,16 +75,17 @@ function choose(f,rootPc,qualities,previous,melody,start,end,{preserveBass=false
 }
 
 /** Une version construite sur la phrase ; les autres cartes restent disponibles. */
-export function buildPhraseArrangement(take,{message='',latin=false}={}){
+export function buildPhraseArrangement(take,{message='',latin=false,voicingMode='open'}={}){
   const text=plain(message);
-  if(latin||/sans (?:aucun )?mouvement|pas de mouvements|(?:uniquement|seulement).*accords? (?:fixes|enrichis)|basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text))return null;
+  if(latin||/basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text))return null;
+  const fixedOnly=/sans (?:aucun )?(?:mouvement|passage|ajout rythmique)|(?:uniquement|seulement).*accords? (?:fixes|enrichis)|pas de mouvements?/.test(text);
   const frames=arrangementFrames(take);if(frames.length<3||frames.length>48)return null;
   const pairs=notePairs(take.events);
   const remove=new Set(frames.flatMap(f=>f.accompaniment.map(p=>p.on)));
   const keepBass=/garde.*basse|conserv.*basse|ne change pas.*basse|bassiste|sans ajouter de basse|basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text);
   if(keepBass)for(const f of frames){const bass=f.source.find(p=>p.event.note===f.bassMidi);if(bass)remove.delete(bass.on);}
   const melody=pairs.filter(p=>!remove.has(p.on));
-  const noPassing=keepBass||/sans reharmonis|garde.*accords|conserv.*accords/.test(text)||/sans (?:accords? de )?passages?|pas d['’]accords? de passage|sans mouvement/.test(text);
+  const noPassing=fixedOnly||keepBass||/sans reharmonis|garde.*accords|conserv.*accords/.test(text)||/sans (?:accords? de )?passages?|pas d['’]accords? de passage|sans mouvement/.test(text);
   // Les CC de l'utilisateur restent sa référence : pas de remplacement arbitraire.
   const hasPedal=take.events.some(e=>e.type==='control'&&e.controller===64);
   const statedKey=extractKey(message)||extractKey(`en ${take.key||''}`);
@@ -110,7 +111,7 @@ export function buildPhraseArrangement(take,{message='',latin=false}={}){
     const oldEnd=end;
     if(arp)end=Math.min(end,arp.event.time-.11);
     else if(later.some(p=>p.event.note===f.topMidi))end=Math.min(end,f.top.end-.06);
-    const v=choose(f,f.chord.rootPc,((palette!=null&&pc(f.chord.rootPc-palette)===7&&!minor(f.chord.quality))?['13','9','7']:qualityChoices(f)),previous?.notes,melody,f.at,end,{preserveBass:keepBass,palette});
+    const v=choose(f,f.chord.rootPc,((palette!=null&&pc(f.chord.rootPc-palette)===7&&!minor(f.chord.quality))?['13','9','7']:qualityChoices(f)),previous?.notes,melody,f.at,end,{preserveBass:keepBass,palette,reference:voicingMode!=='linked'});
     if(!v||(keepBass&&v.notes[0]!==f.bassMidi)){
       // Une position non résolue ne fait pas disparaître toute la phrase :
       // garder exactement cet accord et travailler les autres destinations.
@@ -119,7 +120,7 @@ export function buildPhraseArrangement(take,{message='',latin=false}={}){
       previous={notes:f.notes};continue;
     }
     segments.push({at:f.at,end,frame:f,...v,kind:'enrich'});
-    if(arp){
+    if(arp&&!fixedOnly){
       const bass=Math.min(...v.notes), shell=[bass,bass+10,bass+14];
       if(minor(v.quality)&&shell.every(n=>n<f.topMidi))segments.push({at:arp.event.time-.06,end:Math.min(oldEnd-.12,arp.end+1.6),frame:f,rootPc:v.rootPc,quality:v.quality,notes:shell,label:v.label,kind:'arp-support'});
     }
@@ -178,6 +179,12 @@ export function buildPhraseArrangement(take,{message='',latin=false}={}){
     for(const n of s.notes){
       if(keepBass&&n===s.frame.bassMidi)continue;
       const overlap=melody.filter(p=>p.event.note===n&&p.event.time<s.end&&p.end>s.at);
+      if(fixedOnly&&overlap.length){
+        // En mode fixe, ne pas réattaquer une voix après une note source de même hauteur.
+        const end=Math.min(s.end,...overlap.map(p=>p.event.time-.025));
+        if(end-s.at>=.12)notes.push({note:n,time:s.at,end,velocity:v});
+        continue;
+      }
       let cursor=s.at;
       // Une note originale de même hauteur est prioritaire ; aucun doublon MIDI.
       for(const p of overlap.sort((a,b)=>a.event.time-b.event.time)){
@@ -199,10 +206,11 @@ export function buildPhraseArrangement(take,{message='',latin=false}={}){
   const edit={type:'arrangement',remove:[...remove],keep:melody.map(p=>p.on),notes,pedal};
   const changed=applyTakeEdit(take,edit);if(!changed)return null;
   const example=comparedTakeExample(take,changed);if(!example)return null;
-  const title='Une progression construite';
-  const description=count?'Des accords enrichis et des tensions qui préparent les arrivées, sous ta mélodie.'
+  const id=voicingMode==='linked'?'arrangement-linked':'arrangement';
+  const title=voicingMode==='linked'?'Voix intérieures liées':'Une progression reconstruite';
+  const description=voicingMode==='linked'?'Une autre disposition des accords sous ta mélodie, avec des tensions vers les arrivées.':count?'L’accompagnement est reconstruit sous ta mélodie, avec des tensions vers les arrivées.'
     :'Des accords enrichis sur la phrase, en gardant tes notes mélodiques.';
   const changes=segments.map(s=>({at:s.at,end:s.end,chord:s.label,notes:s.notes,goal:s.kind==='original'?'preserved':['enrich','arp-support'].includes(s.kind)?'enrich':'passing',kind:s.kind,targetAt:s.targetAt}));
-  const advice={version:6,id:'phrase:arrangement',goal:'develop',take,edit,changes,text:description};
-  return {id:'arrangement',title,description,advice,harmony:changes,example:{...example,title,subtitle:description}};
+  const advice={version:8,id:`phrase:${id}`,goal:'develop',take,edit,changes,text:description};
+  return {id,title,description,advice,harmony:changes,example:{...example,title,subtitle:description}};
 }
