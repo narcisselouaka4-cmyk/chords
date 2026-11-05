@@ -519,31 +519,41 @@
           </div>
         </div>
 
-        <div class="tr-overlay tr-drawer-overlay" id="exercise-library" hidden>
-          <div class="tr-dialog tr-dialog-wide tr-drawer exercise-library" role="dialog" aria-modal="true" aria-label="Bibliothèque harmonique">
-            <div class="tr-dialog-title">
-              <div class="exercise-library-heading">
-                <h2>Bibliothèque harmonique</h2>
-                <p>Une progression pose le cadre. Un passage relie deux points. Chaque étude possède son propre phrasé.</p>
-              </div>
-              <button class="tr-icon-button" type="button" id="exercise-library-close" data-astra-close aria-label="Fermer la bibliothèque">✕</button>
+        <!-- [Claude] — 2026-11-05 — La bibliothèque n'est plus une FENÊTRE : c'est une
+             PAGE de l'onglet, sur le fond Velours. Narcisse : « le panneau faut
+             l'enlever. Il faut qu'il y ait comme fond la fonction velours », et
+             « normalement, la bibliothèque doit être présentée comme ça » — comme la
+             scène du mode Solo, qu'il a retenue pour sa présentation.
+             C'est le même mouvement que pour la bibliothèque de l'Analyse le 23/10,
+             où la fenêtre floutée avait déjà été refusée (voir #library-modal).
+             Deux colonnes : les études à gauche, celle qu'on regarde à droite. Une
+             flèche pour quitter et revenir directement aux accords. -->
+        <section class="exercise-library-page" id="exercise-library" hidden aria-labelledby="exercise-library-title">
+          <div class="exercise-library-box">
+            <div class="exercise-library-topbar">
+              <button type="button" class="exercise-library-back" id="exercise-library-close" aria-label="Quitter la bibliothèque et revenir aux accords"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg><span>Retour aux accords</span></button>
+              <!-- Le style d'écoute des aperçus reste disponible : il n'a pas été
+                   demandé de le retirer, seulement de désencombrer les descriptions. -->
+              <label class="exercise-library-style"><span>Écoute</span><select id="exercise-library-style" data-demo-style aria-label="Écoute des aperçus"></select></label>
             </div>
-            <div class="tr-dialog-body exercise-library-body">
-              <!-- [Claude] — 2026-10-16 (soir) — Le formulaire « Ma grille » a quitté la
-                   bibliothèque : il vit dans sa propre fenêtre (#exercise-grid-dialog),
-                   ouverte par le bouton « Ma grille » de l'onglet. Narcisse : « la mettre
-                   tout en haut comme ça, ça ne passe pas du tout… sortons-le de la
-                   bibliothèque et voyons ce que ça donne ». -->
-              <div class="tr-library-toolbar exercise-library-toolbar">
-                <label class="tr-search exercise-library-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="exercise-library-search" placeholder="Rechercher un procédé, une arrivée…" aria-label="Rechercher une étude"></label>
-                <div class="exercise-library-categories" id="exercise-library-categories" role="group" aria-label="Catégories"></div>
-                <div class="exercise-library-panels" id="exercise-library-panels" role="group" aria-label="Panneaux de la catégorie" hidden></div>
-                <label class="exercise-library-style"><span>Écoute des aperçus</span><select id="exercise-library-style" data-demo-style aria-label="Écoute des aperçus"></select></label>
-              </div>
+
+            <div class="exercise-library-list" role="group" aria-label="Études">
+              <span class="tr-eyebrow" id="exercise-library-title">BIBLIOTHÈQUE</span>
+              <label class="exercise-library-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="exercise-library-search" placeholder="Rechercher…" aria-label="Rechercher une étude"></label>
+              <div class="exercise-library-categories" id="exercise-library-categories" role="group" aria-label="Catégories"></div>
+              <div class="exercise-library-panels" id="exercise-library-panels" role="group" aria-label="Panneaux de la catégorie" hidden></div>
               <div class="exercise-library-grid" id="exercise-library-grid"></div>
             </div>
+
+            <!-- L'étude qu'on regarde. Une seule ligne de description — « ce que
+                 c'est » — et les actions. Narcisse : « tu as trop écrit dans les
+                 descriptions. Ce que ça donne, on veut pas le savoir. Comment t'y
+                 mettre, on veut pas le savoir. Le détail, on veut même pas le
+                 savoir. À la limite, ce qu'on peut garder, c'est l'intitulé ce que
+                 c'est. » -->
+            <div class="exercise-library-detail" id="exercise-library-detail"></div>
           </div>
-        </div>
+        </section>
 
         <!-- « Ma grille » (16/10/2026, soir) : sa PROPRE fenêtre, ouverte par le bouton de
              l'onglet Exercices. Narcisse : « le mini-keyboard est horrible… c'était bien

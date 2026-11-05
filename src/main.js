@@ -2127,6 +2127,9 @@ function initPracticeExercise() {
   let gridDeleteArmed = null;
   let gridDeleteTimer = null;
   let librarySearch = '';
+  // [Claude] — 2026-11-05 — L'étude affichée dans le panneau de droite. La page
+  // montre une liste ET ce qu'on regarde : il faut savoir laquelle.
+  let librarySelected = null;
 
   function escapeHtml(str) {
     return String(str)
@@ -2284,56 +2287,86 @@ function initPracticeExercise() {
     els.exerciseLibraryGrid.innerHTML = items.length === 0
       ? `<div class="exercise-library-empty">${empty}</div>`
       : items.map((item, i) => renderLibraryCard(item, i, current)).join('');
+    // [Claude] — 2026-11-05 — La page montre l'étude qu'on regarde à droite.
+    // Si celle qui était choisie sort de la liste (recherche, changement de
+    // catégorie), on prend la première plutôt que de laisser un vide.
+    if (!items.some((i) => i.id === librarySelected)) librarySelected = items[0]?.id || null;
+    renderLibraryDetail(items.find((i) => i.id === librarySelected) || null, current);
   }
 
   /**
-   * [Claude] — 2026-10-16 (soir) — Une carte de la bibliothèque, SIMPLE. Narcisse : « il y a
-   * beaucoup trop de détails sur les cartes, c'est pas assez simple… il faut simplifier mille
-   * fois », « les bulles avec les suites d'accords, ça ne rend pas du tout », « quand on clique
-   * c'est encore pire : on voit des V7, des I7, c'est totalement illisible ». Une carte dit
-   * UNE chose — ce que c'est, en une phrase — et propose de l'écouter. Les accords en Do,
-   * l'effet à l'oreille, le dépliant et sa théorie en degrés, les étoiles et les points :
-   * retirés. Les données, elles, restent entières dans le JSON et dans la recherche (chercher
-   * « Dm7 » trouve toujours les mouvements qui le contiennent) ; le moteur de jeu et le Copilote
-   * s'en servent tels quels.
+   * [Claude] — 2026-11-05 — L'étude qu'on regarde, à droite de la liste.
+   *
+   * Narcisse, sur la présentation du mode Solo qu'il a retenue : « tu as trop
+   * écrit dans les descriptions. Ce que ça donne, on veut pas le savoir. Comment
+   * t'y mettre, on veut pas le savoir. Le détail, on veut même pas le savoir. À
+   * la limite, ce qu'on peut garder, c'est l'intitulé ce que c'est. »
+   *
+   * Donc UNE ligne : « ce que c'est ». `sound` (ce que ça donne), `use` (comment
+   * t'y mettre), `description` et `focus` (le détail) ne sont plus affichés —
+   * ils restent dans le JSON, dans la recherche et à disposition du Copilote.
+   */
+  function renderLibraryDetail(item, current) {
+    const host = document.getElementById('exercise-library-detail');
+    if (!host) return;
+    if (!item) { host.innerHTML = ''; return; }
+    const isCurrent = item.name === current;
+    const quoi = item.context || '';
+    host.innerHTML = `
+      <span class="tr-eyebrow">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)}</span>
+      <h2 class="exercise-library-detail-name">${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</h2>
+      ${item.route ? `<p class="exercise-library-detail-route">${escapeHtml(item.route)}</p>` : ''}
+      ${quoi ? `<div class="exercise-library-what"><span class="exercise-library-what-label">Ce que c'est</span><p>${escapeHtml(quoi)}</p></div>` : ''}
+      <div class="exercise-library-detail-actions">
+        <button type="button" class="tr-button tr-primary" data-study-select="${escapeAttr(item.id)}">Travailler</button>
+        <button type="button" class="tr-button exercise-library-play${previewId === item.id ? ' is-playing' : ''}" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${previewId === item.id ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${previewId === item.id ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${previewId === item.id ? 'Arrêter' : 'Écouter'}</span></button>
+        ${item.grid ? `<button type="button" class="tr-button" data-grid-load="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Modifier la grille ${item.name}`)}">Modifier</button>
+        <button type="button" class="tr-button is-danger${gridDeleteArmed === item.id ? ' is-armed' : ''}" data-grid-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Supprimer la grille ${item.name}`)}">${gridDeleteArmed === item.id ? 'Confirmer' : 'Supprimer'}</button>` : ''}
+      </div>`;
+  }
+
+  /**
+   * Une entrée de la LISTE : catégorie, nom, et la route en une ligne. Rien d'autre.
+   *
+   * [Claude] — 2026-10-16 (soir) — Premier allègement : « il y a beaucoup trop de détails sur
+   * les cartes… il faut simplifier mille fois » ; les suites d'accords, le dépliant théorique,
+   * les étoiles et les points étaient partis.
+   * [Claude] — 2026-11-05 — Second allègement, sur le modèle du mode Solo que Narcisse a
+   * retenu : la carte devient un bouton de liste, et la phrase de contexte comme les actions
+   * passent dans le panneau de droite (renderLibraryDetail). Une carte ne porte plus qu'une
+   * identité ; on clique, et on lit à côté.
+   * Les données restent entières dans le JSON et dans la recherche (chercher « Dm7 » trouve
+   * toujours les mouvements qui le contiennent) ; le moteur de jeu et le Copilote s'en servent
+   * tels quels.
    */
   function renderLibraryCard(item, i, current) {
     const isCurrent = item.name === current;
-    const phrase = item.context || item.sound || '';
-    const references = item.provenance?.sources || [];
-    const details = item.focus ? `<details class="exercise-study-reference"><summary>Comprendre cette étude</summary>
-      <p>${escapeHtml(item.focus)}</p><p class="exercise-study-chords">En Do : ${escapeHtml(item.chords.join(' → '))}</p>
-      <p>${escapeHtml(item.provenance.label)}. La source documente le procédé ; cette écoute est une réalisation composée pour l’application.</p>
-      ${references.map((s) => `<a href="${escapeAttr(s.url)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(s.supports)}">${escapeHtml(s.title)} ↗</a>`).join('')}
-      </details>` : item.kind === 'archive' ? '<p class="exercise-study-archive">Grille conservée, sans interprétation documentée.</p>' : '';
-    return `<article class="exercise-library-card${isCurrent ? ' is-current' : ''}${item.grid ? ' is-perso' : ''}" data-id="${escapeAttr(item.id)}" style="--i:${i}" aria-label="${escapeAttr(item.grid ? `${item.name}, grille perso` : item.name)}">
-            <div class="exercise-library-card-header">
-              <span class="exercise-library-card-category">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)}</span>
-              ${item.grid
-    ? `<span class="exercise-library-card-count">${item.grid.chords.length} accord${item.grid.chords.length > 1 ? 's' : ''}</span>`
-    : `<span class="exercise-library-card-count">${item.chords.length} accords</span>`}
-            </div>
-            <h4>${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</h4>
-            ${item.route ? `<p class="exercise-study-route">${escapeHtml(item.route)}</p>` : ''}
-            ${phrase ? `<p class="exercise-library-context">${escapeHtml(phrase)}</p>` : ''}
-            ${details}
-            <div class="exercise-library-card-actions">
-              <button type="button" class="exercise-library-grid-action" data-study-select="${escapeAttr(item.id)}">Travailler</button>
-              <button type="button" class="exercise-library-play${previewId === item.id ? ' is-playing' : ''}" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${previewId === item.id ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${previewId === item.id ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${previewId === item.id ? 'Arrêter' : 'Écouter'}</span></button>
-              ${item.grid ? `<button type="button" class="exercise-library-grid-action" data-grid-load="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Modifier la grille ${item.name}`)}">Modifier</button>
-              <button type="button" class="exercise-library-grid-action is-danger${gridDeleteArmed === item.id ? ' is-armed' : ''}" data-grid-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Supprimer la grille ${item.name}`)}">${gridDeleteArmed === item.id ? 'Confirmer' : 'Supprimer'}</button>` : ''}
-            </div>
-          </article>`;
+    const selected = item.id === librarySelected;
+    return `<button type="button" class="exercise-library-card${isCurrent ? ' is-current' : ''}${item.grid ? ' is-perso' : ''}${selected ? ' is-selected' : ''}" data-id="${escapeAttr(item.id)}" style="--i:${i}" aria-pressed="${selected}" aria-label="${escapeAttr(item.grid ? `${item.name}, grille perso` : item.name)}">
+            <span class="exercise-library-card-category">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)}</span>
+            <strong class="exercise-library-card-name">${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</strong>
+            ${item.route ? `<span class="exercise-library-card-route">${escapeHtml(item.route)}</span>` : ''}
+          </button>`;
   }
 
 
   /** Prépare le contenu ; l'ouverture elle-même est faite par astra-shell.js (data-astra-open). */
+  /** La vue qui porte la page : c'est elle qui s'efface derrière la bibliothèque. */
+  const exerciseView = () => document.getElementById('practice-view-exercices');
+
   function openLibrary() {
     libraryCategory = null;
     librarySearch = '';
     libraryPanel = '';
+    librarySelected = null;
     if (els.exerciseLibrarySearch) els.exerciseLibrarySearch.value = '';
+    // [Claude] — 2026-11-05 — Plus de fenêtre : la bibliothèque est une PAGE de
+    // l'onglet, sur le fond Velours. Le reste de la vue s'efface derrière elle
+    // (classe sur la vue), comme la bibliothèque de l'Analyse depuis le 23/10.
+    if (els.exerciseLibrary) els.exerciseLibrary.hidden = false;
+    exerciseView()?.classList.add('library-page-open');
     renderLibrary();
+    els.exerciseLibrarySearch?.focus();
     // [Claude] — 2026-11-04 — On décode les boucles pendant qu'il choisit son
     // étude : à la première écoute, la batterie doit entrer en même temps que
     // le piano, pas après le temps de décodage.
@@ -2346,8 +2379,11 @@ function initPracticeExercise() {
 
   function closeLibrary() {
     if (!els.exerciseLibrary || els.exerciseLibrary.hidden) return;
-    // Fermer par le contrôleur commun rend le focus et libère la navigation clavier.
-    els.exerciseLibrary.querySelector('[data-astra-close]')?.click();
+    // Un aperçu en cours n'a plus de raison de sonner quand on quitte la page.
+    if (demoContext?.kind === 'preview') demoPlayer.stop();
+    els.exerciseLibrary.hidden = true;
+    exerciseView()?.classList.remove('library-page-open');
+    els.exerciseLibraryBtn?.focus();
   }
 
   /** Passe en mode Mouvement si besoin (après confirmation si un exercice est en cours). */
@@ -2369,8 +2405,16 @@ function initPracticeExercise() {
     render();
   }
 
-  els.exerciseLibraryBtn?.setAttribute('data-astra-open', 'exercise-library');
   els.exerciseLibraryBtn?.addEventListener('click', openLibrary);
+  document.getElementById('exercise-library-close')?.addEventListener('click', closeLibrary);
+  // Échap quitte la page, comme il fermait la fenêtre. Limité à l'onglet visible
+  // et à la page ouverte, pour ne pas voler le raccourci ailleurs.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || els.exerciseLibrary?.hidden) return;
+    if (document.querySelector('.tr-overlay:not([hidden])')) return; // une vraie fenêtre est au-dessus
+    e.preventDefault();
+    closeLibrary();
+  });
 
   // ── Ma grille : accords choisis un par un (fondamentale + qualité) ──
   // [Claude] — 2026-09-24 — Narcisse : « pas pratique d'écrire, mieux de
@@ -2687,11 +2731,14 @@ function initPracticeExercise() {
     renderLibrary();
   });
 
-  const pickLibraryCard = (card) => {
-    const item = getLibraryItems().find((i) => i.id === card.dataset.id);
+  const pickLibraryCard = (id) => {
+    const item = getLibraryItems().find((i) => i.id === id);
     if (item) selectLibraryCard(item);
   };
-  els.exerciseLibraryGrid?.addEventListener('click', (e) => {
+  // [Claude] — 2026-11-05 — Un seul écouteur pour toute la page : les actions ont
+  // quitté les cartes pour le panneau de droite, et deux écouteurs auraient
+  // dupliqué la même logique de part et d'autre.
+  els.exerciseLibrary?.addEventListener('click', (e) => {
     const play = e.target.closest('[data-preview]');
     if (play) {
       togglePreview(play.dataset.preview);
@@ -2733,7 +2780,15 @@ function initPracticeExercise() {
       return;
     }
     const choose = e.target.closest('[data-study-select]');
-    if (choose) pickLibraryCard(choose.closest('.exercise-library-card'));
+    if (choose) { pickLibraryCard(choose.dataset.studySelect); return; }
+    // Un clic dans la liste change seulement ce qu'on regarde. Charger une étude
+    // reste un acte explicite (« Travailler »), comme pour les morceaux du Studio
+    // depuis le 14/10 : un clic sélectionne, un bouton confirme.
+    const card = e.target.closest('.exercise-library-card');
+    if (card?.dataset.id && card.dataset.id !== librarySelected) {
+      librarySelected = card.dataset.id;
+      renderLibrary();
+    }
   });
 
   // ── Démo des mouvements ──

@@ -1423,8 +1423,17 @@ function checkCardDemoAdditions() {
   const hands = (html.match(/exercise-hand-notes">([^<]*)</g) || []).join(' ');
   check('Cases des mains : le voicing de l\'exercice seul (pas la basse de la démo)', hands.length > 0 && !hands.includes('D2') && !hands.includes('A2'), hands);
   const plain = renderExerciseTarget(target, {});
-  check('Sans démo : pas de légende, clavier inchangé', !plain.includes('exercise-demo-added') && plain.split('<rect').length < html.split('<rect').length,
-    `${plain.split('<rect').length} / ${html.split('<rect').length}`);
+  check('Sans démo : pas de légende', !plain.includes('exercise-demo-added'));
+  // [Claude] — 2026-11-05 — Cette vérification comparait le nombre de touches
+  // dessinées avec et sans démo. Le clavier dessiné a quitté la carte (Narcisse :
+  // « le mini keyboard fait enfantin »), donc elle n'a plus d'objet : on contrôle
+  // désormais qu'il ne revient pas, et que les notes restent lisibles en texte.
+  check('La carte ne dessine plus de clavier',
+    !plain.includes('exercise-target-keyboard') && !html.includes('exercise-target-keyboard')
+    && !plain.includes('<rect') && !html.includes('<rect'));
+  check('Les notes de la carte restent lisibles en toutes lettres',
+    /exercise-hand-notes">[^<]*[A-G]/.test(plain),
+    (plain.match(/exercise-hand-notes">([^<]*)</) || [])[1]);
   const moved = renderExerciseTarget(target, { demo: { ...demo, doubled: [], movedToRight: true, styleLabel: 'Ballade' } });
   check('Rootless passé à la main droite : annoncé dans la légende', moved.includes('Démo Ballade : basse D2 · A2 à la main gauche, voicing joué à la main droite'));
 }

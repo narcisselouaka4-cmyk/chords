@@ -18,7 +18,6 @@
 
 import { detectChord } from './chord-engine/index.js';
 import { formatPc, noteName } from './chord-engine/naming.js';
-import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
 import movementsLibrary, { findCatalogueEntry } from './exercise-catalogue.js';
 import { getVoicingLabVoicings, isQualityOnVoicingLab, isDerivedQuality } from './voicing-engine/voicinglab-availability.js';
 import {
@@ -3037,17 +3036,11 @@ export function renderExerciseTarget(target, options = {}) {
   // basse de la main gauche, note doublée ; Narcisse : « la démo ajoute aussi des
   // basses quand le mini-key ne l'affiche pas, je le veux aussi »).
   const demo = options.demo || null;
-  const demoAdded = demo ? [...demo.bass, ...demo.doubled] : [];
-  // Notes de l'exercice (cases des mains) ; le clavier y ajoute celles de la démo.
+  // Notes de l'exercice (cases des mains).
   const cardNotes = [...new Set([...(voicing?.leftHand || []), ...(voicing?.rightHand || []), ...(target.notes || [])])].sort((a, b) => a - b);
-  // Le clavier reste unifié : toutes les notes actives, sans distinction LH/RH.
-  const notes = [...new Set([...cardNotes, ...demoAdded])].sort((a, b) => a - b);
 
-  // Doublures et main gauche du style (options de l'utilisateur), notes ajoutées
-  // par la démo : colorées à part.
+  // Doublures ajoutées par l'utilisateur : annoncées en texte sous la carte.
   const doubled = voicing?.doubled || [];
-  const styleAdded = voicing?.styleAdded || [];
-  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: [...doubled, ...styleAdded, ...demoAdded] });
 
   // Affichage des mains : si le moteur a produit un split LH/RH avec des
   // notes distinctes, on montre les deux blocs ; sinon un seul bloc.
@@ -3064,6 +3057,12 @@ export function renderExerciseTarget(target, options = {}) {
   const handCount = Number(leftHand.length > 0) + Number(rightHand.length > 0);
   // Accord cible : le choix du voicing et les doublures quittent la carte
   // (colonne de droite et fenêtre Filtres) ; la carte garde l'essentiel.
+  // [Claude] — 2026-11-05 — Le clavier dessiné quitte aussi la carte. Narcisse :
+  // « le mini keyboard, pour moi, il fait enfantin. Ça fait pas professionnel. »
+  // C'est le second retrait de ce dessin : il avait déjà été sorti de « Ma
+  // grille » le 16/10 (« le mini-keyboard est horrible »). Les notes restent
+  // lisibles en toutes lettres juste en dessous (exercise-target-hands), et le
+  // vrai clavier du bas les allume : rien n'est perdu, seul le dessin part.
   const compact = options.layout === 'chord';
 
   return `
@@ -3078,7 +3077,6 @@ export function renderExerciseTarget(target, options = {}) {
       </div>
       ${compact || options.separateVoicings ? '' : renderVoicingChoices(target, options)}
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
-      <div class="exercise-target-keyboard">${kb.svg}</div>
       ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled, noteLabel))}</div>` : ''}
       ${voicing?.leftHandStyle ? `<div class="exercise-doubled-note exercise-style-added">${escapeHtml(describeLeftHandStyle(voicing, noteLabel))}</div>` : ''}
       ${options.topNote?.missed ? `<div class="exercise-top-missed">Aucun voicing de ${escapeHtml(target.name)} n'a ${escapeHtml(options.topNote.missedName || 'cette note')} au sommet : dessus libre joué.</div>` : ''}
