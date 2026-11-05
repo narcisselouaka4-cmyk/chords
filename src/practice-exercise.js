@@ -3219,6 +3219,115 @@ export function renderVoicingChoices(target, options = {}) {
   return renderVoicingCategories(categories, technique, voicing.variantIndex ?? options.variant ?? 0, voicing.variantLabel || '', options.selectedTechnique ?? technique);
 }
 
+// [Claude] — 2026-11-05 — Regroupement des techniques, porté de la maquette du
+// candidat (VOICING_GROUPS) : 14 des 16 techniques y avaient un groupe tout
+// trouvé, sous le même nom. `quartal` et `so_what` n'existaient pas dans sa
+// maquette (il ne couvrait que 14 techniques) ; placées ici en Orchestration,
+// avec cluster/upper_structure/block/stride — même registre de couleur et de
+// relief harmonique, pas une structure de base ou un évidement.
+const VOICING_EXPLORER_GROUPS = [
+  { label: 'Position', hint: 'Densité & tenue', ids: ['close', 'fourway_close'] },
+  { label: 'Shell & rootless', hint: 'Structure', ids: ['shell', 'two_note_shell', 'rootless'] },
+  { label: 'Drop & spread', hint: 'Espace', ids: ['drop2', 'drop3', 'drop2_4', 'spread', 'open'] },
+  { label: 'Orchestration', hint: 'Couleur & relief', ids: ['block', 'stride', 'cluster', 'upper_structure', 'quartal', 'so_what'] },
+];
+
+/**
+ * [Claude] — 2026-11-05 — Colonne de droite du mode Accord cible, devenu un
+ * explorateur libre (demande de Narcisse sur la maquette du candidat) : les
+ * techniques groupées par famille, puis la disposition active avec ses deux
+ * mains et le bouton d'écoute. Une fonction à part de renderVoicingChoices :
+ * celle-ci reste inchangée pour Parcours harmonique, dont rien ne dépend ici.
+ *
+ * `data-technique`, `data-variant-delta` et `data-action="listen-exercise"`
+ * sont les MÊMES attributs que renderVoicingCategories : handleVoicingClick
+ * (main.js) les reconnaît déjà, aucun câblage JS supplémentaire n'est requis.
+ *
+ * @param {object} target - state.target (type 'chord')
+ * @param {ReturnType<typeof getAvailableTechniques>} categories
+ */
+export function renderChordExplorerVoicings(target, categories) {
+  const voicing = target?.voicing;
+  if (!voicing || !categories) return '';
+  const activeTechnique = voicing.technique || 'auto';
+  const variant = voicing.variantIndex ?? 0;
+  const byId = new Map(categories.map((c) => [c.id, c]));
+
+  const button = (id) => {
+    const cat = byId.get(id);
+    // Une technique sans résultat n'est montrée que si elle est en cours de jeu
+    // (un favori rouvert, par exemple) — jamais ajoutée au hasard dans la grille.
+    if (!cat || (!cat.playable && id !== activeTechnique)) return '';
+    const active = id === activeTechnique;
+    const arrows = (active && cat.count > 1) ? `
+        <span class="exercise-variant-arrows">
+          <button class="exercise-variant-btn" type="button" data-variant-delta="-1" aria-label="Variante précédente">‹</button>
+          <span class="exercise-variant-index">${variant + 1}/${cat.count}</span>
+          <button class="exercise-variant-btn" type="button" data-variant-delta="1" aria-label="Variante suivante">›</button>
+        </span>` : '';
+    // [Claude] — 2026-11-05 — .exercise-category-tag : pas une classe visuelle
+    // ici (toute l'apparence vient de .voicing-btn), mais le SÉLECTEUR que
+    // handleVoicingClick (main.js) exige pour reconnaître un clic de
+    // technique (`.exercise-category-tag[data-technique]`). Sans elle, le
+    // clic ne fait rien : le bouton paraît actif à l'œil, mais aucune
+    // disposition ne change. Repéré en cliquant Drop 2 dans le navigateur et
+    // en voyant Shell rester actif.
+    // [Claude] — 2026-11-06 — `<span role="button">`, pas `<button>` : les
+    // flèches de variante sont elles-mêmes des `<button>` (exercise-variant-btn)
+    // et le HTML interdit d'imbriquer un bouton dans un autre — le navigateur
+    // refermait l'élément externe dès la première flèche rencontrée, éjectant
+    // les flèches hors de la grille. Repéré en lisant le HTML rendu : les
+    // boutons de variante apparaissaient comme frères de .voicing-btn, pas
+    // comme enfants. renderVoicingCategories (Parcours harmonique) évite déjà
+    // ce piège en utilisant un <span>.
+    // La classe « disabled » (pas seulement aria-disabled) est ce que
+    // handleVoicingClick regarde pour ignorer le clic — même garde que
+    // renderVoicingCategories, puisqu'un <span> n'a pas de blocage natif
+    // comme l'attribut HTML `disabled` d'un vrai <button>.
+    const disabledAttrs = cat.playable ? '' : ' aria-disabled="true" tabindex="-1"';
+    return `<span role="button" tabindex="0" class="voicing-btn exercise-category-tag${cat.playable ? '' : ' disabled'}" data-technique="${escapeHtml(id)}" data-active="${active}"${disabledAttrs} aria-pressed="${active}" title="${cat.playable ? escapeHtml(cat.label) : 'Aucun résultat avec les filtres actifs'}">
+        <span class="voicing-btn-label">${escapeHtml(cat.label)}</span>
+        ${arrows}
+      </span>`;
+  };
+
+  const autoActive = activeTechnique === 'auto';
+  const autoBtn = `<button type="button" class="voicing-btn voicing-btn-auto exercise-category-tag" data-technique="auto" data-active="${autoActive}" aria-pressed="${autoActive}" title="L'application choisit la technique (ordre pédagogique)">
+      <span class="voicing-btn-auto-icon" aria-hidden="true">✦</span>
+      <span class="voicing-btn-label">${escapeHtml(TECHNIQUE_LABELS.auto)}</span>
+    </button>`;
+
+  const groupsHtml = VOICING_EXPLORER_GROUPS.map((g) => {
+    const buttons = g.ids.map(button).filter(Boolean).join('');
+    if (!buttons) return '';
+    return `<div class="voicing-group">
+        <div class="voicing-group-head"><span>${escapeHtml(g.label)}</span><span class="voicing-group-hint">${escapeHtml(g.hint)}</span></div>
+        <div class="voicing-group-grid">${buttons}</div>
+      </div>`;
+  }).join('');
+
+  const lh = voicing.leftHand || [];
+  const rh = voicing.rightHand || [];
+  const techLabel = TECHNIQUE_LABELS[activeTechnique] || activeTechnique;
+  const footer = `
+    <div class="voicing-active">
+      <div class="voicing-active-head">
+        <span class="voicing-active-tag">Actif</span>
+        <span class="voicing-active-name">${escapeHtml(techLabel)}</span>
+      </div>
+      <div class="voicing-active-hands">
+        <span class="voicing-active-hand is-lh"><span class="voicing-active-hand-tag">MG</span><span class="voicing-active-hand-notes">${escapeHtml(formatHandNotes(lh))}</span></span>
+        <span class="voicing-active-hand is-rh"><span class="voicing-active-hand-tag">MD</span><span class="voicing-active-hand-notes">${escapeHtml(formatHandNotes(rh))}</span></span>
+      </div>
+      <button type="button" class="tr-button tr-primary voicing-active-play" data-action="listen-exercise" aria-label="Écouter la disposition active">
+        <svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+        <span>Écouter</span>
+      </button>
+    </div>`;
+
+  return `<div class="voicing-auto-row">${autoBtn}</div>${groupsHtml}${footer}`;
+}
+
 /**
  * Liste des voicings trouvés pour la top note, du plus simple au plus
  * complexe ; la description de chaque voicing reste en info-bulle.

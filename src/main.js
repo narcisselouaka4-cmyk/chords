@@ -93,6 +93,7 @@ import {
   findChordsByTopNote,
   renderTopNoteBrowser,
   renderVoicingChoices,
+  renderChordExplorerVoicings,
   renderDoublingSelect,
   TOP_NOTE_FILTERS,
   TECHNIQUE_LABELS,
@@ -269,7 +270,13 @@ const els = {
   exerciseTopNoteFilters: document.getElementById('exercise-topnote-filters'),
   exerciseTopNoteFiltersHint: document.getElementById('exercise-topnote-filters-hint'),
   exerciseChordSide: document.getElementById('exercise-chord-side'),
-  exerciseChordHead: document.getElementById('exercise-chord-head'),
+  // [Claude] — 2026-11-05 — Remplace #exercise-chord-head (la bande du haut) :
+  // panneau de gauche de l'explorateur Accord cible, porté du code du candidat.
+  chordExplorerLeft: document.getElementById('chord-explorer-left'),
+  chordExplorerSummary: document.getElementById('chord-explorer-summary'),
+  chordExplorerFavoritesPreview: document.getElementById('chord-explorer-favorites-preview'),
+  chordExplorerDisplay: document.getElementById('chord-explorer-display'),
+  chordExplorerPills: document.getElementById('chord-explorer-pills'),
   exerciseFavorites: document.getElementById('exercise-favorites'),
   exerciseFavoritesSearch: document.getElementById('exercise-favorites-search'),
   exerciseFavoritesDialog: document.getElementById('exercise-favorites-dialog'),
@@ -1806,28 +1813,59 @@ function initPracticeExercise() {
   const FAVORITES_SEARCH_MIN = 8;
 
   /**
-   * Disposition du mode Accord cible : bande du haut (choix de l'accord,
-   * boutons des fenêtres Filtres et Favoris), colonne gauche réduite à la note
-   * du dessus + résultats, colonne droite = voicings de l'accord à la place du
-   * score. Les autres modes gardent la leur.
+   * [Claude] — 2026-11-05 — Disposition du mode Accord cible, porté du code du
+   * candidat : panneau de gauche (Explorer), carte au centre, voicings à
+   * droite. Parcours harmonique garde la sienne (bandeau + colonne de score).
+   *
+   * Accord cible devient un EXPLORATEUR LIBRE — demande explicite de
+   * Narcisse après avoir vu la maquette (pas de jauge, pas de bonne/mauvaise
+   * réponse) : rien n'est jugé dans ce mode, voir checkPracticeExercise(). La
+   * bulle de retour (#exercise-feedback) n'a donc plus d'objet ici ; elle
+   * reste réservée à Parcours harmonique.
    */
   function refreshChordSide(exState) {
     const isChord = exState.mode === 'chord';
-    const stage = els.exerciseChordHead?.closest('.tr-exercise-stage');
+    const stage = els.chordExplorerLeft?.closest('.tr-exercise-stage');
     stage?.classList.toggle('is-chord-mode', isChord);
-    if (els.exerciseChordHead) els.exerciseChordHead.hidden = !isChord;
-    // Retour de jeu : en Accord cible, bulle à gauche de la bande du haut (sans
-    // recouvrir les réglages) ; ailleurs, bulle flottante en haut de la zone.
+    // [Claude] — 2026-11-05 — Classe à part pour la grille à 3 colonnes : une
+    // ancienne règle `:has(#exercise-topnote-browser…)` d'astra-bridge.css
+    // vise déjà .is-chord-mode, à spécificité égale à la mienne, et gagne la
+    // cascade dès que #exercise-topnote-browser existe dans le DOM — ce qui
+    // est désormais TOUJOURS vrai (il vit dans le panneau de gauche, caché,
+    // pas injecté dynamiquement). Plutôt que d'entrer dans une guerre de
+    // spécificité avec une règle écrite pour un autre usage, la grille prend
+    // son propre crochet, que seul ce fichier connaît.
+    stage?.classList.toggle('chord-explorer-3col', isChord);
+    if (els.chordExplorerLeft) els.chordExplorerLeft.hidden = !isChord;
     const feedback = document.getElementById('exercise-feedback');
-    const feedbackHome = isChord ? els.exerciseChordHead : stage;
-    if (feedback && feedbackHome && feedback.parentElement !== feedbackHome) feedbackHome.prepend(feedback);
+    if (feedback) {
+      // En Accord cible, rien n'est jugé : la bulle reste vide et masquée.
+      // Un passage depuis Parcours harmonique ne doit pas laisser un message
+      // obsolète affiché par-dessus le nouvel explorateur.
+      //
+      // `hidden` est réaffecté à chaque rendu, SANS dépendre de parentElement :
+      // conditionner le démasquage à « pas encore déplacée » a été repéré en
+      // testant le retour Accord cible → Parcours harmonique — une fois cachée
+      // par le premier, la bulle restait cachée pour toujours dans le second,
+      // la condition la protégeant du déplacement court-circuitant aussi le
+      // hidden = false. Réaffecter hidden ici est sans coût ; seul le
+      // déplacement DOM (prepend) garde sa garde, pour ne pas le répéter.
+      feedback.hidden = isChord;
+      if (isChord) feedback.textContent = '';
+      else if (feedback.parentElement !== stage) stage?.prepend(feedback);
+    }
     els.exerciseChordSide?.closest('.tr-exercise-progress')?.classList.toggle('is-chord-side', isChord);
     if (els.exerciseChordSide) els.exerciseChordSide.hidden = !exState.target;
+    renderChordExplorerDisplay(exState, isChord);
+    renderChordExplorerSummary(exState, isChord);
+    renderChordExplorerFavoritesPreview(isChord);
     // Voicings disponibles de l'accord affiché (hors de la carte en Accord cible).
+    // Accord cible a sa propre présentation groupée (renderChordExplorerVoicings) ;
+    // Parcours harmonique garde exactement le rendu d'avant, inchangé.
     if (els.exerciseVoicingChoices) {
-      els.exerciseVoicingChoices.innerHTML = exState.target
-        ? renderVoicingChoices(exState.target, { variant: exState.variant, selectedTechnique: exState.technique })
-        : '';
+      els.exerciseVoicingChoices.innerHTML = !exState.target ? ''
+        : isChord ? renderChordExplorerVoicings(exState.target, getAvailableTechniques(exState.target.name))
+          : renderVoicingChoices(exState.target, { variant: exState.variant, selectedTechnique: exState.technique });
     }
     // Fenêtre Filtres : doublures, et nombre de réglages actifs sur le bouton.
     if (els.exerciseDoublingFilter) els.exerciseDoublingFilter.innerHTML = renderDoublingSelect(exState.doubling);
@@ -1854,6 +1892,94 @@ function initPracticeExercise() {
       techniqueLabels: TECHNIQUE_LABELS, activeKey, query: favoritesQuery, removed: removedFavorites.map((r) => r.fav),
     });
   }
+
+  /**
+   * [Claude] — 2026-11-05 — Le grand nom de l'accord et ses trois pastilles
+   * (disposition, top note, nombre de notes par main), au-dessus de la carte.
+   * Porté de la maquette : `chord.rootName` / `chord.quality.suffix` séparés
+   * pour une taille différente — ici, `target.name` moins le nom de la
+   * fondamentale, qui se reconstruit à l'identique (voir targetFromVoicing).
+   */
+  function renderChordExplorerDisplay(exState, isChord) {
+    if (!els.chordExplorerDisplay || !els.chordExplorerPills) return;
+    const target = exState.target;
+    const show = isChord && target;
+    els.chordExplorerDisplay.hidden = !show;
+    els.chordExplorerPills.hidden = !show;
+    if (!show) { els.chordExplorerDisplay.innerHTML = ''; els.chordExplorerPills.innerHTML = ''; return; }
+    const rootLabel = formatPc(target.rootPc, false);
+    const suffix = target.name.startsWith(rootLabel) ? target.name.slice(rootLabel.length) : '';
+    els.chordExplorerDisplay.innerHTML = `<span class="chord-explorer-root">${escapeHtmlForDisplay(rootLabel)}</span><span class="chord-explorer-quality">${escapeHtmlForDisplay(suffix)}</span>`;
+    const v = target.voicing;
+    const lh = v?.leftHand?.length || 0;
+    const rh = v?.rightHand?.length || 0;
+    const notes = [...new Set([...(v?.leftHand || []), ...(v?.rightHand || [])])].sort((a, b) => a - b);
+    const topLabel = notes.length ? `${noteName(notes[notes.length - 1])}${Math.floor(notes[notes.length - 1] / 12) - 1}` : '—';
+    const techniqueLabel = TECHNIQUE_LABELS[v?.technique || 'auto'] || v?.technique || '';
+    els.chordExplorerPills.innerHTML = `
+      <span class="chord-pill"><span class="chord-pill-label">Disposition</span><span class="chord-pill-value is-accent">${escapeHtmlForDisplay(techniqueLabel.toUpperCase())}</span></span>
+      <span class="chord-pill"><span class="chord-pill-label">Top note</span><span class="chord-pill-value">${escapeHtmlForDisplay(topLabel)}</span></span>
+      <span class="chord-pill chord-pill-hands"><i class="is-lh"></i><span class="chord-pill-value">${lh}</span><i class="is-rh"></i><span class="chord-pill-value">${rh}</span></span>`;
+  }
+
+  /**
+   * Résumé « Accord de travail » du panneau de gauche : symbole, famille
+   * (lue dans TARGET_QUALITY_GROUPS, qui groupe déjà les qualités jouables)
+   * et difficulté — même échelle 1-5 que le reste de l'application
+   * (difficultyOfVoicing), pas une échelle à 3 inventée pour l'occasion.
+   */
+  function renderChordExplorerSummary(exState, isChord) {
+    if (!els.chordExplorerSummary) return;
+    const target = exState.target;
+    if (!isChord || !target) { els.chordExplorerSummary.innerHTML = ''; return; }
+    const family = TARGET_QUALITY_GROUPS.find((g) => g.qualities.includes(target.symbol))?.label || '';
+    const toneCount = new Set((target.notes || []).map((n) => ((n % 12) + 12) % 12)).size;
+    const stars = difficultyOfVoicing(target);
+    const dots = Array.from({ length: 5 }, (_, i) => `<span class="chord-explorer-dot${i < stars ? ' is-on' : ''}"></span>`).join('');
+    els.chordExplorerSummary.innerHTML = `
+      <div class="chord-explorer-summary-name">
+        <p class="chord-explorer-summary-symbol">${escapeHtmlForDisplay(target.name)}</p>
+        <p class="chord-explorer-summary-meta">${escapeHtmlForDisplay(family)}${family ? ' · ' : ''}${toneCount} son${toneCount > 1 ? 's' : ''}</p>
+      </div>
+      <div class="chord-explorer-summary-stars">${dots}</div>`;
+  }
+
+  /**
+   * Favoris récents (2 derniers) dans le panneau de gauche. Même donnée que
+   * la fenêtre Favoris ; un clic charge le favori sur la carte, exactement
+   * comme [data-favorite-open] dans cette fenêtre.
+   */
+  function renderChordExplorerFavoritesPreview(isChord) {
+    if (!els.chordExplorerFavoritesPreview) return;
+    if (!isChord) { els.chordExplorerFavoritesPreview.innerHTML = ''; return; }
+    const preview = exerciseFavorites.slice(0, 2);
+    if (!preview.length) {
+      els.chordExplorerFavoritesPreview.innerHTML = '<p class="chord-explorer-favorites-empty">Étoilez un voicing pour le retrouver ici.</p>';
+      return;
+    }
+    els.chordExplorerFavoritesPreview.innerHTML = preview.map((f) => {
+      const notes = [...f.lh, ...f.rh].map((n) => `${noteName(n)}${Math.floor(n / 12) - 1}`).join(' · ');
+      const technique = TECHNIQUE_LABELS[f.technique] || f.technique || '';
+      return `<button type="button" class="chord-explorer-favorite" data-favorite-preview="${escapeAttrForDisplay(f.key)}">
+          <span class="chord-explorer-favorite-main">
+            <span class="chord-explorer-favorite-symbol">${escapeHtmlForDisplay(f.name)}</span>
+            <span class="chord-explorer-favorite-technique">${escapeHtmlForDisplay(technique)}</span>
+          </span>
+          <span class="chord-explorer-favorite-notes">${escapeHtmlForDisplay(notes)}</span>
+        </button>`;
+    }).join('');
+  }
+
+  const escapeHtmlForDisplay = (s) => String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const escapeAttrForDisplay = (s) => escapeHtmlForDisplay(s).replace(/"/g, '&quot;');
+
+  els.chordExplorerFavoritesPreview?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-favorite-preview]');
+    if (!btn) return;
+    const fav = exerciseFavorites.find((f) => f.key === btn.dataset.favoritePreview);
+    if (fav) { practiceExercise.showFavorite(fav); render(); }
+  });
 
   els.exerciseFavorites?.addEventListener('click', (e) => {
     const open = e.target.closest('[data-favorite-open]');
@@ -3390,6 +3516,13 @@ let feedbackHideTimer = null;
 
 function checkPracticeExercise(notes) {
   if (!practiceExercise) return;
+  // [Claude] — 2026-11-05 — Accord cible est devenu un EXPLORATEUR LIBRE :
+  // Narcisse, après avoir vu la maquette (ni jauge ni bonne/mauvaise réponse) :
+  // « on choisit un accord et une disposition, on écoute ». Rien n'est jugé
+  // dans ce mode — jouer sur le clavier allume les touches (ailleurs dans
+  // handleNoteOn, indépendant d'ici) sans score ni avancement automatique.
+  // Parcours harmonique garde exactement son fonctionnement d'avant.
+  if (practiceExercise.getState().mode === 'chord') return;
   const result = practiceExercise.check(notes);
   if (result.expectedName) {
     // Un accord réussi efface ses essais ; un essai pas encore retenu est gardé (dix au plus).

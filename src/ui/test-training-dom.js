@@ -126,8 +126,12 @@ function testDomContract() {
   check(!targetChoice.includes('exercise-favorites') && !chordSide.includes('exercise-favorites'),
     'DOM — plus de favoris dans les colonnes (gauche : top note ; droite : voicings)');
   check(chordSide.includes('id="exercise-voicing-choices"'), 'DOM — colonne de droite (#exercise-chord-side) : voicings');
-  const headControls = html.slice(html.indexOf('id="exercise-filters-btn"'), html.indexOf('id="exercise-chord-head"') > 0
-    ? html.indexOf('</div>', html.indexOf('id="exercise-filters-btn"')) : 0);
+  // [Claude] — 2026-11-05 — #exercise-chord-head a été remplacé par
+  // #chord-explorer-left (panneau de gauche de l'explorateur Accord cible,
+  // porté du code du candidat) ; les boutons Filtres/Favoris y vivent
+  // désormais dans .chord-explorer-shortcuts, toujours adjacents.
+  const filtersAt = html.indexOf('id="exercise-filters-btn"');
+  const headControls = html.slice(filtersAt, filtersAt > 0 ? html.indexOf('</div>', filtersAt) : 0);
   check(/id="exercise-filters-btn"[^]*?<\/button>\s*(<!--[^]*?-->\s*)?<button[^>]*id="exercise-favorites-btn"[^>]*data-astra-open="exercise-favorites-dialog"/.test(headControls),
     'DOM — bouton Favoris juste après Filtres, qui ouvre la fenêtre des favoris');
 

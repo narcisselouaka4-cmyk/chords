@@ -337,64 +337,105 @@
 
           <section class="tr-exercise-stage">
             <!-- Retour de jeu (bonne / mauvaise réponse) : bulle flottante en haut de la
-                 zone, sans place réservée (visible même clavier MIDI déplié). -->
+                 zone, sans place réservée (visible même clavier MIDI déplié).
+                 [Claude] — 2026-11-05 — N'apparaît plus qu'en Parcours harmonique : en
+                 Accord cible, rien n'est jugé (voir plus bas). -->
             <div class="exercise-feedback" id="exercise-feedback" role="status" aria-live="polite"></div>
-            <!-- [Claude] — 2026-09-24 — Mode Accord cible : bande du haut (choix de
-                 l'accord), au-dessus de la carte ; les colonnes gauche (note du
-                 dessus + résultats) et droite (voicings) s'alignent sur elle.
-                 Filtres et Favoris s'ouvrent en fenêtres depuis cette bande. -->
-            <div class="exercise-chord-head" id="exercise-chord-head" hidden>
-              <div class="exercise-chord-head-controls">
-                <!-- Recherche de voicings par top note (sans octave), à la place du sous-titre. -->
-                <label for="exercise-top-note">Top note</label>
-                <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">
-                  <option value="">Toutes</option>
-                  <option value="0">C</option>
-                  <option value="1">C# / Db</option>
-                  <option value="2">D</option>
-                  <option value="3">D# / Eb</option>
-                  <option value="4">E</option>
-                  <option value="5">F</option>
-                  <option value="6">F# / Gb</option>
-                  <option value="7">G</option>
-                  <option value="8">G# / Ab</option>
-                  <option value="9">A</option>
-                  <option value="10">A# / Bb</option>
-                  <option value="11">B</option>
-                </select>
-                <label for="exercise-target-root">Accord</label>
-                <select id="exercise-target-root" aria-label="Fondamentale de l'accord cible">
-                  <option value="0">C</option>
-                  <option value="1">C# / Db</option>
-                  <option value="2">D</option>
-                  <option value="3">D# / Eb</option>
-                  <option value="4">E</option>
-                  <option value="5">F</option>
-                  <option value="6">F# / Gb</option>
-                  <option value="7">G</option>
-                  <option value="8">G# / Ab</option>
-                  <option value="9">A</option>
-                  <option value="10">A# / Bb</option>
-                  <option value="11">B</option>
-                </select>
-                <!-- Qualités jouables : remplies par main.js depuis TARGET_QUALITY_GROUPS
-                     (practice-exercise.js), source unique partagée avec le navigateur. -->
-                <select id="exercise-target-quality" aria-label="Qualité de l'accord cible"></select>
-                <!-- Tirage d'un accord au hasard : vrai bouton (icône dé), dans la bande du haut. -->
-                <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la top note si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
-                <!-- Filtres de la top note et doublures : fenêtre temporaire (fermée par défaut). -->
-                <button class="tr-button exercise-filters-btn" type="button" id="exercise-filters-btn" data-astra-open="exercise-filters-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Filtres<span class="exercise-filters-count" id="exercise-filters-count" hidden></span></button>
-                <!-- [Claude] — 2026-09-25 — Favoris : fenêtre temporaire ouverte à côté des
-                     Filtres (Narcisse : « une fenêtre temporaire pour Favoris »). -->
-                <button class="tr-button exercise-favorites-btn" type="button" id="exercise-favorites-btn" data-astra-open="exercise-favorites-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>Favoris<span class="exercise-favorites-count" id="exercise-favorites-count" hidden></span></button>
+
+            <!-- [Claude] — 2026-11-05 — Accord cible porté du code fourni par Narcisse
+                 (« j'ai pris le code du candidat »), devenu un EXPLORATEUR LIBRE sur sa
+                 demande explicite : plus de score ni de bonne/mauvaise réponse dans ce
+                 mode, on choisit un accord et une disposition, on écoute. Trois colonnes
+                 (gauche/centre/droite), comme le montre sa maquette. Les contrôles
+                 existants (selects, boutons) sont simplement DÉPLACÉS ici, pas recréés :
+                 leur câblage JS dans main.js ne change pas. -->
+            <div class="chord-explorer-left" id="chord-explorer-left" hidden>
+              <div class="chord-explorer-head">
+                <span class="mono-label mono-label-accent">Accord de travail</span>
+                <h2>Explorer</h2>
+              </div>
+
+              <div class="chord-explorer-body">
+                <section class="chord-explorer-section">
+                  <span class="tr-eyebrow">Fondamentale &amp; qualité</span>
+                  <div class="chord-explorer-root-quality">
+                    <select id="exercise-target-root" aria-label="Fondamentale de l'accord cible">
+                      <option value="0">C</option>
+                      <option value="1">C# / Db</option>
+                      <option value="2">D</option>
+                      <option value="3">D# / Eb</option>
+                      <option value="4">E</option>
+                      <option value="5">F</option>
+                      <option value="6">F# / Gb</option>
+                      <option value="7">G</option>
+                      <option value="8">G# / Ab</option>
+                      <option value="9">A</option>
+                      <option value="10">A# / Bb</option>
+                      <option value="11">B</option>
+                    </select>
+                    <!-- Qualités jouables : remplies par main.js depuis TARGET_QUALITY_GROUPS
+                         (practice-exercise.js), source unique partagée avec le navigateur. -->
+                    <select id="exercise-target-quality" aria-label="Qualité de l'accord cible"></select>
+                  </div>
+                </section>
+
+                <!-- Résumé : symbole, famille et difficulté — rempli par main.js. -->
+                <div class="chord-explorer-summary" id="chord-explorer-summary"></div>
+
+                <!-- Tirage d'un accord au hasard : vrai bouton (icône dé). -->
+                <button class="tr-button chord-explorer-random" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la top note si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg><span>Accord au hasard</span><span class="tr-kbd">R</span></button>
+
+                <hr class="chord-explorer-rule" />
+
+                <section class="chord-explorer-section">
+                  <span class="tr-eyebrow">Top note <em>filtre</em></span>
+                  <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">
+                    <option value="">Toutes les notes</option>
+                    <option value="0">C</option>
+                    <option value="1">C# / Db</option>
+                    <option value="2">D</option>
+                    <option value="3">D# / Eb</option>
+                    <option value="4">E</option>
+                    <option value="5">F</option>
+                    <option value="6">F# / Gb</option>
+                    <option value="7">G</option>
+                    <option value="8">G# / Ab</option>
+                    <option value="9">A</option>
+                    <option value="10">A# / Bb</option>
+                    <option value="11">B</option>
+                  </select>
+                  <p class="chord-explorer-hint">Filtre la note la plus aiguë du voicing.</p>
+                </section>
+
+                <!-- Accords dont le sommet correspond à la top note choisie : affiché
+                     seulement quand cette recherche est active (logique JS inchangée). -->
+                <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
+                  <section class="exercise-choice-section exercise-topnote-section" aria-label="Accords par top note">
+                    <span class="tr-eyebrow">Accords avec cette note au sommet</span>
+                    <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
+                  </section>
+                </div>
+
+                <div class="chord-explorer-shortcuts">
+                  <button class="tr-button chord-explorer-shortcut" type="button" id="exercise-filters-btn" data-astra-open="exercise-filters-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"/></svg><span>Filtres</span><span class="exercise-filters-count" id="exercise-filters-count" hidden></span></button>
+                  <button class="tr-button chord-explorer-shortcut" type="button" id="exercise-favorites-btn" data-astra-open="exercise-favorites-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><span>Favoris</span><span class="exercise-favorites-count" id="exercise-favorites-count" hidden></span></button>
+                </div>
+
+                <hr class="chord-explorer-rule" />
+
+                <section class="chord-explorer-section">
+                  <div class="chord-explorer-section-head">
+                    <span class="tr-eyebrow">Favoris récents</span>
+                    <button type="button" class="chord-explorer-see-all" data-astra-open="exercise-favorites-dialog">Tout voir ›</button>
+                  </div>
+                  <!-- Les deux derniers favoris : remplis par main.js. -->
+                  <div class="chord-explorer-favorites-preview" id="chord-explorer-favorites-preview"></div>
+                </section>
               </div>
             </div>
-            <!-- [Astra round 3] — Le guide et le panneau de progression ne sont
-                 plus des textes figés : main.js (updateExerciseProgressUI) les
-                 remplit avec les données réelles de practice-exercise.js, selon
-                 le mode actif. Les libellés fixes d'Astra (« GUIDE TONE LINE »,
-                 « 7 → 3 », « Préparer / Créer la tension / Résoudre ») ne sont
-                 pas repris : ils ne correspondent pas aux exercices de Zic. -->
+
+            <!-- [Astra round 3] — Parcours harmonique garde son bandeau existant,
+                 intact : titre, texte, « Options du tour », tonalités du tour. -->
             <div class="tr-exercise-brief">
               <div class="tr-exercise-label" id="exercise-brief-label">
                 <svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
@@ -403,25 +444,6 @@
               <h2 id="exercise-brief-title">Un accord,<br />puis le suivant.</h2>
               <p id="exercise-brief-text"></p>
               <button class="tr-button exercise-options-btn" type="button" data-astra-open="exercise-options-dialog">Options du tour</button>
-              <!-- [Claude] — 2026-09-24 — Réglages du tour (Mouvement 12 tons), en
-                   grille étiquette / contrôle. La tonalité active a quitté cette
-                   colonne pour le panneau de droite (Narcisse : « pas au bon
-                   endroit »). Mode Progression retiré (degrés, sélecteur de contenu,
-                   badge de degré) : les grilles tapées passent par la bibliothèque
-                   (« Ma grille »). -->
-              <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible".
-                   [Claude] — 2026-09-24 — Colonne de gauche = les accords à charger sur
-                   la carte (recherche par top note). La droite garde les voicings
-                   affichés. [Claude] — 2026-09-25 — Les favoris ont quitté la colonne
-                   pour leur fenêtre (#exercise-favorites-dialog). -->
-              <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
-                <section class="exercise-choice-section exercise-topnote-section" aria-label="Accords par top note">
-                  <span class="tr-eyebrow">TOP NOTE</span>
-                  <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
-                  <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
-                </section>
-              </div>
-
             </div>
 
             <div class="tr-chord-arena">
@@ -429,6 +451,10 @@
               <div class="tr-arena-ellipse tr-ellipse-outer" aria-hidden="true"></div>
               <div class="tr-target-chord">
                 <span class="tr-eyebrow" id="exercise-arena-eyebrow">À VOUS DE JOUER</span>
+                <!-- Accord cible : grand nom + pastilles, au-dessus de la carte — remplis
+                     par main.js, lus sur exState.target. -->
+                <div class="chord-explorer-display" id="chord-explorer-display" hidden></div>
+                <div class="chord-explorer-pills" id="chord-explorer-pills" hidden></div>
                 <div class="exercise-target" id="exercise-target" style="display:none;"></div>
               </div>
             </div>
@@ -465,7 +491,7 @@
                    les favoris sont passés à gauche. Les autres modes gardent leur
                    avancement. -->
               <div class="exercise-chord-side" id="exercise-chord-side" hidden>
-                <span class="tr-eyebrow">VOICINGS</span>
+                <span class="tr-eyebrow">Voicings</span>
                 <!-- Voicings disponibles pour l'accord affiché : rempli par main.js. -->
                 <div class="exercise-voicing-choices" id="exercise-voicing-choices"></div>
               </div>

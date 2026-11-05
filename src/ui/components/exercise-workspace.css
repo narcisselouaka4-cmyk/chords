@@ -148,12 +148,22 @@
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-demo-variation select { width: 100%; min-height: 32px; font-size: 11px; }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-key-strip { margin-top: 20px; }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-key-chip { border-radius: 5px; min-height: 28px; }
-/* Recherche par top note : le catalogue latéral reste disponible à la demande. */
+/* Recherche par top note : le catalogue latéral reste disponible à la demande.
+   [Claude] — 2026-11-06 — `:not(.chord-explorer-3col)` : ce bloc date d'avant
+   l'explorateur et reformait la grille racine quand #exercise-topnote-browser
+   était ouvert. Depuis le portage du candidat, ce navigateur vit DANS la
+   colonne .chord-explorer-left (déjà une des 3 colonnes), donc cette règle
+   n'a plus lieu d'être pour le nouvel explorateur — sans l'exclusion, sa
+   spécificité (3 ID via l'ID imbriqué dans :has()) battait la règle de repli
+   en-dessous de 1240px, qui restait figée en 3 colonnes de 1001 à 1240px.
+   `.is-chord-mode` et `.chord-explorer-3col` sont toujours posées ensemble
+   (refreshChordSide, main.js) : l'exclusion désactive ce bloc entièrement et
+   sans effet de bord dès que le nouvel explorateur est actif. */
 @media (min-width: 1001px) {
-  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:has(#exercise-topnote-browser:not([hidden])) {
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:not(.chord-explorer-3col):has(#exercise-topnote-browser:not([hidden])) {
     grid-template-columns: 220px minmax(0, 1fr) 250px;
   }
-  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:has(#exercise-topnote-browser:not([hidden])) .tr-exercise-brief {
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:not(.chord-explorer-3col):has(#exercise-topnote-browser:not([hidden])) .tr-exercise-brief {
     display: block;
     grid-column: 1;
     grid-row: 2;
@@ -163,8 +173,8 @@
     overflow: auto;
     max-height: 460px;
   }
-  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:has(#exercise-topnote-browser:not([hidden])) .tr-chord-arena { grid-column: 2; }
-  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:has(#exercise-topnote-browser:not([hidden])) .tr-exercise-progress { grid-column: 3; }
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:not(.chord-explorer-3col):has(#exercise-topnote-browser:not([hidden])) .tr-chord-arena { grid-column: 2; }
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:not(.chord-explorer-3col):has(#exercise-topnote-browser:not([hidden])) .tr-exercise-progress { grid-column: 3; }
   :root[data-skin] #practice-tab #practice-view-exercices #exercise-target-choice,
   :root[data-skin] #practice-tab #practice-view-exercices #exercise-topnote-browser { position: static; max-height: none; }
 }
@@ -218,7 +228,7 @@
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-demo-btn { min-height: 36px; border-radius: 7px; font-size: 12px; }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-demo-added { color: var(--tr-secondary); }
 @media (min-width: 1001px) {
-  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:has(#exercise-topnote-browser:not([hidden])) .tr-exercise-brief {
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:not(.chord-explorer-3col):has(#exercise-topnote-browser:not([hidden])) .tr-exercise-brief {
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -235,7 +245,7 @@
   }
 }
 @media (max-width: 1000px) {
-  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:has(#exercise-topnote-browser:not([hidden])) .tr-exercise-brief { height: 280px; }
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:not(.chord-explorer-3col):has(#exercise-topnote-browser:not([hidden])) .tr-exercise-brief { height: 280px; }
   :root[data-skin] #practice-tab #practice-view-exercices #exercise-target-choice { height: 100%; align-items: stretch; flex-wrap: nowrap; }
 }
 
@@ -970,4 +980,586 @@
 
 @media (max-width: 1195px) {
   :root[data-skin] #practice-tab .keybed-legend { display: none; }
+}
+
+/* ===================================================================
+   Accord cible — explorateur, porté du code du candidat (05/11/2026)
+   ===================================================================
+   Narcisse a fourni les sources de la maquette après avoir jugé ma première
+   tentative « affreuse » ; ce bloc reprend sa STRUCTURE (trois colonnes,
+   regroupement des dispositions, cartes de mains, pastilles) en utilisant les
+   JETONS du thème de l'application (var(--tr-*)) plutôt que sa palette fixe,
+   pour que le rendu suive les skins, les deux modes clair/sombre et la
+   couleur d'accent réglable par l'utilisateur — la même règle que pour le
+   clavier : aucun texte à lire ne repose sur --tr-accent.
+   Les couleurs des mains (or / rose) restent FIXES, pour rester cohérentes
+   avec celles déjà posées sur le clavier (keybed, plus haut dans ce fichier).
+   Tous les sélecteurs suivent le même préfixe que le reste du fichier
+   (:root[data-skin] #practice-tab #practice-view-exercices …) : il gagne la
+   cascade sur practice.css/astra-bridge.css par spécificité ET par ordre de
+   chargement (ce fichier est chargé en dernier). */
+
+:root[data-skin] #practice-tab #practice-view-exercices {
+  --hand-lh: #c39a4d;
+  --hand-lh-strong: #a97f37;
+  --hand-rh: #c04d7c;
+  --hand-rh-strong: #a92b5c;
+}
+
+/* ---------------------------------------------------------- La grille à trois colonnes */
+
+:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col {
+  display: grid;
+  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr) minmax(270px, 320px);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 16px;
+  min-height: 0;
+  height: 100%;
+  padding: 14px 16px;
+}
+
+/* Le bandeau de Parcours harmonique ne sert plus à rien en Accord cible :
+   tout son contenu (titre, « Options du tour ») est remplacé par le panneau
+   de gauche. */
+:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-exercise-brief {
+  display: none;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-chord-arena {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+  padding: 0;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-exercise-progress.is-chord-side {
+  grid-column: 3;
+  grid-row: 1;
+  max-height: none;
+  height: 100%;
+}
+
+/* ---------------------------------------------------------- Colonne de gauche : Explorer */
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-left {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  border: 1px solid var(--tr-border);
+  border-radius: 14px;
+  background: var(--tr-surface);
+  overflow: hidden;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--tr-border);
+  flex: none;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-head .mono-label {
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tr-secondary);
+}
+
+/* [Claude] — 2026-11-05 — Pas de texte en --tr-accent : mesuré à 2,48:1 sur
+   le fond du panneau (accent vert dans ce réglage), sous le seuil AA — et
+   cette couleur est réglable par l'utilisateur, donc son contraste n'est
+   jamais garantissable (même piège que la promesse du mode Solo, le 05/11).
+   L'étiquette reprend la couleur de lecture des autres eyebrows. */
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-head .mono-label-accent {
+  color: var(--tr-secondary);
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-head h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.1;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-see-all {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tr-accent);
+  cursor: pointer;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-root-quality {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 8px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-root-quality select,
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-section > select,
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-section > .chord-explorer-root-quality select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font-size: 12px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-section .tr-eyebrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-section .tr-eyebrow em {
+  font-style: normal;
+  color: var(--tr-accent);
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-hint {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--tr-secondary);
+}
+
+/* Résumé : symbole, famille, difficulté — rempli par main.js. */
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 11px;
+  background: var(--tr-raised, var(--tr-inset));
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary-name { min-width: 0; }
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary-symbol {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary-meta {
+  margin: 4px 0 0;
+  font-size: 10px;
+  color: var(--tr-secondary);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary-stars {
+  display: flex;
+  gap: 3px;
+  flex: none;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tr-border);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-dot.is-on {
+  background: var(--tr-accent);
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-random {
+  width: 100%;
+  justify-content: space-between !important;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .tr-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid var(--tr-border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--tr-raised, var(--tr-inset));
+  color: var(--tr-secondary);
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 9px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-rule {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--tr-border);
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-favorites-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-favorites-empty {
+  margin: 0;
+  padding: 10px;
+  border: 1px dashed var(--tr-border);
+  border-radius: 10px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--tr-secondary);
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-favorite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 9px;
+  background: var(--tr-surface);
+  text-align: left;
+  cursor: pointer;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-favorite:hover {
+  border-color: var(--tr-accent);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-favorite-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-favorite-symbol {
+  font-size: 13px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-favorite-technique {
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tr-secondary);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-favorite-notes {
+  flex: none;
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 9px;
+  color: var(--tr-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 48%;
+}
+
+/* ---------------------------------------------------------- Colonne centrale : le nom + pastilles */
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.03em;
+  font-family: var(--tr-display, inherit);
+  font-weight: 450;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--tr-text);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-root {
+  font-size: clamp(44px, 5.4vw, 72px);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-quality {
+  font-size: clamp(28px, 3.4vw, 44px);
+  color: var(--tr-secondary);
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 25px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--tr-border);
+  background: var(--tr-surface);
+  font-size: 10px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-label {
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tr-secondary);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-value {
+  font-weight: 600;
+  color: var(--tr-text);
+}
+/* Même règle : pas de texte en --tr-accent (mesuré 2,48:1). La valeur de la
+   pastille « Disposition » reste distincte par sa taille/graisse, pas sa
+   couleur. */
+:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-value.is-accent {
+  color: var(--tr-text);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-hands i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-hands i.is-lh { background: var(--hand-lh); }
+:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-hands i.is-rh { background: var(--hand-rh); }
+
+/* Les mains de la carte (exercise-hand) reprennent les couleurs du keybed. */
+:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .exercise-hand {
+  position: relative;
+  padding-left: 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-raised, var(--tr-inset));
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .exercise-hand::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .exercise-hand-lh::before { background: var(--hand-lh); }
+:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .exercise-hand-rh::before { background: var(--hand-rh); }
+
+/* ---------------------------------------------------------- Colonne de droite : dispositions */
+
+:root[data-skin] #practice-tab #practice-view-exercices .exercise-chord-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  border: 1px solid var(--tr-border);
+  border-radius: 14px;
+  background: var(--tr-surface);
+  overflow: hidden;
+  padding: 0;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .exercise-chord-side > .tr-eyebrow {
+  flex: none;
+  padding: 14px 16px;
+  margin: 0;
+  border-bottom: 1px solid var(--tr-border);
+  font-size: 9px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .exercise-voicing-choices {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-auto-row { flex: none; }
+
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border-radius: 9px;
+  border: 1px solid var(--tr-border);
+  background: var(--tr-surface);
+  color: var(--tr-secondary);
+  font-size: 10px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn:hover {
+  border-color: var(--tr-accent);
+  color: var(--tr-text);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn[data-active='true'] {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+  color: var(--tr-text);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* Le fond teinté (--tr-accent-soft) reste : un APLAT en accent n'a pas de
+   contrainte de lecture. Le TEXTE, lui, ne peut pas être en --tr-accent sur
+   un fond presque blanc — mesuré 2,28:1 (vert sur vert très clair). Seule
+   l'icône décorative garde l'accent : une pastille, pas une lettre à lire. */
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-auto {
+  background: var(--tr-accent-soft);
+  border-color: var(--tr-accent-soft);
+  color: var(--tr-text);
+  font-size: 11px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-auto-icon {
+  color: var(--tr-accent);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-auto[data-active='true'] {
+  background: var(--tr-accent);
+  border-color: var(--tr-accent);
+  color: #fff;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-auto-icon { flex: none; }
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tr-secondary);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-group-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.75;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-group-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active {
+  flex: none;
+  padding: 12px;
+  border-top: 1px solid var(--tr-border);
+  background: var(--tr-raised, var(--tr-inset));
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-tag {
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tr-secondary);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-name {
+  font-size: 14px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hands {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 5px 7px;
+  border-radius: 7px;
+  border: 1px solid var(--tr-border);
+  background: var(--tr-surface);
+  min-width: 0;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand-tag {
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 7.5px;
+  text-transform: uppercase;
+  flex: none;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand.is-lh .voicing-active-hand-tag { color: var(--hand-lh-strong); }
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand.is-rh .voicing-active-hand-tag { color: var(--hand-rh-strong); }
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand-notes {
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-play {
+  width: 100%;
+  justify-content: center !important;
+}
+
+/* Fenêtre étroite : une colonne, la carte d'abord, puis dispositions, puis
+   l'explorateur — sinon les trois colonnes de 300 px ne tiennent nulle part. */
+@media (max-width: 1240px) {
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    height: auto;
+    overflow-y: auto;
+  }
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-chord-arena { grid-column: 1; grid-row: 1; }
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-exercise-progress.is-chord-side { grid-column: 1; grid-row: 2; height: auto; max-height: 50vh; }
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .chord-explorer-left { grid-column: 1; grid-row: 3; height: auto; max-height: 50vh; }
 }
