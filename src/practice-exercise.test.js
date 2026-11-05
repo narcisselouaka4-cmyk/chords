@@ -1499,6 +1499,34 @@ function checkCardDemoAdditions() {
     }
     check('La main gauche ne passe jamais au-dessus de la main droite',
       croisees === 0, `${croisees} croisement(s)`);
+
+    // [Claude] — 2026-11-05 — Le clavier dans son cadre (keybed). La legende ne
+    // nomme une main que si elle joue : annoncer « main gauche » sur un voicing
+    // qui n'en a pas serait une information fausse.
+    let legendeMenteuse = 0;
+    let sansCompte = 0;
+    let sansRepere = 0;
+    let examineesKeybed = 0;
+    ex2.setLeftHandStyle('none');
+    ex2.setDoubling('none');
+    for (let root = 0; root < 12; root += 1) {
+      for (const q of qualities) {
+        ex2.setTargetChoice({ rootPc: root, symbol: q });
+        const cible = ex2.getState().target;
+        const v = cible?.voicing;
+        if (!v) continue;
+        examineesKeybed += 1;
+        const markup = renderExerciseTarget(cible, {});
+        if (markup.includes('Main gauche</span>') !== ((v.leftHand || []).length > 0)) legendeMenteuse += 1;
+        if (markup.includes('Main droite</span>') !== ((v.rightHand || []).length > 0)) legendeMenteuse += 1;
+        if (!/notes? active/.test(markup)) sansCompte += 1;
+        if (!/class="mini-caption/.test(markup)) sansRepere += 1;
+      }
+    }
+    check('La legende du clavier ne nomme que les mains qui jouent vraiment',
+      legendeMenteuse === 0, `${legendeMenteuse} ecart(s) sur ${examineesKeybed} cartes`);
+    check('Le clavier annonce combien de notes sonnent', sansCompte === 0, `${sansCompte} sans compte`);
+    check('Le clavier porte ses reperes d octave', sansRepere === 0, `${sansRepere} sans repere`);
   }
   const moved = renderExerciseTarget(target, { demo: { ...demo, doubled: [], movedToRight: true, styleLabel: 'Ballade' } });
   check('Rootless passé à la main droite : annoncé dans la légende', moved.includes('Démo Ballade : basse D2 · A2 à la main gauche, voicing joué à la main droite'));

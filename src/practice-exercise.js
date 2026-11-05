@@ -18,7 +18,7 @@
 
 import { detectChord } from './chord-engine/index.js';
 import { formatPc, noteName } from './chord-engine/naming.js';
-import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
+import { miniKeyboardForNotes, keybedMarkup } from './ui/mini-keyboard.js';
 import movementsLibrary, { findCatalogueEntry } from './exercise-catalogue.js';
 import { getVoicingLabVoicings, isQualityOnVoicingLab, isDerivedQuality } from './voicing-engine/voicinglab-availability.js';
 import {
@@ -3072,6 +3072,7 @@ export function renderExerciseTarget(target, options = {}) {
     leftHand: voicing?.leftHand || [],
     rightHand: voicing?.rightHand || [],
     added: [...doubled, ...styleAdded, ...demoAdded],
+    captions: true,
   });
 
   // Affichage des mains : si le moteur a produit un split LH/RH avec des
@@ -3110,7 +3111,11 @@ export function renderExerciseTarget(target, options = {}) {
       </div>
       ${compact || options.separateVoicings ? '' : renderVoicingChoices(target, options)}
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
-      <div class="exercise-target-keyboard">${kb.svg}</div>
+      <div class="exercise-target-keyboard">${keybedMarkup(kb, {
+    leftHand: voicing?.leftHand || [],
+    rightHand: voicing?.rightHand || [],
+    notes,
+  })}</div>
       ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled, noteLabel))}</div>` : ''}
       ${voicing?.leftHandStyle ? `<div class="exercise-doubled-note exercise-style-added">${escapeHtml(describeLeftHandStyle(voicing, noteLabel))}</div>` : ''}
       ${options.topNote?.missed ? `<div class="exercise-top-missed">Aucun voicing de ${escapeHtml(target.name)} n'a ${escapeHtml(options.topNote.missedName || 'cette note')} au sommet : dessus libre joué.</div>` : ''}

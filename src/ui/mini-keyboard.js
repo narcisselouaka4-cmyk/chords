@@ -11,6 +11,8 @@ const START_MIDI = 60;    // C4
 const END_MIDI = 83;      // B5
 const WHITE_RADIUS = 3;
 const BLACK_RADIUS = 2;
+// Bande des repères d'octave, sous les touches (option `captions`).
+const CAPTION_HEIGHT = 11;
 
 const NOTE_NAMES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const NOTE_NAMES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -174,7 +176,24 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="-1" width="${BLACK_WIDTH}" height="${BLACK_HEIGHT}" rx="${BLACK_RADIUS}" fill="${fillOf(midi)}" stroke="${strokeOf(midi, 'b')}" stroke-width="${addedSet.has(midi) && activeSet.has(midi) ? 1.5 : 0.8}"${dashOf(midi)}${title}/>`;
   }
 
-  const svg = `\n<svg class="mini-keyboard" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">${gradients(suffix)}${markup}</svg>\n`;
+  // [Claude] — 2026-11-05 — Repères sous les touches blanches : les Do de
+  // chaque octave, et les notes réellement jouées. Ils situent le voicing sur
+  // le clavier — sans eux, un dessin de deux octaves ne dit pas DANS QUEL
+  // registre on joue. Posés hors de la touche, sous le clavier, pour ne jamais
+  // recouvrir une couleur de main.
+  let captionHeight = 0;
+  if (options.captions) {
+    captionHeight = CAPTION_HEIGHT;
+    whites.forEach((midi, index) => {
+      const estDo = midi % 12 === 0;
+      if (!estDo && !activeSet.has(midi)) return;
+      const nom = midiToNoteName(midi, true, false);
+      const cls = activeSet.has(midi) ? 'mini-caption is-active' : 'mini-caption';
+      markup += `<text class="${cls}" x="${index * WHITE_WIDTH + WHITE_WIDTH / 2}" y="${WHITE_HEIGHT + CAPTION_HEIGHT - 3}" text-anchor="middle" font-size="7.5">${nom}</text>`;
+    });
+  }
+
+  const svg = `\n<svg class="mini-keyboard" viewBox="0 0 ${width} ${height + captionHeight}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">${gradients(suffix)}${markup}</svg>\n`;
   const noteNames = activeNotes
     .filter((n) => typeof n === 'number')
     .sort((a, b) => a - b)
@@ -198,6 +217,7 @@ export function miniKeyboardForNotes(activeNotes, options = {}) {
     leftHand: opts.leftHand,
     rightHand: opts.rightHand,
     added: opts.added,
+    captions: opts.captions,
     formatNote: opts.formatNote,
   };
   if (!Array.isArray(activeNotes) || activeNotes.length === 0) {
@@ -213,4 +233,53 @@ export function miniKeyboardForNotes(activeNotes, options = {}) {
   const finalStart = startMidiOverride ?? Math.max(21, min - MARGIN);
   const finalEnd = opts.endMidi ?? Math.max(finalStart + 23, Math.min(108, max + MARGIN));
   return generateMiniKeyboard(activeNotes, { ...kbOptions, startMidi: finalStart, endMidi: finalEnd });
+}
+
+/**
+ * [Claude] — 2026-11-05 — Le « keybed » : le clavier dans son cadre, avec sa
+ * légende et ses repères — la présentation que Narcisse a retenue d'une
+ * maquette qu'il juge « quasiment 10 sur 10 ».
+ *
+ * Trois choses que le clavier nu ne disait pas, et qui comptent :
+ *   - QUI joue quoi (légende des deux mains, avec leurs vraies couleurs) ;
+ *   - OÙ l'on joue (l'étendue dessinée, en pied) ;
+ *   - COMBIEN de notes sonnent (le compte, en pied).
+ *
+ * Le cadre suit le thème : ses couleurs viennent des jetons, jamais d'un
+ * sombre en dur. Narcisse : « attention, en mode clair les bordures doivent
+ * être claires et pas sombres. »
+ *
+ * @param {{svg: string}} kb - rendu de miniKeyboardForNotes
+ * @param {object} options
+ * @param {number[]} [options.leftHand]
+ * @param {number[]} [options.rightHand]
+ * @param {number[]} [options.notes] - toutes les notes actives
+ * @param {string} [options.title] - intitulé de la bande du haut
+ * @returns {string}
+ */
+export function keybedMarkup(kb, { leftHand = [], rightHand = [], notes = [], title = 'Aperçu du voicing' } = {}) {
+  const jouees = notes.length ? [...notes].sort((a, b) => a - b) : [];
+  const etendue = jouees.length
+    ? `${midiToNoteName(jouees[0], true, false)} — ${midiToNoteName(jouees[jouees.length - 1], true, false)}`
+    : '';
+  const compte = jouees.length
+    ? `${jouees.length} note${jouees.length > 1 ? 's' : ''} active${jouees.length > 1 ? 's' : ''}`
+    : '';
+  // La légende ne nomme une main que si elle joue : annoncer « main gauche »
+  // sur un voicing qui n'en a pas serait une information fausse.
+  const legende = [
+    leftHand.length ? '<span class="keybed-legend-item is-lh"><i></i>Main gauche</span>' : '',
+    rightHand.length ? '<span class="keybed-legend-item is-rh"><i></i>Main droite</span>' : '',
+  ].filter(Boolean).join('');
+  return `<div class="keybed">
+      <div class="keybed-head">
+        <span class="keybed-title">${title}</span>
+        ${legende ? `<span class="keybed-legend">${legende}</span>` : ''}
+      </div>
+      <div class="keybed-keys">${kb.svg}</div>
+      ${etendue || compte ? `<div class="keybed-foot">
+        <span>${etendue}</span>
+        <span>${compte}</span>
+      </div>` : ''}
+    </div>`;
 }
