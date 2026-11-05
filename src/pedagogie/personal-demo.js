@@ -1,14 +1,15 @@
+import {samePlayingSource} from './personal-source.js';
 import {personalVariantsAnswer} from './playing-variants.js';
 
 // Une démonstration personnelle doit garder une prise comme source, même si
 // le contexte live a disparu depuis le tour précédent.
 export function personalDemoAnswer({message, messages = [], context}) {
-  if (context?.type && context.type !== 'autonomous') return null;
+  if (context?.type && !['autonomous','session'].includes(context.type)) return null;
   const hear = /entendre|écout|ecout|démonstration|demonstration|\bd[eé]mo\b|montre.moi|joue.moi/i.test(message || '');
   if (!hear) return null;
   const boundary = messages.findLastIndex(m => m.role === 'user' && m.take?.events?.length);
   const recent = messages.slice(Math.max(0, boundary));
-  const previous = [...recent].reverse().find(m => m.role === 'assistant' && m.toolResult?.variants?.length && m.toolResult.originalTake?.events?.length);
+  const previous = [...recent].reverse().find(m => m.role === 'assistant' && m.toolResult?.variants?.length && m.toolResult.originalTake?.events?.length && (!context?.playing?.passage?.events?.length || samePlayingSource(m.toolResult.originalTake, context.playing.passage)));
   if (previous) return {ok:true, content:'Voici les propositions préparées à partir de ta prise.', toolResult:previous.toolResult, suggestedActions:[], autoplay:true};
   const take = context?.playing?.passage || (boundary >= 0 ? messages[boundary].take : null);
   if (take?.events?.length) {

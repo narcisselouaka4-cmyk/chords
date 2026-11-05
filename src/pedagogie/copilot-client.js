@@ -1,3 +1,4 @@
+import {personalContext} from './personal-source.js';
 import {personalDemoAnswer, isPersonalExample} from './personal-demo.js';
 // [Claude] — 2026-09-06 — Copilot IA : client de chat avec outil clavier.
 //
@@ -1816,6 +1817,7 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
  * @returns {Promise<{ok: true, content: string, toolResult: {played: object[], ignored: number}} | {ok: false, error: string}>}
  */
 export async function sendCopilotMessage({ message, messages, context, copilotStyleId = 'auto', review = false }) {
+  context = personalContext(context);
   const demo = personalDemoAnswer({message, messages, context});
   if (demo) return demo;
   const style = playingStyleAnswer({ message, messages, context });

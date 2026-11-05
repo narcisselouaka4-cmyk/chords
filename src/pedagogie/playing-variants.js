@@ -1,3 +1,4 @@
+import {samePlayingSource} from './personal-source.js';
 // Intentions harmoniques et mouvements calculés sur la prise personnelle.
 import { buildPhraseVariants } from './phrase-variants.js';
 const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'").toLowerCase();
@@ -18,13 +19,13 @@ export function personalVariantsAnswer({message,messages=[],context}) {
  if(/rejoue ma|re.e?coute ma|explique|quel.*style|drop\s*2|upper.?structure|alle?g|supprim/.test(text))return null;
  const boundary=messages.findLastIndex(m=>m.role==='user'&&m.take?.events?.length);
  const relevant=messages.slice(Math.max(0,boundary));
- const previous=[...relevant].reverse().find(m=>m.role==='assistant'&&(m.toolResult?.phraseHarmony||m.toolResult?.fixedHarmony||m.toolResult?.variants?.length));
+ const previous=[...relevant].reverse().find(m=>m.role==='assistant'&&samePlayingSource(m.toolResult?.originalTake,take)&&(m.toolResult?.phraseHarmony||m.toolResult?.fixedHarmony||m.toolResult?.variants?.length));
  const hear=/entendre|ecout|demonstration|\bdemo\b|montre.moi|joue.moi/.test(text);
  const broad=/enrich|reharmonis|voicings?|developp|mouvements?|liaisons?|accords? de passage|ameliore.*(?:jeu|progression|accord)|plusieurs (?:propositions|versions|variantes)|rends.*(?:accords|jeu).*(?:beau|riche)|(?:rajoute|ajoute|ajouter).*(?:mouvements|accords)|basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text);
  const follow=previous&&/encore|va plus loin|c'est tout|rien.*plus|ajout.*plus|autre chose|autre.*(?:couleur|accord)|(?:prefere|robot|catastroph|mieux).*(?:liaison|arpege)|(?:liaison|arpege).*(?:robot|catastroph|mieux)/.test(text);
  if(!broad&&!follow&&!(hear&&previous))return null;
  const request=follow&&previous.toolResult.harmonicRequest?continuedRequest(previous.toolResult.harmonicRequest,message):message;
- const exclude=follow?relevant.flatMap(m=>m.toolResult?.variants||[]).map(v=>JSON.stringify(v.example?.events)):[];
+ const exclude=follow?relevant.filter(m=>samePlayingSource(m.toolResult?.originalTake,take)).flatMap(m=>m.toolResult?.variants||[]).map(v=>JSON.stringify(v.example?.events)):[];
  const variants=!broad&&!follow&&previous?.toolResult.phraseHarmony&&previous.toolResult.variants?.length?previous.toolResult.variants:buildPhraseVariants(take,{message:request,exclude});
  if(!variants.length)return {ok:true,content:follow?'Je n’ai pas trouvé d’autre version assez différente avec ces contraintes. Tu peux préciser la couleur ou l’arrivée que tu souhaites travailler.':'Je n’ai pas trouvé de proposition compatible avec cette prise. Précise les accords ou les basses que tu souhaites garder.',toolResult:{played:[],ignored:0,suggestions:[],voicing:null,phraseHarmony:true,harmonicRequest:request,originalTake:take},suggestedActions:[]};
  const first=variants[0];
