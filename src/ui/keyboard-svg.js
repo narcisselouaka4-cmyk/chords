@@ -36,7 +36,8 @@ function getNoteProps(midi, latin = false) {
 }
 
 function whiteKeyTemplate(props, posX, color, whiteHeight = NOTE_WHITE_HEIGHT) {
-  const name = `${props.name}${props.octave}`;
+  // Repères légers : seulement Do/C, sans numéro d'octave.
+  const name = props.midi % 12 === 0 ? props.name : '';
   return `\
 <g id="note-${props.midi}" class="note white" data-midi="${props.midi}" transform="translate(${posX},0)" style="color: ${color};">
   <rect class="piano-key" width="${NOTE_WHITE_WIDTH}" height="${whiteHeight + NOTE_RADIUS}" x="0" y="${-NOTE_RADIUS}" rx="${NOTE_RADIUS}" ry="${NOTE_RADIUS}"></rect>
