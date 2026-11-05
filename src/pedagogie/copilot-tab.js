@@ -24,7 +24,7 @@ import { transferTargets } from './copilot-client.js';
 import { applyTutorialPassage } from './tutorial-transfer.js';
 import { transposeChordLabel } from './teacher-notes.js';
 import {
-  TUTORIAL_QUICK_ACTIONS, TUTORIAL_KEYS, TRANSFER_KINDS, TUTORIAL_PROGRESSIONS,
+  TUTORIAL_KEYS, TRANSFER_KINDS, TUTORIAL_PROGRESSIONS,
   hisProgression, compatibleProgressions,
   otherKeyQuestion, applyQuestion, keyIdFrom, keyLabel,
 } from './tutorial-questions.js';
@@ -167,54 +167,10 @@ function historyKeyForMode() {
   return AUTONOMOUS_HISTORY_KEY;
 }
 
-// Propositions du mode exercice (envoyées d'un clic, comme les autres). [Claude] —
-// 2026-10-04 — Ce qui est écrit part (Narcisse : « pour chaque étiquette, il y a une
-// question » qu'on ne voit pas) : le message est le texte de l'étiquette.
-// [Claude] — 2026-10-13 — Formulations accessibles à tous (« quelles notes » plutôt que « quelles
-// voix »), et deux aides concrètes : le retenir, savoir où l'utiliser.
-const EXERCISE_QUICK_ACTIONS = [
-  { label: 'Explique ce voicing', message: 'Explique ce voicing.' },
-  { label: 'Comment le jouer à deux mains ?', message: 'Comment le jouer à deux mains ?' },
-  { label: 'Quelles notes bougent ?', message: 'Quelles notes bougent ?' },
-  { label: 'Comment le retenir ?', message: 'Comment le retenir ?' },
-  { label: 'Dans quels morceaux l\'utiliser ?', message: 'Dans quels morceaux l\'utiliser ?' },
-  { label: 'Fais-moi entendre la carte', message: 'Fais-moi entendre la carte.' },
-];
-let defaultQuickActions = null;
-
-/**
- * Propositions sous la conversation : celles de l'exercice en mode exercice, celles du
- * tutoriel en mode tutoriel (Pédagogie IA), sinon celles de la page. [Claude] —
- * 2026-10-03 — En mode tutoriel, deux propositions ouvrent un petit choix (une
- * tonalité ; quoi reprendre, sur quelle progression, dans quelle tonalité).
- */
+/** Un changement de contexte ferme le choix temporaire de la réponse. */
 function renderQuickActionsForMode() {
-  if (!els.quickActions) return;
-  if (!defaultQuickActions) defaultQuickActions = [...els.quickActions.querySelectorAll('.copilot-chip')].map((b) => ({ label: b.textContent, message: b.dataset.message }));
-  const list = currentMode === 'exercise' ? EXERCISE_QUICK_ACTIONS
-    : currentMode === 'tutorial' ? TUTORIAL_QUICK_ACTIONS
-      : defaultQuickActions;
-  els.quickActions.querySelectorAll('.copilot-chip').forEach((b) => b.remove());
+  // Les relances vivent sous la réponse concernée, plus dans le compositeur.
   closeChooser();
-  // Juste après « Continuer : » (le sélecteur de style reste au bout de la rangée).
-  const chips = list.map((a) => el('button', {
-    type: 'button',
-    className: `copilot-chip${a.chooser ? ' has-chooser' : ''}`,
-    'data-message': a.message || null,
-    'data-chooser': a.chooser || null,
-    'aria-expanded': a.chooser ? 'false' : null,
-    text: a.label,
-  }));
-  const label = els.quickActions.querySelector('.copilot-quick-actions-label');
-  if (label) {
-    label.textContent = 'Continuer : ';
-    // [Claude] — 2026-10-04 — En mode tuto, les étiquettes disent déjà « ce passage » : sans
-    // libellé, la rangée tient sur une ligne (la conversation y gagne de la hauteur).
-    label.hidden = currentMode === 'tutorial';
-    label.after(...chips);
-  } else {
-    els.quickActions.prepend(...chips);
-  }
 }
 
 // ── Petits choix du mode tutoriel (Pédagogie IA) ─────────────────────────────
@@ -442,7 +398,7 @@ function toggleChooser(kind, chip) {
   const box = kind === 'key' ? buildKeyChooser() : buildApplyChooser();
   box.dataset.kind = kind;
   box.addEventListener('keydown', cancelChooserOnEscape);
-  els.quickActions.after(box);
+  (chip?.closest('.copilot-message-actions') || els.input?.parentElement)?.after(box);
   els.chooser = box;
   chip?.setAttribute('aria-expanded', 'true');
   box.querySelector('button')?.focus();
@@ -486,18 +442,18 @@ function renderActionChips(actions) {
   if (!actions?.length) return null;
   const container = el('div', { className: 'tr-chat-demos copilot-message-actions' });
   for (const action of actions) {
-    // [Claude] — 2026-10-04 — Ce qui est écrit part : l'étiquette montre le message envoyé
-    // (avant : un libellé court, « Voicing », et une question cachée derrière).
+    // Libellé court demandé par Narcisse ; la demande complète reste lisible
+    // au survol puis dans la saisie, avant l'envoi.
     const message = String(action.message || action.label || '').trim();
     if (!message) continue;
     const btn = el('button', {
       className: 'copilot-chip',
       type: 'button',
       title: message,
-      onClick: () => prepareAction(message),
+      onClick: (event) => action.chooser ? toggleChooser(action.chooser,event.currentTarget) : prepareAction(message),
     });
     btn.innerHTML = ICON_SPARKLE;
-    btn.appendChild(el('span', { text: message }));
+    btn.appendChild(el('span', { text: action.label || message }));
     container.appendChild(btn);
   }
   return container.childElementCount ? container : null;
@@ -549,17 +505,11 @@ function renderCopilotWelcome() {
     options.appendChild(btn);
   }
 
-  const intro = el('p', {}, [
-    document.createTextNode('Un accord à explorer, un morceau à comprendre.'),
-    el('br'),
-    document.createTextNode('Prenons le temps de l’écouter ensemble.'),
-  ]);
 
   return el('div', { className: 'tr-copilot-welcome' }, [
     aiObject,
     el('span', { className: 'tr-eyebrow', text: 'VOTRE PARTENAIRE D’HARMONIE' }),
     heading,
-    intro,
     contextNoteNode(),
     options,
   ]);
@@ -1260,7 +1210,7 @@ export function splitAnswerNotes(content, transferText) {
 /** Ce qu'envoie « Plus de détails » (le texte de l'étiquette : ce qui est écrit part). */
 export const MORE_DETAILS = 'Plus de détails';
 /** Une demande de détail, par l'étiquette ou tapée (« plus de détails. », « Détaille la main gauche »…). */
-const MORE_DETAILS_ASKED = /^\s*(?:plus de d[ée]tails?|d[ée]taille[sz]?|explique[sz]?(?:-moi)? plus)\b/i;
+const MORE_DETAILS_ASKED = /^\s*(?:plus de d[ée]tails?|d[ée]tails?|d[ée]taille[sz]?|explique[sz]?(?:-moi)? plus)\b/i;
 /** Le même texte, à la casse et à la ponctuation finale près. */
 const sameText = (a, b) => String(a || '').trim().replace(/[\s.!?…]+$/, '').toLowerCase() === String(b || '').trim().replace(/[\s.!?…]+$/, '').toLowerCase();
 
@@ -1274,10 +1224,24 @@ const sameText = (a, b) => String(a || '').trim().replace(/[\s.!?…]+$/, '').to
  * @returns {{label: string, message: string}[]}
  */
 export function answerActions(msg, { last = false, asked = '' } = {}) {
-  if (!msg || msg.role !== 'assistant' || msg.isTyping) return [];
-  const more = last && !msg.isError && Boolean(String(msg.content || '').trim()) && !MORE_DETAILS_ASKED.test(String(asked || ''));
-  const suggested = (msg.suggestedActions || []).filter((a) => !(more && sameText(a?.message || a?.label, MORE_DETAILS)));
-  return more ? [{ label: MORE_DETAILS, message: MORE_DETAILS }, ...suggested] : suggested;
+  if (!msg || msg.role !== 'assistant' || msg.isTyping || msg.isError || !String(msg.content||'').trim()) return [];
+  const suggested=(msg.suggestedActions||[]).filter(a=>a&&String(a.message||a.label||'').trim());
+  if(!last)return suggested;
+  const actions=[];
+  const detailsAsked=MORE_DETAILS_ASKED.test(String(asked||''));
+  if(!detailsAsked)actions.push({label:'Détails',message:MORE_DETAILS});
+  const personal=Boolean(msg.toolResult?.originalTake?.events?.length && (msg.toolResult?.example || msg.toolResult?.variants?.length));
+  if(personal)actions.push({label:'Une autre proposition',message:'Propose une autre version de mon jeu.'});
+  if(msg.toolResult?.example?.source?.kind==='passage vidéo')actions.push({label:'Transposer ce passage',message:'Transposer ce passage',chooser:'key'});
+  const seen=new Set(actions.map(a=>String(a.message).replace(/[.!?]+$/,'').toLowerCase()));
+  for(const action of suggested){
+    const message=String(action.message||action.label).trim();
+    if(detailsAsked&&sameText(message,MORE_DETAILS))continue;
+    const key=message.replace(/[.!?]+$/,'').toLowerCase();
+    if(seen.has(key))continue;
+    seen.add(key);actions.push({...action,message});
+  }
+  return actions.slice(0,3);
 }
 
 /** Un message de la conversation (voir renderMessages). */
@@ -2018,21 +1982,6 @@ export async function initCopilotTab() {
   els.deleteEmptyBtn?.addEventListener('click', onDeleteEmptyConversations);
   els.modeToggleBtn?.addEventListener('click', onModeToggleClick);
 
-  // Chips statiques sous la zone de messages.
-  els.quickActions = document.getElementById('copilot-quick-actions');
-  if (els.quickActions) {
-    els.quickActions.addEventListener('click', (e) => {
-      const chip = e.target.closest('.copilot-chip');
-      if (!chip || !els.input) return;
-      if (chip.dataset.chooser) {
-        toggleChooser(chip.dataset.chooser, chip);
-        return;
-      }
-      const message = chip.dataset.message;
-      if (!message) return;
-      prepareAction(message);
-    });
-  }
   // [Claude] — 2026-10-03 — Un moment cité dans une réponse (« à 1:31 ») place la
   // vidéo de Pédagogie IA (pedagogie-tab.js écoute « pedagogie-seek »).
   els.messages?.addEventListener('click', (e) => {

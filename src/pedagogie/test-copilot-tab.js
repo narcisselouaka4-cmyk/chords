@@ -176,7 +176,7 @@ function testAnswerActions() {
   const answer = { role: 'assistant', content: 'L\'idée en une phrase.', suggestedActions: [{ label: 'Que fait la main gauche ?', message: 'Que fait la main gauche ?' }] };
   const last = answerActions(answer, { last: true, asked: 'Explique ce passage.' });
   check('Sous la dernière réponse : « Plus de détails » d\'abord, puis les suggestions',
-    MORE_DETAILS === 'Plus de détails' && last.length === 2 && last[0].label === MORE_DETAILS && last[0].message === MORE_DETAILS && last[1].message === 'Que fait la main gauche ?',
+    MORE_DETAILS === 'Plus de détails' && last.length === 2 && last[0].label === 'Détails' && last[0].message === MORE_DETAILS && last[1].message === 'Que fait la main gauche ?',
     JSON.stringify(last));
   check('Sous une réponse plus ancienne : les suggestions seulement',
     answerActions(answer, { last: false }).map((a) => a.message).join('|') === 'Que fait la main gauche ?');

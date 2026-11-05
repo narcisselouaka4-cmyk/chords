@@ -23,7 +23,7 @@ export function personalVariantsAnswer({message,messages=[],context}) {
  const previous=[...relevant].reverse().find(m=>m.role==='assistant'&&!m.toolResult?.variants?.some(v=>v.advice?.version===6)&&samePlayingSource(m.toolResult?.originalTake,take)&&(m.toolResult?.phraseHarmony||m.toolResult?.fixedHarmony||m.toolResult?.variants?.length));
  const hear=/entendre|ecout|demonstration|\bdemo\b|montre.moi|joue.moi/.test(text);
  const broad=/enrich|reharmonis|voicings?|developp|mouvements?|liaisons?|accords? de passage|ameliore.*(?:jeu|progression|accord)|plusieurs (?:propositions|versions|variantes)|rends.*(?:accords|jeu).*(?:beau|riche)|(?:rajoute|ajoute|ajouter).*(?:mouvements|accords)|basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text);
- const follow=previous&&/encore|va plus loin|c'est tout|rien.*plus|ajout.*plus|autre chose|autre.*(?:couleur|accord)|(?:prefere|robot|catastroph|mieux).*(?:liaison|arpege)|(?:liaison|arpege).*(?:robot|catastroph|mieux)/.test(text);
+ const follow=previous&&/une autre (?:version|proposition|variante)|encore|va plus loin|c'est tout|rien.*plus|ajout.*plus|autre chose|autre.*(?:couleur|accord)|(?:prefere|robot|catastroph|mieux).*(?:liaison|arpege)|(?:liaison|arpege).*(?:robot|catastroph|mieux)/.test(text);
  if(!broad&&!follow&&!(hear&&previous))return null;
  const request=follow&&previous.toolResult.harmonicRequest?continuedRequest(previous.toolResult.harmonicRequest,message):message;
  const exclude=follow?relevant.filter(m=>samePlayingSource(m.toolResult?.originalTake,take)).flatMap(m=>m.toolResult?.variants||[]).map(v=>JSON.stringify(v.example?.events)):[];
