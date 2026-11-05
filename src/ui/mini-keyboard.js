@@ -236,50 +236,116 @@ export function miniKeyboardForNotes(activeNotes, options = {}) {
 }
 
 /**
- * [Claude] — 2026-11-05 — Le « keybed » : le clavier dans son cadre, avec sa
- * légende et ses repères — la présentation que Narcisse a retenue d'une
- * maquette qu'il juge « quasiment 10 sur 10 ».
+ * [Claude] — 2026-11-05 — Le clavier de la carte, porté du code du candidat.
  *
- * Trois choses que le clavier nu ne disait pas, et qui comptent :
- *   - QUI joue quoi (légende des deux mains, avec leurs vraies couleurs) ;
- *   - OÙ l'on joue (l'étendue dessinée, en pied) ;
- *   - COMBIEN de notes sonnent (le compte, en pied).
+ * Narcisse a fourni les sources de la maquette qu'il veut (« je savais que
+ * t'allais rater, voilà pourquoi j'ai pris le code du candidat ») : ma première
+ * tentative habillait le dessin SVG existant, et ne pouvait pas y ressembler.
+ * Son clavier n'est PAS un SVG — ce sont des touches HTML en pourcentage, dont
+ * le relief vient de dégradés et d'ombres internes. C'est ce qui fait le rendu,
+ * et c'est ce qui est repris ici tel quel.
  *
- * Le cadre suit le thème : ses couleurs viennent des jetons, jamais d'un
- * sombre en dur. Narcisse : « attention, en mode clair les bordures doivent
- * être claires et pas sombres. »
+ * Le corps du clavier reste SOMBRE dans les deux thèmes : c'est un piano, pas
+ * une surface d'interface. Sa bordure, elle, est claire — `rgba(255,255,255,.09)`
+ * dans l'original — ce qui répond à la consigne « en mode clair les bordures
+ * doivent être claires et pas sombres ».
  *
- * @param {{svg: string}} kb - rendu de miniKeyboardForNotes
+ * Les touches ne sont pas des boutons : c'est un aperçu, pas un instrument. Le
+ * vrai clavier jouable est celui du bas, auquel on ne touche pas. Cinquante
+ * boutons de plus dans l'ordre de tabulation n'apporteraient rien.
+ *
  * @param {object} options
  * @param {number[]} [options.leftHand]
  * @param {number[]} [options.rightHand]
- * @param {number[]} [options.notes] - toutes les notes actives
- * @param {string} [options.title] - intitulé de la bande du haut
+ * @param {number[]} [options.added] - doublures et notes ajoutées
+ * @param {number} [options.startMidi]
+ * @param {number} [options.endMidi]
+ * @param {string} [options.title]
+ * @param {(midi: number) => string} [options.formatNote]
  * @returns {string}
  */
-export function keybedMarkup(kb, { leftHand = [], rightHand = [], notes = [], title = 'Aperçu du voicing' } = {}) {
-  const jouees = notes.length ? [...notes].sort((a, b) => a - b) : [];
-  const etendue = jouees.length
-    ? `${midiToNoteName(jouees[0], true, false)} — ${midiToNoteName(jouees[jouees.length - 1], true, false)}`
-    : '';
-  const compte = jouees.length
-    ? `${jouees.length} note${jouees.length > 1 ? 's' : ''} active${jouees.length > 1 ? 's' : ''}`
-    : '';
-  // La légende ne nomme une main que si elle joue : annoncer « main gauche »
-  // sur un voicing qui n'en a pas serait une information fausse.
+export function keybedMarkup({
+  leftHand = [], rightHand = [], added = [],
+  startMidi = 36, endMidi = 84, title = 'Aperçu du voicing', formatNote = null,
+} = {}) {
+  const lh = new Set(leftHand.filter((n) => Number.isFinite(n)));
+  const rh = new Set(rightHand.filter((n) => Number.isFinite(n)));
+  const plus = new Set(added.filter((n) => Number.isFinite(n)));
+  const actives = [...new Set([...lh, ...rh])].sort((a, b) => a - b);
+  const nom = (midi) => (formatNote ? formatNote(midi) : midiToNoteName(midi, true, false));
+
+  // La fenêtre couvre au moins les notes jouées : un voicing qui sort de la
+  // plage par défaut serait invisible, ce qui est arrivé avec l'ancien dessin.
+  let debut = Math.min(startMidi, actives.length ? actives[0] - 2 : startMidi);
+  let fin = Math.max(endMidi, actives.length ? actives[actives.length - 1] + 2 : endMidi);
+  while (isBlackKey(debut)) debut -= 1;
+  while (isBlackKey(fin)) fin += 1;
+
+  const blanches = [];
+  for (let midi = debut; midi <= fin; midi += 1) if (!isBlackKey(midi)) blanches.push(midi);
+  if (!blanches.length) return '';
+  const largeurBlanche = 100 / blanches.length;
+  const largeurNoire = largeurBlanche * 0.62;
+
+  const mainDe = (midi) => (lh.has(midi) ? 'lh' : (rh.has(midi) ? 'rh' : null));
+  const classesDe = (midi, base) => {
+    const main = mainDe(midi);
+    return [base, main ? `is-${main}` : '', plus.has(midi) && main ? 'is-added' : ''].filter(Boolean).join(' ');
+  };
+  const titreDe = (midi) => {
+    const main = mainDe(midi);
+    const suite = main ? `, ${main === 'lh' ? 'main gauche' : 'main droite'}` : '';
+    return escapeAttribute(`${nom(midi)}${suite}${plus.has(midi) && main ? ', ajoutée' : ''}`);
+  };
+
+  let touches = '';
+  blanches.forEach((midi) => {
+    // Un repère sous la touche : les Do, qui situent l'octave, et les notes
+    // jouées. Tout étiqueter rendrait le clavier illisible.
+    const montrer = midi % 12 === 0 || mainDe(midi);
+    const caption = montrer ? `<span class="key-caption">${escapeHtmlText(nom(midi))}</span>` : '';
+    touches += `<span class="${classesDe(midi, 'white-key')}" title="${titreDe(midi)}" aria-hidden="true">${caption}</span>`;
+  });
+  for (let midi = debut; midi <= fin; midi += 1) {
+    if (!isBlackKey(midi)) continue;
+    const avant = blanches.filter((b) => b < midi).length;
+    const gauche = avant * largeurBlanche - largeurNoire / 2;
+    const caption = mainDe(midi) ? `<span class="key-caption">${escapeHtmlText(nom(midi))}</span>` : '';
+    touches += `<span class="${classesDe(midi, 'black-key')}" style="left:${round2(gauche)}%;width:${round2(largeurNoire)}%" title="${titreDe(midi)}" aria-hidden="true">${caption}</span>`;
+  }
+
+  // La légende ne nomme une main que si elle joue : l'annoncer sur un voicing
+  // qui n'en a pas serait une information fausse.
   const legende = [
-    leftHand.length ? '<span class="keybed-legend-item is-lh"><i></i>Main gauche</span>' : '',
-    rightHand.length ? '<span class="keybed-legend-item is-rh"><i></i>Main droite</span>' : '',
+    lh.size ? '<span class="keybed-legend-item is-lh"><i></i>Main gauche</span>' : '',
+    rh.size ? '<span class="keybed-legend-item is-rh"><i></i>Main droite</span>' : '',
+    plus.size ? '<span class="keybed-legend-item is-added"><i></i>Ajoutée</span>' : '',
   ].filter(Boolean).join('');
+
+  const etendue = actives.length ? `${nom(actives[0])} — ${nom(actives[actives.length - 1])}` : '';
+  const compte = actives.length ? `${actives.length} note${actives.length > 1 ? 's' : ''} active${actives.length > 1 ? 's' : ''}` : '';
+
   return `<div class="keybed">
       <div class="keybed-head">
-        <span class="keybed-title">${title}</span>
+        <span class="keybed-title">${escapeHtmlText(title)}</span>
         ${legende ? `<span class="keybed-legend">${legende}</span>` : ''}
       </div>
-      <div class="keybed-keys">${kb.svg}</div>
-      ${etendue || compte ? `<div class="keybed-foot">
-        <span>${etendue}</span>
-        <span>${compte}</span>
-      </div>` : ''}
+      <div class="piano-keys" role="img" aria-label="${escapeAttribute(ariaDuVoicing(actives, lh, rh, nom))}">${touches}</div>
+      ${etendue || compte ? `<div class="keybed-foot"><span>${escapeHtmlText(etendue)}</span><span class="keybed-count">${escapeHtmlText(compte)}</span></div>` : ''}
     </div>`;
 }
+
+/** Le voicing en une phrase, pour qui n'a que la lecture d'écran. */
+function ariaDuVoicing(actives, lh, rh, nom) {
+  if (!actives.length) return 'Clavier, aucune note';
+  const gauche = actives.filter((n) => lh.has(n)).map(nom);
+  const droite = actives.filter((n) => rh.has(n)).map(nom);
+  const bouts = [];
+  if (gauche.length) bouts.push(`main gauche ${gauche.join(', ')}`);
+  if (droite.length) bouts.push(`main droite ${droite.join(', ')}`);
+  return bouts.length ? `Clavier : ${bouts.join(' ; ')}` : `Clavier : ${actives.map(nom).join(', ')}`;
+}
+
+const round2 = (n) => Math.round(n * 100) / 100;
+const escapeHtmlText = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const escapeAttribute = (s) => escapeHtmlText(s).replace(/"/g, '&quot;');

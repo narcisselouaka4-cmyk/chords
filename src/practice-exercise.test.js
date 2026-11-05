@@ -1423,13 +1423,16 @@ function checkCardDemoAdditions() {
   const hands = (html.match(/exercise-hand-notes">([^<]*)</g) || []).join(' ');
   check('Cases des mains : le voicing de l\'exercice seul (pas la basse de la démo)', hands.length > 0 && !hands.includes('D2') && !hands.includes('A2'), hands);
   const plain = renderExerciseTarget(target, {});
-  check('Sans démo : pas de légende, clavier inchangé', !plain.includes('exercise-demo-added') && plain.split('<rect').length < html.split('<rect').length,
-    `${plain.split('<rect').length} / ${html.split('<rect').length}`);
+  check('Sans démo : pas de légende', !plain.includes('exercise-demo-added'));
   // [Claude] — 2026-11-05 — Le clavier dessiné reste sur la carte. Je l'avais
   // retiré sur un contresens (« il fait enfantin » = changer son design, pas le
   // supprimer) ; cette vérification garde la trace du retour en arrière.
+  // Il n'est plus en SVG mais en touches HTML, portées du code du candidat.
   check('La carte dessine toujours son clavier',
-    plain.includes('exercise-target-keyboard') && html.includes('exercise-target-keyboard'));
+    plain.includes('class="piano-keys"') && html.includes('class="piano-keys"'));
+  check('La démo colore plus de touches que la carte seule',
+    html.split('is-lh').length + html.split('is-rh').length
+    >= plain.split('is-lh').length + plain.split('is-rh').length);
 
   // [Claude] — 2026-11-05 — Les mains du clavier sont les VRAIES mains.
   // Narcisse : « ce qui est démarqué en jaune, parfois ça arrive tout à droite
@@ -1458,7 +1461,7 @@ function checkCardDemoAdditions() {
             if (!v?.leftHand?.length || !v?.rightHand?.length) continue;
             examinees += 1;
             const markup = renderExerciseTarget(cible, {});
-            if (!/class="[^"]*is-lh/.test(markup)) sansMainGauche += 1;
+            if (!/class="white-key[^"]*is-lh|class="black-key[^"]*is-lh/.test(markup)) sansMainGauche += 1;
             // Une carte n'a pas toujours de note ajoutée : le voicing tiré
             // décide. On ne compte donc que celles qui en ont vraiment, et on
             // exige qu'elles la marquent — sinon la vérification dépendrait du
@@ -1466,17 +1469,20 @@ function checkCardDemoAdditions() {
             const ajouts = [...(v.doubled || []), ...(v.styleAdded || [])];
             if (ajouts.length) {
               cartesAvecAjout += 1;
-              if (/stroke-dasharray/.test(markup)) ajoutsMarques += 1;
+              if (/(?:white|black)-key[^"]*is-added/.test(markup)) ajoutsMarques += 1;
             }
-            const plusGraveDroite = Math.min(...v.rightHand);
-            for (const m of markup.matchAll(/data-midi="(\d+)"[^>]*fill="url\(#mk-(\w+)-/g)) {
-              if (m[2] === 'add' && Number(m[1]) >= plusGraveDroite) ambreDansLeRegistreDroit += 1;
-            }
+            // Les touches blanches sont émises du grave vers l'aigu : si une
+            // touche « main gauche » apparaît après une « main droite », l'or
+            // est à droite du rose — le défaut signalé par Narcisse.
+            const ordre = [...markup.matchAll(/class="white-key[^"]*is-(lh|rh)/g)].map((m) => m[1]);
+            const dernierOr = ordre.lastIndexOf('lh');
+            const premierRose = ordre.indexOf('rh');
+            if (dernierOr !== -1 && premierRose !== -1 && dernierOr > premierRose) ambreDansLeRegistreDroit += 1;
           }
         }
       }
     }
-    check('Aucune touche de la couleur des ajouts dans le registre de la main droite',
+    check('Sur le clavier, aucune touche de main gauche n\'est à droite d\'une main droite',
       ambreDansLeRegistreDroit === 0, `${ambreDansLeRegistreDroit} sur ${examinees} cartes`);
     check('Toute carte à deux mains montre sa main gauche sur le clavier',
       sansMainGauche === 0, `${sansMainGauche} carte(s) sans main gauche`);
@@ -1520,7 +1526,7 @@ function checkCardDemoAdditions() {
         if (markup.includes('Main gauche</span>') !== ((v.leftHand || []).length > 0)) legendeMenteuse += 1;
         if (markup.includes('Main droite</span>') !== ((v.rightHand || []).length > 0)) legendeMenteuse += 1;
         if (!/notes? active/.test(markup)) sansCompte += 1;
-        if (!/class="mini-caption/.test(markup)) sansRepere += 1;
+        if (!/class="key-caption"/.test(markup)) sansRepere += 1;
       }
     }
     check('La legende du clavier ne nomme que les mains qui jouent vraiment',

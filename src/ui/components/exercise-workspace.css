@@ -98,8 +98,7 @@
   color: var(--tr-secondary);
 }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-favorite-toggle { top: 0; left: 0; width: 32px; height: 32px; border-radius: 6px; }
-:root[data-skin] #practice-tab #practice-view-exercices .exercise-target-keyboard { width: min(100%, 480px); max-width: 480px; margin: 4px auto 0; }
-:root[data-skin] #practice-tab #practice-view-exercices .exercise-target-keyboard svg { height: 104px; max-height: none; width: 100%; }
+:root[data-skin] #practice-tab #practice-view-exercices .exercise-target-keyboard { width: min(100%, 660px); max-width: 660px; margin: 4px auto 0; }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-hands { width: min(100%, 560px); margin: 0; gap: 16px; }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-hand {
   padding: 10px 14px;
@@ -213,7 +212,6 @@
   :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-card { min-height: 280px; gap: 6px; }
   :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-header { min-height: 54px; }
   :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-name { font-size: 46px; }
-  :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-keyboard svg { height: 86px; }
   :root[data-skin] #practice-tab #practice-view-exercices .exercise-hand { padding: 8px 12px; }
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-progress { max-height: 340px; padding: 16px; }
 }
@@ -697,30 +695,47 @@
 }
 
 
-/* ----------------------------------------------------- Le clavier dans son cadre
-   [Claude] — 2026-11-05 — Présentation retenue par Narcisse sur une maquette
-   qu'il juge « quasiment 10 sur 10 » : le clavier n'est plus un dessin posé au
-   milieu de la carte, mais un bloc qui dit aussi QUI joue (légende des deux
-   mains), OÙ (l'étendue) et COMBIEN de notes sonnent.
+/* ----------------------------------------------------- Le clavier de la carte
+   [Claude] — 2026-11-05 — Porté du code de la maquette fourni par Narcisse
+   (« je savais que t'allais rater, voilà pourquoi j'ai pris le code du
+   candidat »). Ma première version habillait le dessin SVG existant et ne
+   pouvait pas y ressembler : son clavier est fait de touches HTML dont le
+   relief vient de dégradés et d'ombres internes. Les valeurs ci-dessous sont
+   les siennes, reprises telles quelles.
 
-   Le cadre suit le THÈME. Narcisse : « attention, en mode clair les bordures
-   doivent être claires et pas sombres. » Tout passe donc par les jetons —
-   --tr-border vaut un voile sombre à 14 % en clair et un voile clair à 10 % en
-   sombre — et aucune couleur n'est écrite en dur. Les touches, elles, restent
-   blanches et noires dans les deux thèmes : un piano n'a pas de mode clair.
+   Le corps du clavier reste SOMBRE dans les deux thèmes : c'est un piano, pas
+   une surface d'interface, et la maquette ne lui donne pas non plus de variante
+   claire. Sa bordure, elle, est CLAIRE — rgba(255,255,255,.09) — ce qui répond
+   à la consigne « en mode clair les bordures doivent être claires et pas
+   sombres ». Seuls les textes autour du clavier suivent les jetons du thème.
 
-   Préfixé par :root[data-skin] : les règles de skin d'astra-bridge.css et de
-   practice.css ciblent déjà .exercise-target-keyboard avec cette spécificité. */
+   Préfixé par :root[data-skin] : astra-bridge.css et practice.css ciblent déjà
+   .exercise-target-keyboard avec cette spécificité. */
 
 :root[data-skin] #practice-tab .keybed {
+  position: relative;
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 9px 11px 7px;
-  border: 1px solid var(--tr-border);
-  border-radius: 12px;
-  background: var(--tr-raised, var(--tr-surface));
+  border-radius: 14px;
+  background: linear-gradient(180deg, #2c2624 0%, #191615 55%, #121010 100%);
+  padding: 9px 9px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 22px 44px -26px rgba(20, 12, 12, 0.75),
+    0 4px 12px -6px rgba(20, 12, 12, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* Le liseré lumineux en haut du clavier : accent à gauche, or à droite. */
+:root[data-skin] #practice-tab .keybed::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, transparent, rgba(168, 30, 78, 0.7), rgba(214, 167, 94, 0.55), transparent);
+  opacity: 0.65;
 }
 
 :root[data-skin] #practice-tab .keybed-head,
@@ -728,13 +743,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  font-family: var(--tr-mono, ui-monospace, monospace);
-  font-size: 8.5px;
-  letter-spacing: .14em;
+  gap: 12px;
+  padding: 0 4px;
+  font-family: var(--tr-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 8px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--tr-secondary);
+  color: #9b928a;
 }
+
+:root[data-skin] #practice-tab .keybed-head { margin-bottom: 8px; }
+:root[data-skin] #practice-tab .keybed-foot { margin-top: 6px; letter-spacing: 0.12em; }
+:root[data-skin] #practice-tab .keybed-count { color: rgba(214, 167, 94, 0.75); }
 
 :root[data-skin] #practice-tab .keybed-title {
   overflow: hidden;
@@ -745,18 +765,19 @@
 :root[data-skin] #practice-tab .keybed-legend {
   display: inline-flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   flex: none;
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
 }
 
 :root[data-skin] #practice-tab .keybed-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   white-space: nowrap;
 }
 
-/* La pastille porte la couleur réelle de la main, celle des touches. */
 :root[data-skin] #practice-tab .keybed-legend-item > i {
   width: 6px;
   height: 6px;
@@ -764,25 +785,137 @@
   flex: none;
 }
 
-:root[data-skin] #practice-tab .keybed-legend-item.is-lh > i { background: var(--hand-lh, #a583e2); }
-:root[data-skin] #practice-tab .keybed-legend-item.is-rh > i { background: var(--hand-rh, #8ccdb7); }
+:root[data-skin] #practice-tab .keybed-legend-item.is-lh > i { background: #d4a45c; }
+:root[data-skin] #practice-tab .keybed-legend-item.is-rh > i { background: #c02f63; }
+:root[data-skin] #practice-tab .keybed-legend-item.is-added > i {
+  background: transparent;
+  border: 1.5px dashed #d4a45c;
+  width: 8px;
+  height: 8px;
+}
 
-:root[data-skin] #practice-tab .keybed-keys {
-  display: block;
+:root[data-skin] #practice-tab .keybed .piano-keys {
+  position: relative;
+  display: flex;
   width: 100%;
-  line-height: 0;
+  height: clamp(64px, 13.5vh, 122px);
+  overflow: hidden;
+  border-radius: 0 0 8px 8px;
+  background: #0c0a0a;
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.55);
 }
 
-/* Les repères d'octave, dessinés dans le SVG : ils suivent le texte du thème. */
-:root[data-skin] #practice-tab .keybed .mini-caption {
-  fill: var(--tr-secondary);
-  font-family: var(--tr-mono, ui-monospace, monospace);
-  letter-spacing: .04em;
+:root[data-skin] #practice-tab .keybed .white-key {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  border: 1px solid rgba(81, 66, 52, 0.45);
+  border-top: none;
+  border-left-width: 0;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, #fffdf9 0%, #fbf7ef 62%, #f0e9dd 100%);
+  box-shadow:
+    inset 0 -4px 0 rgba(202, 188, 169, 0.7),
+    inset 1px 0 0 rgba(255, 255, 255, 0.9),
+    inset -1px 0 0 rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
-:root[data-skin] #practice-tab .keybed .mini-caption.is-active {
-  fill: var(--tr-text);
+:root[data-skin] #practice-tab .keybed .white-key:first-child { border-left-width: 1px; }
+
+:root[data-skin] #practice-tab .keybed .white-key.is-lh {
+  background: linear-gradient(180deg, #f4dfb7 0%, #dcb977 48%, #c39a4d 100%);
+  border-color: rgba(126, 89, 33, 0.45);
+  box-shadow:
+    inset 0 -4px 0 rgba(150, 108, 42, 0.55),
+    inset 0 1px 0 rgba(255, 250, 232, 0.8),
+    0 0 18px rgba(195, 154, 77, 0.28);
+}
+
+:root[data-skin] #practice-tab .keybed .white-key.is-rh {
+  background: linear-gradient(180deg, #e8a9bf 0%, #c04d7c 48%, #9d2354 100%);
+  border-color: rgba(110, 18, 55, 0.5);
+  box-shadow:
+    inset 0 -4px 0 rgba(116, 17, 54, 0.5),
+    inset 0 1px 0 rgba(255, 227, 236, 0.75),
+    0 0 20px rgba(183, 43, 95, 0.3);
+}
+
+:root[data-skin] #practice-tab .keybed .key-caption {
+  font-family: var(--tr-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 7px;
+  letter-spacing: -0.02em;
+  color: #b0a294;
+  padding-bottom: 5px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+:root[data-skin] #practice-tab .keybed .white-key.is-lh .key-caption,
+:root[data-skin] #practice-tab .keybed .white-key.is-rh .key-caption,
+:root[data-skin] #practice-tab .keybed .black-key.is-lh .key-caption,
+:root[data-skin] #practice-tab .keybed .black-key.is-rh .key-caption {
+  color: #fff8ef;
+  text-shadow: 0 1px 2px rgba(60, 24, 15, 0.45);
   font-weight: 600;
+}
+
+:root[data-skin] #practice-tab .keybed .black-key {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  height: 61%;
+  border-radius: 0 0 4px 4px;
+  border: 1px solid #080707;
+  border-top: none;
+  background: linear-gradient(180deg, #4f4642 0%, #2a2422 34%, #171313 78%, #0d0b0b 100%);
+  box-shadow:
+    0 4px 7px rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.09) inset,
+    inset 0 -4px 0 rgba(0, 0, 0, 0.65);
+}
+
+:root[data-skin] #practice-tab .keybed .black-key.is-lh {
+  background: linear-gradient(180deg, #d6b273 0%, #a97f37 44%, #7e5c22 100%);
+  border-color: #5d4317;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.45),
+    0 0 16px rgba(195, 154, 77, 0.3),
+    inset 0 1px 0 rgba(255, 246, 220, 0.6);
+}
+
+:root[data-skin] #practice-tab .keybed .black-key.is-rh {
+  background: linear-gradient(180deg, #de7da0 0%, #a92b5c 44%, #781139 100%);
+  border-color: #5c0c2a;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(183, 43, 95, 0.35),
+    inset 0 1px 0 rgba(255, 219, 232, 0.6);
+}
+
+:root[data-skin] #practice-tab .keybed .black-key .key-caption {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #e8d8c7;
+  font-size: 6px;
+  letter-spacing: -0.05em;
+  overflow: hidden;
+  white-space: nowrap;
+  padding-bottom: 0;
+}
+
+/* Une note AJOUTÉE (doublure, main gauche d'un style) garde la couleur de sa
+   main et se signale par un liseré pointillé — elle ne devient pas une
+   troisième « main », ce qui était la confusion d'origine. */
+:root[data-skin] #practice-tab .keybed .white-key.is-added,
+:root[data-skin] #practice-tab .keybed .black-key.is-added {
+  outline: 1.5px dashed rgba(255, 248, 239, 0.85);
+  outline-offset: -3px;
 }
 
 @media (max-width: 1195px) {
