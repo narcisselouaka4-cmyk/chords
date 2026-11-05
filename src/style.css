@@ -471,8 +471,10 @@ body {
   fill: var(--kb-app);
 }
 
-/* Copilot joue avec la couleur de l'app, y compris les notes conservées.
-   Le contour distingue les changements sans remplacer cette couleur. */
+/* Copilot : notes conservées dans la couleur de l'app ; ajouts et modifications
+   en doré pour repérer les changements dans la proposition. */
+.note.white.active.is-app.is-copilot-change .piano-key { fill: #ffd966; }
+.note.black.active.is-app.is-copilot-change .piano-key { fill: #f2b705; }
 .note.active.is-copilot-change .piano-key { stroke: #926400; stroke-width: 2.5px; }
 
 .piano-key-name {
