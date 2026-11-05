@@ -106,13 +106,22 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
 
   let markup = '';
 
+  /**
+   * [Claude] — 2026-11-05 — La MAIN décide de la couleur, l'ajout est une
+   * marque en plus. Avant, `is-added` remplaçait `is-lh`/`is-rh` : une note
+   * doublée à la main droite se peignait dans la teinte des ajouts, que la
+   * légende lit comme « main gauche ». Narcisse : « ce qui est en jaune, c'est
+   * censé être la main gauche ; la main gauche ne peut pas être à la fois à
+   * gauche et à droite ». Les deux informations cohabitent désormais au lieu
+   * de se contredire.
+   */
   function activeClasses(midi) {
     const classes = ['mini-key'];
     if (activeSet.has(midi)) {
       classes.push('is-active');
-      if (addedSet.has(midi)) classes.push('is-added');
-      else if (leftHandSet.has(midi)) classes.push('is-lh');
+      if (leftHandSet.has(midi)) classes.push('is-lh');
       else if (rightHandSet.has(midi)) classes.push('is-rh');
+      if (addedSet.has(midi)) classes.push('is-added');
     }
     return classes.join(' ');
   }
@@ -122,13 +131,26 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
   // droite en vert sauge (--tr-green), notes ajoutées en ambre adouci.
   function tone(midi) {
     if (!activeSet.has(midi)) return 'off';
-    if (addedSet.has(midi)) return 'add';
+    // La main l'emporte sur l'ajout : une note doublée à la main droite reste
+    // de la couleur de la main droite. L'ajout se voit à son contour.
     if (rightHandSet.has(midi)) return 'rh';
     if (leftHandSet.has(midi)) return 'lh';
+    if (addedSet.has(midi)) return 'add';
     return 'on'; // note jouée sans main précisée : couleur de l'application
   }
   const suffix = `-${++gradientSerial}`;
   const fillOf = (midi) => `url(#mk-${tone(midi)}-${isBlackKey(midi) ? 'b' : 'w'}${suffix})`;
+  /**
+   * Contour d'une touche. Une note AJOUTÉE (doublure, main gauche d'un style,
+   * basse de la démo) garde la couleur de sa main et reçoit un contour ambre
+   * pointillé : on la repère sans lui inventer une main à elle.
+   */
+  function strokeOf(midi, kind) {
+    if (activeSet.has(midi) && addedSet.has(midi)) return STROKES[kind].add;
+    return STROKES[kind][tone(midi)];
+  }
+  const dashOf = (midi) => (activeSet.has(midi) && addedSet.has(midi) ? ' stroke-dasharray="2.4 1.6"' : '');
+
   const STROKES = {
     w: { off: '#bdb7c5', on: 'var(--vk-accent-deep)', lh: 'color-mix(in srgb, var(--hand-lh, #a583e2) 75%, #000000)', rh: 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 70%, #000000)', add: '#c8923f' },
     b: { off: '#141318', on: 'color-mix(in srgb, var(--vk-accent-deep) 60%, #000000)', lh: 'color-mix(in srgb, var(--hand-lh, #a583e2) 50%, #000000)', rh: 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 50%, #000000)', add: '#9a6a22' },
@@ -139,7 +161,7 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     const x = index * WHITE_WIDTH;
     const active = activeSet.has(midi);
     const title = active ? ` title="${(options.formatNote || ((name) => name))(midiToNoteName(midi, true, false))}"` : '';
-    markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="0" width="${WHITE_WIDTH}" height="${WHITE_HEIGHT}" rx="${WHITE_RADIUS}" fill="${fillOf(midi)}" stroke="${STROKES.w[tone(midi)]}" stroke-width="${active ? 1 : 0.6}"${title}/>`;
+    markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="0" width="${WHITE_WIDTH}" height="${WHITE_HEIGHT}" rx="${WHITE_RADIUS}" fill="${fillOf(midi)}" stroke="${strokeOf(midi, 'w')}" stroke-width="${addedSet.has(midi) && active ? 1.8 : (active ? 1 : 0.6)}"${dashOf(midi)}${title}/>`;
   });
 
   // Touches noires
@@ -149,7 +171,7 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     if (x < 0 || x + BLACK_WIDTH > width) continue;
     const active = activeSet.has(midi);
     const title = active ? ` title="${(options.formatNote || ((name) => name))(midiToNoteName(midi, true, false))}"` : '';
-    markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="-1" width="${BLACK_WIDTH}" height="${BLACK_HEIGHT}" rx="${BLACK_RADIUS}" fill="${fillOf(midi)}" stroke="${STROKES.b[tone(midi)]}" stroke-width="0.8"${title}/>`;
+    markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="-1" width="${BLACK_WIDTH}" height="${BLACK_HEIGHT}" rx="${BLACK_RADIUS}" fill="${fillOf(midi)}" stroke="${strokeOf(midi, 'b')}" stroke-width="${addedSet.has(midi) && activeSet.has(midi) ? 1.5 : 0.8}"${dashOf(midi)}${title}/>`;
   }
 
   const svg = `\n<svg class="mini-keyboard" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">${gradients(suffix)}${markup}</svg>\n`;

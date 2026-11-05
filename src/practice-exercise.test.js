@@ -1430,6 +1430,76 @@ function checkCardDemoAdditions() {
   // supprimer) ; cette vérification garde la trace du retour en arrière.
   check('La carte dessine toujours son clavier',
     plain.includes('exercise-target-keyboard') && html.includes('exercise-target-keyboard'));
+
+  // [Claude] — 2026-11-05 — Les mains du clavier sont les VRAIES mains.
+  // Narcisse : « ce qui est démarqué en jaune, parfois ça arrive tout à droite
+  // de l'accord, alors que c'est censé être la main gauche ». La cause était
+  // que la carte passait des mains vides au clavier : seule la teinte des
+  // notes AJOUTÉES se distinguait, et elle tombait donc des deux côtés.
+  {
+    console.log('\n=== Carte : mains du clavier ===');
+    const ex2 = createPracticeExercise();
+    ex2.setMode('chord');
+    const qualities = TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities);
+    let examinees = 0;
+    let ambreDansLeRegistreDroit = 0;
+    let sansMainGauche = 0;
+    let ajoutsMarques = 0;
+    let cartesAvecAjout = 0;
+    for (const style of ['gospel', 'ballade', 'swing']) {
+      ex2.setLeftHandStyle(style);
+      for (const doubling of ['none', 'full']) {
+        ex2.setDoubling(doubling);
+        for (let root = 0; root < 12; root += 1) {
+          for (const q of qualities) {
+            ex2.setTargetChoice({ rootPc: root, symbol: q });
+            const cible = ex2.getState().target;
+            const v = cible?.voicing;
+            if (!v?.leftHand?.length || !v?.rightHand?.length) continue;
+            examinees += 1;
+            const markup = renderExerciseTarget(cible, {});
+            if (!/class="[^"]*is-lh/.test(markup)) sansMainGauche += 1;
+            // Une carte n'a pas toujours de note ajoutée : le voicing tiré
+            // décide. On ne compte donc que celles qui en ont vraiment, et on
+            // exige qu'elles la marquent — sinon la vérification dépendrait du
+            // tirage et échouerait une fois sur quatre.
+            const ajouts = [...(v.doubled || []), ...(v.styleAdded || [])];
+            if (ajouts.length) {
+              cartesAvecAjout += 1;
+              if (/stroke-dasharray/.test(markup)) ajoutsMarques += 1;
+            }
+            const plusGraveDroite = Math.min(...v.rightHand);
+            for (const m of markup.matchAll(/data-midi="(\d+)"[^>]*fill="url\(#mk-(\w+)-/g)) {
+              if (m[2] === 'add' && Number(m[1]) >= plusGraveDroite) ambreDansLeRegistreDroit += 1;
+            }
+          }
+        }
+      }
+    }
+    check('Aucune touche de la couleur des ajouts dans le registre de la main droite',
+      ambreDansLeRegistreDroit === 0, `${ambreDansLeRegistreDroit} sur ${examinees} cartes`);
+    check('Toute carte à deux mains montre sa main gauche sur le clavier',
+      sansMainGauche === 0, `${sansMainGauche} carte(s) sans main gauche`);
+    check('Toute carte qui ajoute une note la marque par son contour',
+      ajoutsMarques === cartesAvecAjout,
+      `${ajoutsMarques} marquée(s) sur ${cartesAvecAjout} carte(s) à ajout`);
+    // Les mains elles-mêmes ne se croisent jamais : c'est ce qui autorise à les
+    // montrer plutôt qu'à renoncer à la distinction.
+    let croisees = 0;
+    for (const style of ['none', 'gospel', 'ballade', 'swing']) {
+      ex2.setLeftHandStyle(style);
+      for (let root = 0; root < 12; root += 1) {
+        for (const q of qualities) {
+          ex2.setTargetChoice({ rootPc: root, symbol: q });
+          const v = ex2.getState().target?.voicing;
+          if (!v?.leftHand?.length || !v?.rightHand?.length) continue;
+          if (Math.max(...v.leftHand) > Math.min(...v.rightHand)) croisees += 1;
+        }
+      }
+    }
+    check('La main gauche ne passe jamais au-dessus de la main droite',
+      croisees === 0, `${croisees} croisement(s)`);
+  }
   const moved = renderExerciseTarget(target, { demo: { ...demo, doubled: [], movedToRight: true, styleLabel: 'Ballade' } });
   check('Rootless passé à la main droite : annoncé dans la légende', moved.includes('Démo Ballade : basse D2 · A2 à la main gauche, voicing joué à la main droite'));
 }

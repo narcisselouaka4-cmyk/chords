@@ -3047,7 +3047,32 @@ export function renderExerciseTarget(target, options = {}) {
   // par la démo : colorées à part.
   const doubled = voicing?.doubled || [];
   const styleAdded = voicing?.styleAdded || [];
-  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: [...doubled, ...styleAdded, ...demoAdded] });
+  // [Claude] — 2026-11-05 — Le clavier reçoit enfin les VRAIES mains.
+  //
+  // Narcisse : « ce qui est démarqué en jaune, parfois ça arrive tout à droite
+  // de l'accord. Alors que ce qui est en jaune, c'est censé être la main
+  // gauche. La main gauche ne peut pas être à la fois à gauche et à droite.
+  // L'application considère comme main gauche ce qui est en réalité juste les
+  // notes doublées ou ajoutées. »
+  //
+  // Il avait raison, et la cause était ici : on passait `leftHand: []` et
+  // `rightHand: []`, si bien que la SEULE teinte distincte du clavier était
+  // celle des notes ajoutées — l'ambre, que sa légende lit comme « main
+  // gauche ». De l'ambre à droite de l'accord était donc inévitable.
+  //
+  // Les mains du moteur sont fiables : mesuré sur 8064 voicings à deux mains
+  // (4 styles de main gauche × 4 doublures × 12 fondamentales × 42 qualités),
+  // ZÉRO cas où une note de la main gauche dépasse la plus grave de la main
+  // droite. On peut donc les montrer telles quelles.
+  //
+  // Les notes ajoutées gardent une marque, mais elle ne concurrence plus les
+  // mains : `added` sert de surcouche (voir mini-keyboard.js), pas de
+  // troisième « main ».
+  const kb = miniKeyboardForNotes(notes, {
+    leftHand: voicing?.leftHand || [],
+    rightHand: voicing?.rightHand || [],
+    added: [...doubled, ...styleAdded, ...demoAdded],
+  });
 
   // Affichage des mains : si le moteur a produit un split LH/RH avec des
   // notes distinctes, on montre les deux blocs ; sinon un seul bloc.
