@@ -725,23 +725,6 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-/* [Claude] — 2026-11-05 — En mode CLAIR, la bordure du clavier change.
-   Celle du candidat est un blanc à 9 % : juste contre un corps sombre sur fond
-   sombre, mais elle disparaît quand le bloc est posé sur le crème de la page,
-   et le clavier s'y découpe durement. Narcisse : « change la couleur des
-   bordures du mini clavier en mode clair. »
-   On lui donne donc un liseré franchement clair, pris sur la surface du thème :
-   il sépare le bloc sombre du fond au lieu de le trancher. Le corps du clavier,
-   lui, ne change pas — un piano n'a pas de mode clair. */
-:root[data-theme='light'] #practice-tab .keybed {
-  border-color: var(--tr-surface, #fffdf8);
-  box-shadow:
-    0 18px 38px -24px rgba(60, 44, 30, 0.45),
-    0 2px 8px -4px rgba(60, 44, 30, 0.22),
-    0 0 0 1px rgba(60, 44, 30, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-}
-
 /* Le liseré lumineux en haut du clavier : accent à gauche, or à droite. */
 :root[data-skin] #practice-tab .keybed::before {
   content: "";
@@ -934,6 +917,50 @@
   outline: 1.5px dashed rgba(255, 248, 239, 0.85);
   outline-offset: -3px;
 }
+
+/* [Claude] — 2026-11-05 — En mode CLAIR, le BOÎTIER du clavier devient clair.
+   Narcisse parlait du cadre tout autour des touches, pas du filet de 1 px :
+   « je parle de ce qui se trouve tout autour du clavier midi virtuel ».
+   J'avais d'abord gardé ce boîtier sombre en me disant qu'un piano n'a pas de
+   mode clair — mais ici ce n'est pas l'instrument, c'est le cadre d'un aperçu,
+   et un bloc anthracite au milieu d'une page crème s'y pose comme un corps
+   étranger. Il passe donc en crème, et tout ce qu'il porte suit : les textes
+   prennent les jetons du thème, le lit des touches s'éclaircit, les ombres se
+   réchauffent. Les touches elles-mêmes ne bougent pas — elles, elles sont
+   l'instrument. */
+:root[data-theme='light'] #practice-tab .keybed {
+  background: linear-gradient(180deg, #fbf6ec 0%, #f3ece0 55%, #ece3d4 100%);
+  border-color: rgba(60, 44, 30, 0.16);
+  box-shadow:
+    0 18px 38px -26px rgba(60, 44, 30, 0.35),
+    0 2px 8px -5px rgba(60, 44, 30, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+/* Les textes du boîtier : sur crème, le gris chaud de l'original n'est plus
+   lisible. Ils prennent les jetons, comme partout ailleurs dans l'application. */
+:root[data-theme='light'] #practice-tab .keybed-head,
+:root[data-theme='light'] #practice-tab .keybed-foot {
+  color: var(--tr-secondary);
+}
+
+/* Le compte de notes ne repose PAS sur la couleur d'accent : mesurée à 3,92:1
+   sur le crème, sous le seuil AA — et surtout cette couleur est réglable par
+   l'utilisateur, donc son contraste n'est jamais garantissable. Il prend la
+   couleur de lecture et se distingue par la graisse. */
+:root[data-theme='light'] #practice-tab .keybed-count {
+  color: var(--tr-text);
+  font-weight: 600;
+}
+
+/* Le lit sous les touches : un creux discret, plus un trou noir. */
+:root[data-theme='light'] #practice-tab .keybed .piano-keys {
+  background: #cfc3b1;
+  box-shadow: inset 0 3px 7px rgba(60, 44, 30, 0.28);
+}
+
+/* Le liseré du haut s'adoucit : à pleine intensité il brille sur le crème. */
+:root[data-theme='light'] #practice-tab .keybed::before { opacity: 0.42; }
 
 @media (max-width: 1195px) {
   :root[data-skin] #practice-tab .keybed-legend { display: none; }
