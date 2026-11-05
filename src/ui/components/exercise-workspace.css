@@ -725,6 +725,23 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
+/* [Claude] — 2026-11-05 — En mode CLAIR, la bordure du clavier change.
+   Celle du candidat est un blanc à 9 % : juste contre un corps sombre sur fond
+   sombre, mais elle disparaît quand le bloc est posé sur le crème de la page,
+   et le clavier s'y découpe durement. Narcisse : « change la couleur des
+   bordures du mini clavier en mode clair. »
+   On lui donne donc un liseré franchement clair, pris sur la surface du thème :
+   il sépare le bloc sombre du fond au lieu de le trancher. Le corps du clavier,
+   lui, ne change pas — un piano n'a pas de mode clair. */
+:root[data-theme='light'] #practice-tab .keybed {
+  border-color: var(--tr-surface, #fffdf8);
+  box-shadow:
+    0 18px 38px -24px rgba(60, 44, 30, 0.45),
+    0 2px 8px -4px rgba(60, 44, 30, 0.22),
+    0 0 0 1px rgba(60, 44, 30, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
 /* Le liseré lumineux en haut du clavier : accent à gauche, or à droite. */
 :root[data-skin] #practice-tab .keybed::before {
   content: "";
