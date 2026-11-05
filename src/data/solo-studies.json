@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "_lisez_moi": [
+    "Mode Solo : on joue une LIGNE sur un fond, on n'accompagne personne.",
+    "Demande de Narcisse du 05/11/2026 : « il y a aussi du solo, et moi j'aime le solo",
+    "[…] se baser uniquement sur l'accompagnement, pour moi, c'est une erreur ».",
+    "",
+    "`solo.kind` fixe ce que l'application vérifie, et rien d'autre :",
+    "  - play-along : RIEN. Un fond tourne, on solote. Aucun verdict.",
+    "  - rhythm     : le QUAND seulement. Aucune hauteur n'est regardée.",
+    "  - footing    : la note qui tombe sur le temps fort est-elle dans l'accord.",
+    "",
+    "`solo.pattern.positions` = instants attendus dans la cellule, en temps.",
+    "`landing` = demi-tons depuis la fondamentale sur lesquels on peut atterrir ;",
+    "absent, ce sont les notes de l'accord. Déclaré, jamais deviné par l'app.",
+    "",
+    "`backing` = ce que le FOND joue, quand ça diffère de l'harmonie jugée.",
+    "Nécessaire : VoicingLab ne publie pas les triades mineures, donc un « Gm »",
+    "n'a aucun voicing et le fond le perdrait EN SILENCE. Le fond joue Gm7 ;",
+    "l'atterrissage reste jugé sur Gm (sol, si♭, ré), comme le professeur le dit.",
+    "Chaque accord de `backing` est vérifié jouable par test-solo.js."
+  ],
+  "movements": [
+    {
+      "id": "solo-play-along-gm",
+      "kind": "progression",
+      "category": "Solo · salsa",
+      "name": "Play-along · ii∅–V7–i en sol mineur",
+      "route": "Am7♭5 → D7 → Gm · le fond tourne, tu soloes",
+      "context": "Le cycle que le professeur dit « très, très commun dans la salsa ». Il part de la grille Gm – D7 de « Bilongo » et y ajoute le Am7♭5 — « un do mineur avec un la à la basse » — pour « donner un peu de venin, de couleur, de sabrosura ».",
+      "sound": "Un montuno et une batterie qui tournent sans fin. Rien ne t'attend, rien ne te juge : c'est un fond de jeu.",
+      "use": "Mets-le en route et joue par-dessus. Commence par le rythme seul, une seule note répétée s'il faut : c'est l'ordre que le professeur impose.",
+      "description": "Trois accords, quatre temps chacun, en boucle à 90. Double ta ligne à l'octave : c'est la façon de faire mesurée dans cette classe (une octave dans 155 cas sur 170, jamais d'accord).",
+      "style": "salsa",
+      "tags": ["Solo", "Salsa", "Play-along", "Débutant"],
+      "aliases": ["Play-along salsa", "Fond de jeu salsa", "Soloter en sol mineur"],
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "solo": {
+        "kind": "play-along",
+        "tempo": 90,
+        "kit": "salsa",
+        "beatsPerChord": 4,
+        "cycles": 16,
+        "backing": ["Am7b5", "D7", "Gm7"],
+        "grid": [
+          { "name": "Am7b5", "landing": [0, 3, 6, 10] },
+          { "name": "D7", "landing": [0, 1, 4, 7, 10] },
+          { "name": "Gm", "landing": [0, 3, 7] }
+        ]
+      },
+      "provenance": {
+        "kind": "relevé-de-cours",
+        "label": "Grille et intention énoncées par le professeur",
+        "sources": [
+          {
+            "title": "Classe de salsa en espagnol fournie par Narcisse (non publiée)",
+            "url": "https://en.wikipedia.org/wiki/Montuno",
+            "supports": "Grille Gm – D7 de « Bilongo » / « La negra Tomasa », section du pregón, et l'ajout du Am7♭5 décrit comme « un do mineur avec un la à la basse ». Le cycle ii∅–V7–i est annoncé comme très courant en salsa. Le mi♭ accepté sur le D7 est la ♭9 de son D7♭9."
+          }
+        ]
+      }
+    },
+    {
+      "id": "solo-rythme-contretemps",
+      "kind": "study",
+      "category": "Solo · salsa",
+      "name": "Contretemps · jouer entre les temps",
+      "route": "frappes sur les « et » seulement · aucune hauteur vérifiée",
+      "context": "Le premier des aspects rythmiques du cours. Le professeur : « dans les montunos eux-mêmes, tu utilises beaucoup ces frappes à contretemps ». C'est ce qui, selon lui, « différencie réellement la salsa des autres genres ».",
+      "sound": "Rien sur le pied, tout entre les pieds. La batterie tient les temps ; toi, tu tombes dans les trous.",
+      "use": "Joue n'importe quelle note — une seule suffit. L'application ne regarde que le moment où tu frappes, jamais ce que tu joues.",
+      "description": "Sur quatre temps : frappe sur le « et » de chaque temps (1-et, 2-et, 3-et, 4-et), jamais sur le temps lui-même.",
+      "style": "salsa",
+      "tags": ["Solo", "Salsa", "Rythme", "Débutant", "Contretemps"],
+      "aliases": ["Contretemps", "Contratiempo", "Jouer à contretemps"],
+      "solo": {
+        "kind": "rhythm",
+        "tempo": 90,
+        "kit": "salsa",
+        "barBeats": 4,
+        "cycles": 16,
+        "pattern": { "beats": 4, "positions": [0.5, 1.5, 2.5, 3.5] }
+      },
+      "provenance": {
+        "kind": "relevé-de-cours",
+        "label": "Procédé énoncé par le professeur ; placement non relevé à l'image",
+        "sources": [
+          {
+            "title": "Classe de salsa en espagnol fournie par Narcisse (non publiée)",
+            "url": "https://en.wikipedia.org/wiki/Clave_(rhythm)",
+            "supports": "Le contretemps (« contratiempo ») est énoncé et chanté en onomatopées par le professeur. La grille de croches à contretemps écrite ici est la lecture la plus simple de ce procédé : elle n'a PAS été relevée image par image — le placement rythmique exact n'a pas pu être mesuré sur la vidéo."
+          }
+        ]
+      }
+    },
+    {
+      "id": "solo-rythme-croches-triolets",
+      "kind": "study",
+      "category": "Solo · salsa",
+      "name": "Croches puis triolets · changer de subdivision",
+      "route": "une mesure en croches, une mesure en triolets · aucune hauteur vérifiée",
+      "context": "Le professeur travaille les « tresillos » — chez lui, des triolets — et demande des « combinaisons de croches avec des triolets ». Passer de deux à trois notes par temps sans changer de tempo est le geste à acquérir.",
+      "sound": "Le premier temps marche à deux, le second court à trois. C'est le même tempo : seule la subdivision change.",
+      "use": "Compte « un-et deux-et » sur la première mesure, « un-e-let » sur la seconde. Une seule note suffit : seul le moment compte.",
+      "description": "Deux mesures à 4/4. La première : huit croches. La seconde : douze notes en triolets, trois par temps.",
+      "style": "salsa",
+      "tags": ["Solo", "Salsa", "Rythme", "Intermédiaire", "Triolets"],
+      "aliases": ["Triolets", "Tresillos", "Croches et triolets"],
+      "solo": {
+        "kind": "rhythm",
+        "tempo": 90,
+        "kit": "salsa",
+        "barBeats": 4,
+        "cycles": 8,
+        "pattern": {
+          "beats": 8,
+          "positions": [
+            0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5,
+            4, 4.333333, 4.666667, 5, 5.333333, 5.666667,
+            6, 6.333333, 6.666667, 7, 7.333333, 7.666667
+          ]
+        }
+      },
+      "provenance": {
+        "kind": "relevé-de-cours",
+        "label": "Subdivisions énoncées par le professeur ; cellule exacte non relevée",
+        "sources": [
+          {
+            "title": "Classe de salsa en espagnol fournie par Narcisse (non publiée)",
+            "url": "https://en.wikipedia.org/wiki/Tuplet",
+            "supports": "Le professeur annonce des triolets et des « combinaisons de croches avec des triolets ». Chez lui « tresillos » désigne les triolets, PAS la cellule afro-cubaine 3+3+2. La figure qu'il chante (« trois croches suivies de trois triolets ») n'a pas pu être relevée précisément : l'exercice écrit ici oppose une mesure entière de croches à une mesure entière de triolets, ce qui est sans ambiguïté rythmique — ce n'est pas sa cellule transcrite."
+          }
+        ]
+      }
+    },
+    {
+      "id": "solo-footing-gm",
+      "kind": "study",
+      "category": "Solo · salsa",
+      "name": "Footing · là où tombe le pied",
+      "route": "sur le 1 et le 3, atterrir dans l'accord · Am7♭5 → D7 → Gm",
+      "context": "Le sixième secret du cours, et le seul endroit d'un solo que l'application peut juger sans affaire de goût : elle sait quel accord sonne, de quelles notes il est fait, et ce que tu as joué.",
+      "sound": "Entre les temps forts, tu fais ce que tu veux. Sur le temps fort, tu te poses dans l'accord — sinon ça sonne faux.",
+      "use": "Soloe librement. À la fin, l'application te dit sur quels temps forts tu as atterri hors de l'accord, et sur quelle note. Un temps fort laissé libre n'est pas une faute : un solo respire.",
+      "description": "Sur le 1 et le 3 de chaque mesure. Sur Gm : sol, si♭, ré. Sur le D7 : ré, mi♭, fa♯, la, do. Sur Am7♭5 : la, do, mi♭, sol. Le contre-exemple du professeur : un fa♯ posé sur un temps fort de sol mineur sonne dissonant.",
+      "style": "salsa",
+      "tags": ["Solo", "Salsa", "Footing", "Avancé"],
+      "aliases": ["Footing", "Atterrissage", "Là où tombe le pied"],
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "solo": {
+        "kind": "footing",
+        "tempo": 90,
+        "kit": "salsa",
+        "beatsPerChord": 4,
+        "barBeats": 4,
+        "strongBeats": [0, 2],
+        "cycles": 8,
+        "backing": ["Am7b5", "D7", "Gm7"],
+        "grid": [
+          { "name": "Am7b5", "landing": [0, 3, 6, 10] },
+          { "name": "D7", "landing": [0, 1, 4, 7, 10] },
+          { "name": "Gm", "landing": [0, 3, 7] }
+        ]
+      },
+      "provenance": {
+        "kind": "relevé-de-cours",
+        "label": "Règle et notes d'atterrissage énoncées par le professeur",
+        "sources": [
+          {
+            "title": "Classe de salsa en espagnol fournie par Narcisse (non publiée)",
+            "url": "https://en.wikipedia.org/wiki/Nonchord_tone",
+            "supports": "Le « footing » (« là où tombe le pied ») à 17:06 : atterrir sur le temps fort sur une note de l'accord. Les notes citées pour Gm (sol, si♭, ré) et pour le D7 (ré, mi♭, fa♯, la, do) sont les siennes — le mi♭ est la ♭9 de son D7♭9. Le contre-exemple du fa♯ dissonant sur sol mineur est le sien."
+          }
+        ]
+      }
+    }
+  ]
+}

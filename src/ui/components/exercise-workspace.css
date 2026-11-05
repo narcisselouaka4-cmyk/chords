@@ -365,3 +365,233 @@
 .exercise-study-info strong { font-size: 11px; font-weight: 650; }
 .exercise-study-info p { margin: 7px 0; opacity: .82; }
 .exercise-study-info small { display: block; font-size: 10px; opacity: .66; }
+
+/* ------------------------------------------------------------------ Mode Solo
+   [Claude] — 2026-11-05 — Troisième mode des Exercices : on y joue une LIGNE
+   sur un fond, on n'accompagne personne. Deux colonnes — les fiches à gauche,
+   la scène de jeu à droite — et rien du vocabulaire des deux autres modes
+   (accord cible, top note, voicings) n'apparaît ici.
+   Les couleurs passent toutes par les jetons du thème : la vue suit les skins
+   et les modes clair/sombre sans règle dédiée. */
+
+.solo-stage {
+  display: grid;
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  padding: 16px;
+  min-height: 0;
+}
+
+.solo-library {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.solo-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.solo-card {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
+}
+
+.solo-card:hover { border-color: var(--tr-accent); }
+
+.solo-card.is-selected {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+}
+
+.solo-card-kind {
+  font-size: .68rem;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--tr-secondary);
+}
+
+.solo-card-name { font-size: .94rem; line-height: 1.25; }
+
+.solo-card-route {
+  font-size: .78rem;
+  color: var(--tr-secondary);
+  line-height: 1.35;
+}
+
+.solo-scene {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.solo-head { display: grid; gap: 5px; }
+.solo-head h2 { margin: 0; font-size: 1.3rem; line-height: 1.2; }
+
+/* La promesse du mode : ce qui sera vérifié, dit avant de jouer.
+   [Claude] — 2026-11-05 — Elle était écrite dans la couleur d'accent. Mesuré en
+   clair : 3,55:1 sur le fond crème, sous le seuil AA de 4,5 — et c'est la
+   phrase la PLUS importante du mode. Surtout, la couleur générale est réglable
+   par l'utilisateur : aucun texte qui doit être lu ne peut reposer sur elle,
+   son contraste n'étant pas garantissable. L'accent passe donc dans un filet
+   à gauche (décor), et le texte reprend la couleur de lecture. */
+.solo-promise {
+  margin: 0;
+  padding-left: 9px;
+  border-left: 3px solid var(--tr-accent);
+  font-size: .86rem;
+  color: var(--tr-text);
+}
+
+.solo-brief { display: grid; gap: 8px; }
+
+.solo-brief-row {
+  display: grid;
+  grid-template-columns: minmax(118px, 148px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+
+.solo-brief-label {
+  font-size: .7rem;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--tr-secondary);
+}
+
+.solo-brief-row p {
+  margin: 0;
+  font-size: .86rem;
+  line-height: 1.45;
+  color: var(--tr-text);
+}
+
+.solo-transport {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-surface);
+}
+
+.solo-start.is-running { background: var(--tr-accent); }
+
+.solo-tempo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .82rem;
+  color: var(--tr-secondary);
+}
+
+.solo-tempo output {
+  min-width: 2.6ch;
+  text-align: center;
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 1.05rem;
+  color: var(--tr-text);
+}
+
+.solo-drums {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font-size: .8rem;
+  cursor: pointer;
+}
+
+.solo-drums.is-on {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+  color: var(--tr-text);
+}
+
+.solo-verdict {
+  min-height: 1.4em;
+  font-size: .92rem;
+  line-height: 1.45;
+  color: var(--tr-secondary);
+}
+
+.solo-verdict.is-judged { color: var(--tr-text); }
+
+.solo-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: flex-start;
+}
+
+.solo-stat { display: grid; gap: 2px; }
+
+.solo-stat-label {
+  font-size: .68rem;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--tr-secondary);
+}
+
+.solo-stat-value {
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: .98rem;
+  color: var(--tr-text);
+}
+
+.solo-landings {
+  flex: 1 1 100%;
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+  font-size: .82rem;
+  color: var(--tr-secondary);
+}
+
+.solo-settings {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 220px) auto;
+  gap: 6px 10px;
+  align-items: center;
+  font-size: .82rem;
+  color: var(--tr-secondary);
+}
+
+.solo-settings output {
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  color: var(--tr-text);
+}
+
+.solo-settings-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: .76rem;
+  color: var(--tr-secondary);
+}
+
+/* Fenêtre étroite (1195 px et moins) : les fiches passent au-dessus de la
+   scène plutôt que d'écraser le texte en colonne de 230 px. */
+@media (max-width: 1195px) {
+  .solo-stage { grid-template-columns: minmax(0, 1fr); }
+  .solo-brief-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
