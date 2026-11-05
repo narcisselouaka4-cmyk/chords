@@ -641,8 +641,8 @@ function exampleIdOf(msg) {
 
 /** Chaque proposition a son lecteur stable ; aucun choix obligatoire dans le chat. */
 export function variantMessages(msg) {
-  const variants=msg.toolResult?.variants;
-  if(!variants?.length)return [msg];
+  const variants=msg.toolResult?.variants?.filter(v=>v.advice?.version!==6);
+  if(!variants?.length)return msg.toolResult?.playingAdvice?.version===6||msg.toolResult?.variants?.length?[]:[msg];
   const id=exampleIdOf(msg);
   return variants.map((v,i)=>({...msg,exampleId:i===0?id:`${id}-${v.id}`,toolResult:{
     ...msg.toolResult,example:v.example,playingAdvice:v.advice,variants:undefined,

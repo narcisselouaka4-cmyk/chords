@@ -68,7 +68,7 @@ await check('Le détour parallèle est suivi d’un retour présent, et n’est 
   assert(!buildFixedHarmonyVariants(noReturn,{message:'En do majeur, enrichis'}).some(v=>v.id==='parallel-return'));
 });
 await check('Les variantes développées sont différentes et protègent les événements mélodiques',()=>{
-  assert(variants.some(v=>v.id==='arrangement'));assert(!variants.some(v=>v.id==='connection'));
+  assert(variants.some(v=>v.id==='passing'));assert(!variants.some(v=>v.id==='connection'));
   assert(variants.length<=5);assert.equal(new Set(variants.map(v=>JSON.stringify(v.example.events))).size,variants.length);
   for(const v of variants){const changed=applyTakeEdit(take,v.advice.edit);assert(changed);assertTops(take,changed);
     assert.equal(notePairs(changed.events).length,changed.events.filter(e=>e.type==='note_on'&&e.velocity>0).length);
@@ -82,7 +82,7 @@ await check('Un passage unitaire dans un silence a une durée audible et aucune 
   for(const c of plan.motions){assert(c.end-c.at>=.32);assert.equal(new Set(c.edit.attacks).size,1);assert(c.end<c.function.targetAt);assert.equal(c.edit.adjustments.length,0);}
 });
 await check('Un accord tenu garde son dessus dans le nouvel arrangement',()=>{
-  const v=buildPhraseVariants(held,{message}).find(v=>v.id==='arrangement');assert(v);
+  const v=buildPhraseVariants(held,{message}).find(v=>v.id==='passing');assert(v);
   assert(v.advice.changes.some(c=>c.goal==='passing'));assertTops(held,applyTakeEdit(held,v.advice.edit));
 });
 await check('Pédale maintenue ou relâchée à l’intérieur du passage : aucun mouvement incompatible',()=>{
@@ -114,7 +114,7 @@ await check('Le motif latin ne reçoit pas de cadence gospel ni de débit chroma
   }
 });
 await check('Les séquences et leurs comparaisons survivent à JSON et à la réouverture',()=>{
-  const v=JSON.parse(JSON.stringify(variants.find(v=>v.id==='arrangement')));
+  const v=JSON.parse(JSON.stringify(variants.find(v=>v.id==='passing')));
   const r=refreshPlayingResult({example:v.example,playingAdvice:v.advice});assert(r);
   assert.deepEqual(applyTakeEdit(take,v.advice.edit).events,applyTakeEdit(v.advice.take,v.advice.edit).events);
   assert(v.example.comparison.changes.some(c=>c.kind==='added'));

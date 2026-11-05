@@ -9,7 +9,7 @@ export function personalDemoAnswer({message, messages = [], context}) {
   if (!hear) return null;
   const boundary = messages.findLastIndex(m => m.role === 'user' && m.take?.events?.length);
   const recent = messages.slice(Math.max(0, boundary));
-  const previous = [...recent].reverse().find(m => m.role === 'assistant' && m.toolResult?.variants?.length && m.toolResult.originalTake?.events?.length && (!context?.playing?.passage?.events?.length || samePlayingSource(m.toolResult.originalTake, context.playing.passage)));
+  const previous = [...recent].reverse().find(m => m.role === 'assistant' && m.toolResult?.variants?.length && m.toolResult.originalTake?.events?.length && !m.toolResult.variants.some(v=>v.advice?.version===6) && (!context?.playing?.passage?.events?.length || samePlayingSource(m.toolResult.originalTake, context.playing.passage)));
   if (previous) return {ok:true, content:'Voici les propositions préparées à partir de ta prise.', toolResult:previous.toolResult, suggestedActions:[], autoplay:true};
   const take = context?.playing?.passage || (boundary >= 0 ? messages[boundary].take : null);
   if (take?.events?.length) {

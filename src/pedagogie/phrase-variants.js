@@ -1,4 +1,3 @@
-import {buildPhraseArrangement} from './phrase-arrangement.js';
 import {buildFixedHarmonyVariants} from './fixed-harmony.js';
 import {applyTakeEdit} from './take-edit.js';
 import {comparedTakeExample} from './playing-diff.js';
@@ -18,7 +17,8 @@ export function buildPhraseVariants(take, {message = '', exclude = []} = {}) {
     && /mouv|liaison|passage|developp|ameliore|plus loin|autre chose/.test(text);
   const fixed = buildFixedHarmonyVariants(take, {message, functional: !latin});
   const harmonious = latin ? fixed.filter(v => ['enrich','soft','bass'].includes(v.id)) : fixed;
-  const arranged=buildPhraseArrangement(take,{message,latin});
+  // Essai rejeté à l'écoute : conservé pour recherche, hors des propositions.
+  const arranged=null;
   const variants = [...(arranged?[arranged]:[]),...harmonious];
   const source = harmonious.find(v => v.id === 'enrich') || harmonious[0];
   if (source && movement) {

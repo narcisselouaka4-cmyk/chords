@@ -1,3 +1,4 @@
+import {variantMessages} from './copilot-tab.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {buildPhraseArrangement,arrangementFrames} from './phrase-arrangement.js';
@@ -38,9 +39,10 @@ assert.equal(applyTakeEdit(t,{...v.advice.edit,pedal:[{time:0,value:127}]}),null
 assert.equal(applyTakeEdit(t,{...v.advice.edit,notes:[{note:120,time:0,end:1,velocity:.4}]}),null);
 console.log('✓ Contraintes de basse, pédale, accords fixes et Latin ; refus des plans corrompus et prises insuffisantes');
 const saved=JSON.parse(JSON.stringify({example:v.example,playingAdvice:v.advice}));assert(refreshPlayingResult(saved));assert.deepEqual(applyTakeEdit(t,saved.playingAdvice.edit).events,changed.events);
-const first=buildPhraseVariants(t,{message:'Améliore mon jeu'});assert.equal(first[0].id,'arrangement');
-const session=await sendCopilotMessage({message:'Améliore mon jeu',messages:[],context:{type:'session',playing:{session:t}}});assert.equal(session.toolResult.variants[0].id,'arrangement');
-console.log('✓ Première carte construite, session sans prise supplémentaire, persistance JSON et relecture du plan');
+const first=buildPhraseVariants(t,{message:'Améliore mon jeu'});assert(first.every(v=>v.id!=='arrangement'));
+const session=await sendCopilotMessage({message:'Améliore mon jeu',messages:[],context:{type:'session',playing:{session:t}}});assert(session.toolResult.variants.every(v=>v.id!=='arrangement'));
+const hearRejected=await sendCopilotMessage({message:'Fais-moi entendre un exemple',context:{playing:{passage:t}},messages:[{role:'assistant',toolResult:{originalTake:t,example:v.example,playingAdvice:v.advice,variants:[v]}}]});assert(hearRejected.toolResult.variants.every(v=>v.id!=='arrangement'));
+console.log('✓ Essai écarté des propositions et relances, session et persistance des données de recherche');
 
 for(const file of ['copilot-development-take.json','copilot-approved-links.json','copilot-arpeggiated-take.json']){
  const data=JSON.parse(fs.readFileSync(new URL('./fixtures/'+file,import.meta.url))),source=data.take||data;
@@ -51,3 +53,5 @@ const withoutKey=buildPhraseArrangement({...t,key:null});assert(withoutKey);asse
 console.log('✓ Trois autres prises réelles, arpèges protégés, collection diatonique sans tonique finale inventée');
 
 const random=await sendCopilotMessage({message:"J'ai joué n'importe quoi, améliore mon jeu",messages:[],context:{playing:{passage:t}}});assert.equal(random.toolResult.example,null);console.log('✓ Une exploration déclarée au hasard ne reçoit pas un arrangement présenté comme une analyse musicale');
+
+assert.equal(variantMessages({toolResult:{playingAdvice:v.advice,example:v.example}}).length,0);assert.equal(variantMessages({toolResult:{variants:[v]}}).length,0);console.log('✓ Cartes rejetées masquées aussi dans les anciens historiques');
