@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {sendCopilotMessage} from './copilot-client.js';
+import {isPersonalExample} from './personal-demo.js';
+const fixture=JSON.parse(readFileSync(new URL('./fixtures/copilot-approved-links.json',import.meta.url)));
+const take=fixture.take||fixture;
+const request={message:'Fais-moi entendre un exemple.',messages:[],context:null};
+const missing=await sendCopilotMessage(request);
+assert(missing.ok);assert.equal(missing.toolResult.example,null);assert.match(missing.content,/Enregistre/);
+const made=await sendCopilotMessage({...request,messages:[{role:'user',take,content:'Améliore mon jeu'}]});
+assert(made.toolResult.variants.length);assert(made.autoplay);assert(isPersonalExample(made.toolResult));
+const repeated=await sendCopilotMessage({...request,messages:[{role:'user',take},{role:'assistant',...made}]});
+assert.deepEqual(repeated.toolResult.variants,made.toolResult.variants);
+const fresh=await sendCopilotMessage({...request,messages:[{role:'user',take},{role:'assistant',...made},{role:'user',take:{duration:1,events:[{type:'note_on',note:60,time:0,velocity:.7},{type:'note_off',note:60,time:.5,velocity:0}]}}]});
+assert(!fresh.toolResult.variants);assert.notEqual(fresh.toolResult.example,made.toolResult.example);
+assert(!isPersonalExample({example:{kind:'chords',events:[]}}));
+console.log('5/5 scénarios : sans prise, prise historique, rejeu exact, nouvelle prise, ancien exemple générique.');

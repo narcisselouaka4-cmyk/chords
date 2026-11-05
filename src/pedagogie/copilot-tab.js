@@ -1,3 +1,4 @@
+import {isPersonalExample} from './personal-demo.js';
 // [Claude] — 2026-09-09 — Copilot IA : contrôleur du sous-onglet.
 //
 // Orchestration pure : écoute la sélection Pédagogie, charge l'historique,
@@ -1323,7 +1324,7 @@ function renderOneMessage(msg, { last = false } = {}) {
 
   // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
   // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
-  if (msg.toolResult?.example) {
+  if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || msg.toolResult.example.source?.kind === 'passage vidéo')) {
     if (msg.toolResult.originalTake) content.append(createTakePlayer(msg.toolResult.originalTake, { id: `${exampleIdOf(msg)}-original`, title: 'Ton jeu original' }));
     for(const variant of variantMessages(msg)) content.appendChild(renderExampleCard(variant));
   } else if (msg.toolResult?.played?.length) {

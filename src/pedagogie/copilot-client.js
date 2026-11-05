@@ -1,3 +1,4 @@
+import {personalDemoAnswer, isPersonalExample} from './personal-demo.js';
 // [Claude] — 2026-09-06 — Copilot IA : client de chat avec outil clavier.
 //
 // Ce module encapsule l'appel au modèle OpenAI-compatible (Groq via la config
@@ -1815,6 +1816,8 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
  * @returns {Promise<{ok: true, content: string, toolResult: {played: object[], ignored: number}} | {ok: false, error: string}>}
  */
 export async function sendCopilotMessage({ message, messages, context, copilotStyleId = 'auto', review = false }) {
+  const demo = personalDemoAnswer({message, messages, context});
+  if (demo) return demo;
   const style = playingStyleAnswer({ message, messages, context });
   if (style) return style;
   const variants = personalVariantsAnswer({ message, messages, context });
@@ -2357,6 +2360,13 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
           content = `${content}\n\n_(Précision : ${voicingMismatch.correction})_`;
         }
       }
+    }
+
+    // Le chat autonome ne publie ni ne lance un voicing de bibliothèque.
+    // Les démonstrations doivent provenir d'une transformation de la prise.
+    if (toolResult.example && !isPersonalExample(toolResult) && toolResult.example.source?.kind !== 'passage vidéo') {
+      toolResult = {...toolResult, example:null, voicing:null, played:[], suggestions:[]};
+      content = 'Pour une démonstration, envoie ta prise avec « Qu’en penses-tu ? ». Je préparerai des propositions à partir de ton jeu.';
     }
 
     // Journalisation de validation musicale : lecture seule, jamais de
