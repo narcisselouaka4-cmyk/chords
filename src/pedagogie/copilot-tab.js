@@ -1220,28 +1220,47 @@ const sameText = (a, b) => String(a || '').trim().replace(/[\s.!?…]+$/, '').to
  * d'inscriptions), ni après une erreur ni après une demande de détail ; puis les suggestions
  * du Copilote (sans redire « Plus de détails »).
  * @param {object} msg - la réponse
- * @param {{last?: boolean, asked?: string}} [options] - dernière réponse ; la question posée
+ * @param {{last?: boolean, asked?: string, source?: 'session'|'passage'|null}} [options] - réponse, question et jeu réellement disponible
  * @returns {{label: string, message: string}[]}
  */
-export function answerActions(msg, { last = false, asked = '' } = {}) {
+export function answerActions(msg, { last = false, asked = '', source = null } = {}) {
   if (!msg || msg.role !== 'assistant' || msg.isTyping || msg.isError || !String(msg.content||'').trim()) return [];
   const suggested=(msg.suggestedActions||[]).filter(a=>a&&String(a.message||a.label||'').trim());
   if(!last)return suggested;
   const actions=[];
   const detailsAsked=MORE_DETAILS_ASKED.test(String(asked||''));
-  if(!detailsAsked)actions.push({label:'Détails',message:MORE_DETAILS});
-  const personal=Boolean(msg.toolResult?.originalTake?.events?.length && (msg.toolResult?.example || msg.toolResult?.variants?.length));
-  if(personal)actions.push({label:'Une autre proposition',message:'Propose une autre version de mon jeu.'});
-  if(msg.toolResult?.example?.source?.kind==='passage vidéo')actions.push({label:'Transposer ce passage',message:'Transposer ce passage',chooser:'key'});
-  const seen=new Set(actions.map(a=>String(a.message).replace(/[.!?]+$/,'').toLowerCase()));
-  for(const action of suggested){
-    const message=String(action.message||action.label).trim();
-    if(detailsAsked&&sameText(message,MORE_DETAILS))continue;
-    const key=message.replace(/[.!?]+$/,'').toLowerCase();
-    if(seen.has(key))continue;
-    seen.add(key);actions.push({...action,message});
+  const result=msg.toolResult;
+  const personal=Boolean(result?.originalTake?.events?.length && (result.example || result.variants?.length));
+  const playing=source || (personal || ['session','passage'].includes(result?.example?.source) ? result?.example?.source === 'session' ? 'session' : 'passage' : null);
+  if(playing)actions.push({label:playing==='session'?'Rejouer la session':'Rejouer mon jeu',message:playing==='session'?'Rejoue ma session.':'Rejoue mon jeu.'});
+  if(personal)actions.push({label:'Réécouter la proposition',message:'Réécouter cette proposition.'});
+  // Les corrections citées dans une réponse deviennent des demandes prêtes à envoyer.
+  // Les moments restent ceux du paragraphe concerné, jamais ceux d'un autre conseil.
+  if(playing)for(const paragraph of String(msg.content).split(/\n+/)){
+    const times=[...paragraph.matchAll(/\b\d{1,2}:\d{2}(?:[,.]\d+)?\b/g)].map(m=>m[0]);
+    if(!times.length)continue;
+    const text=paragraph.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    if(/plaqu|(?:accords?|attaques?).*(?:ensemble|simultane)|regroup.*attaqu/.test(text))actions.push({label:`Accords ensemble · ${times.join(', ')}`,message:`Plaquer les accords ensemble (moments ${times.join(', ')})`});
+    if(/grave/.test(text)&&/aer|ecart|serre/.test(text))actions.push({label:`Aérer le grave · ${times.join(', ')}`,message:`Aérer le grave à ${times.join(', ')}`});
   }
-  return actions.slice(0,3);
+  if(!detailsAsked)actions.push({label:'Détails',message:MORE_DETAILS});
+  if(personal)actions.push({label:'Une autre proposition',message:'Propose une autre version de mon jeu.'});
+  if(result?.example?.source?.kind==='passage vidéo')actions.push({label:'Transposer ce passage',message:'Transposer ce passage',chooser:'key'});
+  // Les suggestions propres au modèle passent avant les compléments d'écoute.
+  actions.push(...suggested);
+  if(playing){
+    if(!personal)actions.push({label:'Écouter une proposition',message:'Fais-moi entendre une proposition à partir de mon jeu.'});
+    const own=playing==='session'?'de ma session':'de mon jeu';
+    actions.push({label:'Écouter la main gauche',message:`Rejoue la main gauche ${own}.`},{label:'Écouter la main droite',message:`Rejoue la main droite ${own}.`});
+  }
+  const seen=new Set();
+  return actions.map(action=>({...action,message:String(action.message||action.label).trim()})).filter(action=>{
+    const message=action.message;
+    if(detailsAsked&&sameText(message,MORE_DETAILS))return false;
+    const key=message.replace(/[.!?]+$/,'').toLowerCase();
+    if(seen.has(key))return false;
+    seen.add(key);return true;
+  }).slice(0,8);
 }
 
 /** Un message de la conversation (voir renderMessages). */
@@ -1304,7 +1323,8 @@ function renderOneMessage(msg, { last = false } = {}) {
 
   // [Claude] — 2026-10-04 — « Plus de détails » sous la dernière réponse, puis les suggestions.
   const asked = last ? messages[messages.length - 2] : null;
-  const actions = answerActions(msg, { last, asked: asked?.role === 'user' ? asked.content : '' });
+  const source = getSessionContext()?.events?.length ? 'session' : lastTake?.events?.length ? 'passage' : null;
+  const actions = answerActions(msg, { last, source, asked: asked?.role === 'user' ? asked.content : '' });
   if (actions.length) {
     const chips = renderActionChips(actions);
     if (chips) content.appendChild(chips);

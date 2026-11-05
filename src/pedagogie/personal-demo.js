@@ -20,5 +20,5 @@ export function personalDemoAnswer({message, messages = [], context}) {
 }
 
 export function isPersonalExample(result) {
-  return Boolean(result?.example?.comparison || result?.playingAdvice?.take?.events?.length);
+  return Boolean((result?.example?.kind==='playing'&&['session','passage'].includes(result.example.source)) || result?.example?.comparison || result?.playingAdvice?.take?.events?.length);
 }

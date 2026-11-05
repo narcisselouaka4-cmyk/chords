@@ -23,6 +23,26 @@ export function applyTakeEdit(take, edit) {
   if (!edit || !Array.isArray(take?.events)) return null;
   // Les étapes suivantes sont indexées sur le résultat précédent. À distinguer
   // d'un plan d'éditions indépendantes indexées toutes sur la même source.
+  if(edit.type==='align-attacks'){
+    if(!Array.isArray(edit.groups)||!edit.groups.length||edit.groups.length>64)return null;
+    const events=take.events.map(e=>({...e})),used=new Set(),pairs=notePairs(take.events);
+    for(const group of edit.groups){
+      if(!Number.isFinite(group.at)||group.at<0||!Array.isArray(group.ons)||group.ons.length<2||group.ons.length>16)return null;
+      const selected=group.ons.map(on=>pairs.find(p=>p.on===on));
+      if(selected.some(p=>!p||used.has(p.on))||new Set(group.ons).size!==group.ons.length)return null;
+      const first=Math.min(...selected.map(p=>p.event.time)),last=Math.max(...selected.map(p=>p.event.time));
+      if(last-first>.45||group.at<first-.025||group.at>last+.025)return null;
+      for(const p of selected){const shift=group.at-p.event.time;events[p.on].time=group.at;events[p.off].time=p.end+shift;used.add(p.on);}
+    }
+    const priority=e=>e.type==='note_on'&&e.velocity>0?1:0;
+    events.sort((a,b)=>a.time-b.time||priority(a)-priority(b));
+    const active=new Set();
+    for(const e of events){const key=`${e.channel||0}:${e.note}`;
+      if(e.type==='note_on'&&e.velocity>0){if(active.has(key))return null;active.add(key);}
+      else if(e.type==='note_off'||e.type==='note_on'&&e.velocity===0)active.delete(key);
+    }
+    return {...take,events};
+  }
   if (edit.type === 'arrangement') return applyArrangement(take,edit);
   if (edit.type === 'sequence') {
     if (!Array.isArray(edit.edits) || !edit.edits.length || edit.edits.length > 16

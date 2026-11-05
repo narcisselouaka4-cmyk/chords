@@ -1,4 +1,5 @@
-import {personalContext} from './personal-source.js';
+import {sessionAdjustmentAnswer} from './session-adjustments.js';
+import {personalContext,samePlayingSource} from './personal-source.js';
 import {personalDemoAnswer, isPersonalExample} from './personal-demo.js';
 // [Claude] — 2026-09-06 — Copilot IA : client de chat avec outil clavier.
 //
@@ -330,8 +331,10 @@ export function myPlayingExample(playing, args = {}) {
   }
   const start = Number.isFinite(Number(args.start)) ? Number(args.start) : 0;
   const end = args.end != null && Number.isFinite(Number(args.end)) ? Number(args.end) : null;
-  const wholePassage = source === 'passage' && !start && end == null && (!args.part || args.part === 'tout') && !semitones;
-  const example = wholePassage ? takeExample(data, args.title || 'Ton jeu') : playingExample(data.events, {
+  const whole = !start && end == null && (!args.part || args.part === 'tout') && !semitones;
+  // La limite d'extrait de playingExample ne doit pas tronquer une session entière.
+  const exactTake = source === 'session' ? {...data,events:data.events.map(e=>({...e,...(['note_on','note_off'].includes(e.type)?{note:e.note+(Number(data.offset)||0)}:{})}))} : data;
+  const example = whole ? takeExample(exactTake, args.title || 'Ton jeu') : playingExample(data.events, {
     start, end, part: args.part, offset: source === 'session' ? data.offset || 0 : 0, semitones, title: args.title ? String(args.title) : '',
   });
   if (!example) {
@@ -359,7 +362,7 @@ export function myPlayingRequest(message, { session = false } = {}) {
   const text = String(message || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'").toLowerCase();
   const times = [...text.matchAll(/\b(\d{1,2}):(\d{2})(?:,(\d))?\b/g)].map((m) => Number(m[1]) * 60 + Number(m[2]) + (m[3] ? Number(m[3]) / 10 : 0));
   const asks = (REPLAY_VERB.test(text) && MY_PLAYING.test(text))
-    || (session && times.length > 0 && /\b(?:rejoue[sz]?|rejouer|reecoute[sz]?|reecouter)\b/.test(text));
+    || (session && REPLAY_VERB.test(text) && (/\b(?:la|cette) session\b/.test(text) || times.length > 0));
   if (!asks) return null;
   const part = /\b(?:melodie|voix du dessus|dessus|top notes?)\b/.test(text) ? 'melodie'
     : /\bmain gauche\b|\b(?:ma|la) basse\b/.test(text) ? 'main_gauche'
@@ -1818,6 +1821,23 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
  */
 export async function sendCopilotMessage({ message, messages, context, copilotStyleId = 'auto', review = false }) {
   context = personalContext(context);
+  // Un rejeu exact ne nécessite ni réponse du modèle ni génération musicale.
+  const replay=myPlayingRequest(message,{session:Boolean(context?.playing?.session||context?.type==='session')});
+  if(replay&&!/amélior|amelior|enrich|reharmoni|réharmoni|modifi|corrig|plaqu|aér|aer/i.test(message||'')){
+    if(/session/i.test(message||'')&&context?.playing?.session)replay.source='session';
+    const result=myPlayingExample(context?.playing,replay);
+    return {ok:true,content:result.example?'Voici ton jeu, rejoué à partir de ses notes MIDI.':result.note||'Je n’ai pas de jeu disponible dans ce contexte.',
+      toolResult:{played:[],ignored:0,suggestions:[],voicing:null,example:result.example},suggestedActions:[],autoplay:Boolean(result.example)};
+  }
+  // Réécouter une correction réutilise ses événements, sans lancer une autre génération.
+  if (/^\s*(?:réécouter|reecouter|écouter|ecouter) (?:cette|la) (?:correction|proposition)[.!?]?\s*$/i.test(message||'')) {
+    const previous=[...(messages||[])].reverse().find(m=>m.role==='assistant'&&!m.isTyping)?.toolResult;
+    if (previous?.example && previous.playingAdvice?.version !== 6 && samePlayingSource(previous.originalTake,context?.playing?.passage)) {
+      return {ok:true,content:'Voici la même proposition, à comparer avec ton jeu original.',toolResult:previous,suggestedActions:[],autoplay:true};
+    }
+  }
+  const adjustment=sessionAdjustmentAnswer({message,context});
+  if(adjustment)return adjustment;
   const demo = personalDemoAnswer({message, messages, context});
   if (demo) return demo;
   const style = playingStyleAnswer({ message, messages, context });
