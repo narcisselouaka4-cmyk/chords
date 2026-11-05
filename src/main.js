@@ -24,6 +24,7 @@ import {
   createDrumLoop, drumKitFor, drumTempoFor, drumStyles, setDrumManifest,
 } from './audio/drum-loop.js';
 import { initGlobalMetronome } from './ui/global-metronome.js';
+import {bindPlaybackDrums} from './audio/playback-drums.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
 // [Claude] — 2026-10-02 — Qui est un vrai clavier (jamais notre propre port virtuel).
@@ -732,7 +733,7 @@ const demoPlayer = createDemoPlayer({
   onPassing: (after) => demoHooks.onPassing?.(after),
   // La batterie s'arrête ici et non en emballant `demoHooks.onEnd` : ce champ
   // est réassigné plus tard par initPracticeExercise, qui écraserait l'emballage.
-  onEnd: (reason) => { releaseDrumsToMetronome(); demoHooks.onEnd?.(reason); },
+  onEnd: (reason) => { demoRhythm.end(); demoHooks.onEnd?.(reason); },
 });
 
 // [Claude] — 2026-11-04 — Boucle de batterie des démonstrations. Elle est
@@ -742,7 +743,6 @@ const demoPlayer = createDemoPlayer({
 // On EMBALLE les commandes du lecteur plutôt que de guetter chaque appel :
 // `demoPlayer.stop()` est appelé depuis une douzaine d'endroits, et une
 // batterie qui continue après la fin serait pire que pas de batterie du tout.
-const DRUMS_STORAGE = 'exercise-demo-drums';
 
 /**
  * Lecture d'une boucle depuis `assets/drum-loops`, par l'IPC Electron — comme
@@ -802,22 +802,11 @@ let globalMetronome = null;
     console.warn('[Batterie] manifeste kits.json illisible, styles par défaut —', e?.message || e);
   }
 })();
-let demoDrums = null;        // { name, tempo } de la démo en cours
-let drumsEnabled = true;     // Narcisse a demandé la batterie : allumée par défaut.
-try {
-  const saved = window.localStorage?.getItem(DRUMS_STORAGE);
-  if (saved === 'off') drumsEnabled = false;
-} catch (e) { /* Réglage gardé pour cette séance seulement. */ }
-
-/** Relance la batterie à la position courante de la démo (reprise, saut, vitesse). */
-function syncDemoDrums() {
-  if (!demoDrums || !drumsEnabled || !demoPlayer.isPlaying()) { drumLoop.stop(); return; }
-  drumLoop.start({
-    kit: demoDrums.name, tempo: demoDrums.tempo, rate: demoPlayer.rate(),
-    // Relue après décodage : voir le commentaire dans drum-loop.js.
-    getBeat: () => demoPlayer.position(),
-  }).then(() => refreshDrumsDiagnostic());
-}
+// La batterie se lance uniquement après activation explicite dans cette séance.
+let drumsEnabled = false;
+const demoRhythm=bindPlaybackDrums({player:demoPlayer,drumLoop,
+  metronome:()=>globalMetronome,enabled:()=>drumsEnabled,onChange:()=>refreshDrumsDiagnostic()});
+function syncDemoDrums() {demoRhythm.sync();}
 
 /**
  * [Claude] — 2026-11-04 — Dire POURQUOI la batterie ne sonne pas. Elle est
@@ -839,25 +828,6 @@ function refreshDrumsDiagnostic() {
   if (why && drumsEnabled) btn.title = `Batterie sans son — ${why}`;
 }
 
-for (const method of ['stop', 'pause']) {
-  const inner = demoPlayer[method].bind(demoPlayer);
-  demoPlayer[method] = (...args) => { releaseDrumsToMetronome(); return inner(...args); };
-}
-
-/**
- * [Claude] — 2026-11-04 — La démo et le métronome global partagent UN lecteur :
- * deux boucles à des tempos différents en même temps seraient inécoutables. La
- * démo prend donc la main, et le métronome reprend là où il en était quand elle
- * s'arrête — sans quoi lancer une écoute couperait le métronome pour de bon.
- */
-function releaseDrumsToMetronome() {
-  drumLoop.stop();
-  if (globalMetronome?.isRunning()) globalMetronome.resume();
-}
-for (const method of ['resume', 'seek', 'setRate']) {
-  const inner = demoPlayer[method].bind(demoPlayer);
-  demoPlayer[method] = (...args) => { const out = inner(...args); syncDemoDrums(); return out; };
-}
 
 function logMidiEvent(event) {
   if (!els.midiLog) return;
@@ -2917,17 +2887,7 @@ function initPracticeExercise() {
    * motif connu, la démo joue simplement sans batterie.
    */
   function startDemoDrums(name, tempo) {
-    demoDrums = drumKitFor(name) ? { name, tempo } : null;
-    if (demoDrums && drumsEnabled) {
-      drumLoop.start({
-        kit: name, tempo, rate: demoPlayer.rate(),
-        // Au tout premier lancement il faut décoder : la position est relue
-        // ensuite, pour que la batterie entre là où le piano en est vraiment.
-        getBeat: () => demoPlayer.position(),
-      }).then(() => refreshDrumsDiagnostic());
-    } else {
-      drumLoop.stop();
-    }
+    demoRhythm.setKit(drumKitFor(name)?name:null,tempo);
     refreshDrumsToggle();
   }
 
@@ -2944,11 +2904,6 @@ function initPracticeExercise() {
 
   document.getElementById('exercise-demo-drums')?.addEventListener('click', () => {
     drumsEnabled = !drumsEnabled;
-    try {
-      window.localStorage?.setItem(DRUMS_STORAGE, drumsEnabled ? 'on' : 'off');
-    } catch (e) {
-      // Réglage gardé pour cette séance seulement.
-    }
     // La batterie s'allume ou se coupe sans interrompre la démo en cours.
     if (drumsEnabled) syncDemoDrums(); else drumLoop.stop();
     refreshDrumsToggle();

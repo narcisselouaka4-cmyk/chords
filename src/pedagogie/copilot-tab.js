@@ -1249,7 +1249,7 @@ export function answerActions(msg, { last = false, asked = '', source = null } =
   // Les suggestions propres au modèle passent avant les compléments d'écoute.
   actions.push(...suggested);
   if(playing){
-    if(!personal)actions.push({label:'Écouter une proposition',message:'Fais-moi entendre une proposition à partir de mon jeu.'});
+    if(!personal)actions.push({label:'Écouter une version enrichie',message:'Fais-moi entendre une version enrichie de mon jeu.'});
     const own=playing==='session'?'de ma session':'de mon jeu';
     actions.push({label:'Écouter la main gauche',message:`Rejoue la main gauche ${own}.`},{label:'Écouter la main droite',message:`Rejoue la main droite ${own}.`});
   }

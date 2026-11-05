@@ -125,18 +125,23 @@ export function initGlobalMetronome({ drumLoop, styles, resumeAudio = null }) {
     note.hidden = !note.textContent;
   }
 
+  let startGeneration=0;
   async function start() {
-    if (resumeAudio) { try { await resumeAudio(); } catch (e) { /* le contexte se réveillera au clic suivant */ } }
+    const generation=++startGeneration;
     state.running = true;
     renderState();
+    if (resumeAudio) { try { await resumeAudio(); } catch (e) { /* le contexte se réveillera au clic suivant */ } }
+    if(generation!==startGeneration||!state.running)return;
     const kit = drumKitById(state.style);
     // Le tempo du manifeste est une suggestion ; le réglage affiché fait foi.
     const ok = await drumLoop.start({ kit: kit ? { ...kit, tempo: state.tempo } : null, tempo: state.tempo });
+    if(generation!==startGeneration||!state.running)return;
     if (ok) runBeats(performance.now()); else stopBeats();
     renderState();
   }
 
   function stop() {
+    ++startGeneration;
     state.running = false;
     drumLoop.stop();
     stopBeats();

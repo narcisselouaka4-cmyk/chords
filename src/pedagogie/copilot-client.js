@@ -361,6 +361,8 @@ const MY_PLAYING = /\b(?:ma|mon|mes)\s+(?:session|passage|jeu|melodie|main|mains
 export function myPlayingRequest(message, { session = false } = {}) {
   const text = String(message || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'").toLowerCase();
   const times = [...text.matchAll(/\b(\d{1,2}):(\d{2})(?:,(\d))?\b/g)].map((m) => Number(m[1]) * 60 + Number(m[2]) + (m[3] ? Number(m[3]) / 10 : 0));
+  // Entendre une proposition à partir de son jeu demande une adaptation, pas un rejeu.
+  if (/\b(?:propositions?|variantes?|exemples?)\b|\bversion (?:enrichie|modifiee|amelioree)\b/.test(text)) return null;
   const asks = (REPLAY_VERB.test(text) && MY_PLAYING.test(text))
     || (session && REPLAY_VERB.test(text) && (/\b(?:la|cette) session\b/.test(text) || times.length > 0));
   if (!asks) return null;

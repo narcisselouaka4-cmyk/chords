@@ -39,3 +39,18 @@ for(const action of sessionActions.filter(a=>/^(Rejoue|Plaquer|Aérer)/.test(a.m
  if(action.message.startsWith('Rejoue'))assert(wantsToHear(action.message)&&r.autoplay);
 }
 console.log('✓ Session confiée sans toolResult : rejeu direct, corrections aux seuls moments cités et mains séparées exécutables sans modèle');
+
+const sessionContext={type:'session',playing:{session:t}};
+const originalAction=sessionActions.find(a=>a.label==='Rejouer la session');
+const proposalAction=sessionActions.find(a=>a.label==='Écouter une version enrichie');assert(proposalAction);
+const original=await sendCopilotMessage({message:originalAction.message,messages:[],context:sessionContext});
+const {myPlayingRequest}=await import('./copilot-client.js');
+for(const message of ['Fais-moi entendre une proposition à partir de mon jeu.',proposalAction.message]){
+ assert.equal(myPlayingRequest(message,{session:true}),null);
+ const proposal=await sendCopilotMessage({message,messages:[{role:'assistant',...original}],context:sessionContext});
+ assert(proposal.ok&&proposal.autoplay&&proposal.toolResult.variants?.length,message);
+ assert.deepEqual(proposal.toolResult.originalTake.events,t.events);
+ assert.notDeepEqual(proposal.toolResult.example.events,original.toolResult.example.events,message);
+ for(const v of proposal.toolResult.variants)assert.notDeepEqual(v.example.events,original.toolResult.example.events);
+}
+console.log('✓ Les deux étiquettes produisent des résultats distincts : source MIDI intacte / propositions modifiées, ancien et nouveau libellé');
