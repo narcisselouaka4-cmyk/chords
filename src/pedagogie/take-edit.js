@@ -20,6 +20,18 @@ export function notePairs(events) {
 /** Applique un changement au couple exact attaque/relâchement ; tous les autres événements restent intacts. */
 export function applyTakeEdit(take, edit) {
   if (!edit || !Array.isArray(take?.events)) return null;
+  // Les étapes suivantes sont indexées sur le résultat précédent. À distinguer
+  // d'un plan d'éditions indépendantes indexées toutes sur la même source.
+  if (edit.type === 'sequence') {
+    if (!Array.isArray(edit.edits) || !edit.edits.length || edit.edits.length > 16
+      || edit.edits.some(e => !e || ['sequence', 'plan'].includes(e.type))) return null;
+    let changed = take;
+    for (const step of edit.edits) {
+      changed = applyTakeEdit(changed, step);
+      if (!changed) return null;
+    }
+    return changed;
+  }
   if (edit.type === 'plan') return applyTakePlan(take, edit.edits);
   const pairs = notePairs(take.events);
   if (edit.type === 'fixed-harmony') return applyFixedHarmony(take, edit, pairs);
@@ -91,6 +103,7 @@ export function applyTakeEdit(take, edit) {
     if (!Number.isFinite(edit.start) || !Number.isFinite(edit.end) || edit.start < 0 || edit.end - edit.start < .12) return null;
     const anchor = pairs.find((p) => p.on === edit.on);
     if (!anchor) return null;
+    if (edit.velocity != null && (!Number.isFinite(edit.velocity) || edit.velocity <= 0 || edit.velocity > 127)) return null;
     const attacks = edit.attacks || edit.notes.map((_, i) => edit.start + i * Math.min(.04, (edit.end - edit.start) / (edit.notes.length * 3)));
     if (attacks.length !== edit.notes.length || attacks.some((t, i) => !Number.isFinite(t) || t < edit.start || t >= edit.end || (i && t < attacks[i - 1]))) return null;
     const adjustments = edit.adjustments || [];
@@ -112,7 +125,7 @@ export function applyTakeEdit(take, edit) {
     events.length = 0;
     events.push(...kept);
     edit.notes.forEach((note, i) => {
-      events.push({ type: 'note_on', note, time: attacks[i], velocity: anchor.event.velocity, channel: anchor.event.channel || 0 },
+      events.push({ type: 'note_on', note, time: attacks[i], velocity: edit.velocity ?? anchor.event.velocity, channel: anchor.event.channel || 0 },
         { type: 'note_off', note, time: edit.end, velocity: 0, channel: anchor.event.channel || 0 });
     });
     events.sort((a, b) => a.time - b.time);

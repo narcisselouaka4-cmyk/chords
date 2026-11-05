@@ -3,10 +3,12 @@
 import { reviewTake } from '../recorder/take-review.js';
 import { parseChordName } from './note-roles.js';
 import { notePairs, applyTakeEdit } from './take-edit.js';
-import { findVoicingsByTopNote, chordToneIntervals, realizesChord, voiceLeadingCost } from '../practice-exercise.js';
+import { findVoicingsByTopNote, chordToneIntervals, voiceLeadingCost } from '../practice-exercise.js';
 import { respectsLowIntervalLimits } from '../voicing-engine/textbook-voicings.js';
 import { comparedTakeExample } from './playing-diff.js';
 import { extractKey } from './intent-classifier.js';
+import { preparesChord, functionalProfiles, resolvingVoices } from './harmonic-intentions.js';
+import { realizesHarmony } from './harmonic-identity.js';
 const pc = n => (n % 12 + 12) % 12;
 const MAJOR = [0,2,4,5,7,9,11];
 const NAMES = ['Do','Ré♭','Ré','Mi♭','Mi','Fa','Fa♯','Sol','La♭','La','Si♭','Si'];
@@ -25,9 +27,17 @@ export function fixedFrames(take) {
     if(source.some(p=>p.end<last+.08)||new Set(source.map(p=>p.event.note)).size!==source.length)continue;
     const notes=source.map(p=>p.event.note).sort((a,b)=>a-b);
     const foundation=/^m(?!aj)/.test(chord.quality)?'m':/sus/.test(chord.quality)?chord.quality.replace(/^[79]/,''):/^(7|9|13)/.test(chord.quality)?'7':'';
-    if(notes.at(-1)!==Math.max(...c.notes)||(!realizesChord(notes,chord.rootPc,chord.quality)&&!realizesChord(notes,chord.rootPc,foundation)))continue;
+    if(notes.at(-1)!==Math.max(...c.notes)||(!realizesHarmony(notes,chord.rootPc,chord.quality)&&!realizesHarmony(notes,chord.rootPc,foundation)))continue;
     frames.push({at:c.at,end:c.end,chord,source,notes,topMidi:notes.at(-1),bassMidi:notes[0]});
     source.forEach(p=>used.add(p.on));
+  }
+  for(let i=0;i<frames.length-1;i++) {
+    const f=frames[i], next=frames[i+1], rootPc=pc(next.chord.rootPc+7);
+    if(pc(f.bassMidi-rootPc)!==10 || f.notes.length<4 || next.at-f.at>6)continue;
+    const quality=['9','13','7b9','7'].find(q=>realizesHarmony(f.notes,rootPc,q));
+    if(!quality)continue;
+    f.interpretation={kind:'dominant-inversion',sourceLabel:f.chord.name,targetAt:next.at,evidence:'amazing-grace:2:19'};
+    f.chord={rootPc,quality,name:label(rootPc,quality)+` / ${NAMES[pc(f.bassMidi)]}`};
   }
   return {frames,review};
 }
@@ -40,11 +50,12 @@ function paletteOf(review,message) {
   return possible.length===1?possible[0]:null;
 }
 
-function ownSpecs(frame,palette,soft=false) {
+function ownSpecs(frame,palette,soft=false,next=null) {
   const {rootPc,quality:q}=frame.chord;
   const minor=/^m(?!aj)/.test(q), dominant=/^(7|9|13)/.test(q)||(q===''||q==='add9')&&palette!=null&&pc(rootPc-palette)===7;
   const qualities=/sus/.test(q)?['9sus4','7sus4']:minor?(soft?['m7','m9','m11']:['m9','m11','m7']):dominant?['9','13']:soft?['maj7','6/9','maj9']:['maj9','maj7','6/9'];
-  return qualities.map((quality,rank)=>({rootPc,quality,preserveBass:true,rank}));
+  return qualities.map((quality,rank)=>({rootPc,quality,preserveBass:true,rank,
+    chromatic: preparesChord(frame,next)}));
 }
 
 /** Accords candidats après le choix de la basse ; le cycle autorisé n'est pas forcé dans une seule gamme. */
@@ -54,7 +65,7 @@ export function harmonyVoicings(frame,spec,{palette=null}={}) {
   if(!tones.has(pc(topMidi-root)))return [];
   const out=[], seen=new Set();
   const accept=(notes,technique)=>{
-    if(spec.resolveLeading) {
+    if(spec.resolveLeading && pc(topMidi)!==root) {
       let target=topMidi-1;while(pc(target)!==root)target--;
       if(target<Math.min(...notes))return;
       notes=[...notes,target];
@@ -62,11 +73,15 @@ export function harmonyVoicings(frame,spec,{palette=null}={}) {
     notes=[...new Set(notes)].sort((a,b)=>a-b);
     if(notes.length<3||notes.length>7||notes.at(-1)!==topMidi||notes[0]<28||notes[0]>topMidi-5)return;
     if(spec.preserveBass&&(pc(notes[0])!==pc(bassMidi)||Math.abs(notes[0]-bassMidi)>12))return;
+    if(spec.exactBass&&notes[0]!==bassMidi)return;
     if(spec.preserveBass&&new Set(notes.map(pc)).size<new Set(frame.notes.map(pc)).size)return;
-    if(!realizesChord(notes,root,quality)||!respectsLowIntervalLimits(notes))return;
+    if(!realizesHarmony(notes,root,quality)||!respectsLowIntervalLimits(notes))return;
     if(palette!=null&&!spec.chromatic&&notes.some(n=>!MAJOR.some(d=>pc(palette+d)===pc(n))))return;
-    // Une main droite de plus d'une octave n'est pas une position fixe proposée ici.
-    if(notes.length>2&&topMidi-notes[1]>12)return;
+    // Les deux mains peuvent porter des voix intérieures : ne pas assimiler
+    // toute note sauf la basse à la main droite. Une répartition jouable est
+    // nécessaire, sans prétendre reconnaître les mains du pianiste.
+    if(!Array.from({length:Math.min(3,notes.length-1)},(_,i)=>i+1)
+      .some(split=>notes[split-1]-notes[0]<=12&&topMidi-notes[split]<=12))return;
     const key=notes.join(',');if(seen.has(key))return;seen.add(key);
     const bassLabel=pc(notes[0])!==root?` / ${NAMES[pc(notes[0])]}`:'';
     const outside=palette!=null&&spec.chromatic?notes.filter(n=>!MAJOR.some(d=>pc(palette+d)===pc(n))).length:0;
@@ -96,7 +111,7 @@ export function harmonyVoicings(frame,spec,{palette=null}={}) {
 
 function frameEdit(frame,v) {
   return {source:frame.source.map(p=>p.on),topOn:frame.source.find(p=>p.event.note===frame.topMidi).on,
-    notes:v.notes,rootPc:v.rootPc,quality:v.quality,preserveBass:v.preserveBass};
+    notes:v.notes,rootPc:v.rootPc,quality:v.quality,preserveBass:v.preserveBass,exactBass:v.exactBass};
 }
 
 /** Recherche sur la suite entière : le coût inclut le lien avec la voix précédente. */
@@ -105,12 +120,14 @@ function chooseChain(take,frames,pools) {
   for(let i=0;i<frames.length;i++) {
     const frame=frames[i];
     const pool=pools[i].filter(v=>applyTakeEdit(take,{type:'fixed-harmony',frames:[frameEdit(frame,v)]}));
-    if(!pool.length)pool.push({notes:frame.notes,unchanged:true,label:frame.chord.name});
+    if(!pool.length)pool.push({notes:frame.notes,unchanged:true,label:frame.chord.name,
+      rootPc:frame.chord.rootPc,quality:frame.chord.quality});
     const next=[];
     for(const path of beam)for(const v of pool) {
       const sourceCost=voiceLeadingCost(frame.notes,v.notes)*.3+Math.abs(frame.bassMidi-v.notes[0])*.3;
       next.push({chosen:[...path.chosen,v],previous:v.notes,cost:path.cost+sourceCost+(v.rank||0)*4
-        +(path.previous?voiceLeadingCost(path.previous,v.notes):0)});
+        +(path.previous?voiceLeadingCost(path.previous,v.notes):0)
+        +(path.chosen.at(-1)?.function ? resolvingVoices(path.chosen.at(-1),v) ? -12 : 60 : 0)});
     }
     beam=next.sort((a,b)=>a.cost-b.cost).slice(0,16);
   }
@@ -126,17 +143,21 @@ function bassRequest(message,frames) {
     .map(m=>pc(names[m[1]]+(/b|♭/.test(m[2]||'')?-1:m[2]?1:0)));
 }
 
-export function buildFixedHarmonyVariants(take,{message=''}={}) {
+export function buildFixedHarmonyVariants(take,{message='',functional=true}={}) {
   const {frames,review}=fixedFrames(take);if(!frames.length)return [];
   const palette=paletteOf(review,message), requestedBasses=bassRequest(message,frames);
+  const text=message.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const keepBass=/(?:garde|conserv|ne change pas|sans changer).*(?:basse|basses)|bassiste|sans ajouter de basse/.test(text);
+  const keepRoots=/(?:sans changer|garde|conserv).*(?:mes|les|tes) accords|pas de reharmonis/.test(text);
   if(requestedBasses&&requestedBasses.length!==frames.length)return [];
   const broadQualities=['maj9','maj7','m9','m11','9','13','7sus4','9sus4','7b9','7#5'];
   let profiles;
   if(requestedBasses)profiles=[{id:'bass',title:'Tes basses, ta mélodie',description:'Les voix intérieures relient les basses et les notes du dessus.',specs:frames.map((f,i)=>[...new Set([f.chord.rootPc,requestedBasses[i],pc(requestedBasses[i]-4),pc(requestedBasses[i]-3),pc(requestedBasses[i]-7)])]
     .flatMap((rootPc,rootRank)=>broadQualities.map((quality,rank)=>({rootPc,bassPc:requestedBasses[i],quality,preserveBass:false,chromatic:true,rank:rank*.2+rootRank*.3}))))}];
   else {
-    profiles=[{id:'enrich',title:'Accords enrichis',description:'Ta mélodie et ton parcours de basse, avec de nouvelles couleurs.',specs:frames.map(f=>ownSpecs(f,palette))},
-      {id:'soft',title:'Autres voicings',description:'Tes notes du dessus et tes basses, avec d’autres voicings.',specs:frames.map(f=>ownSpecs(f,palette,true))}];
+    profiles=[{id:'enrich',title:'Accords enrichis',description:'Ta mélodie et ton parcours de basse, avec de nouvelles couleurs.',specs:frames.map((f,i)=>ownSpecs(f,palette,false,frames[i+1]))},
+      {id:'soft',title:'Autres voicings',description:'Tes notes du dessus et tes basses, avec d’autres voicings.',specs:frames.map((f,i)=>ownSpecs(f,palette,true,frames[i+1]))}];
+    if(functional) profiles.push(...functionalProfiles(frames,palette,(f,next)=>ownSpecs(f,palette,false,next)));
     if(palette!=null) {
       const alternative=frames.map(f=>{
         const degree=pc(f.chord.rootPc-palette);
@@ -156,10 +177,13 @@ export function buildFixedHarmonyVariants(take,{message=''}={}) {
     }
   }
   const variants=[],seen=new Set();
-  for(const profile of profiles) {
+  for(const profile of profiles.filter(p=>!(keepBass||keepRoots)||['enrich','soft','bass'].includes(p.id))) {
+    if(keepBass&&!requestedBasses)profile.specs=profile.specs.map(ss=>ss.map(s=>({...s,exactBass:true})));
     const pools=frames.map((f,i)=>profile.specs[i].flatMap(s=>harmonyVoicings(f,s,{palette})).slice(0,24));
     if(requestedBasses&&pools.some(p=>!p.length))continue;
     const chain=chooseChain(take,frames,pools), selected=[];
+    if(profile.requireSlots?.some(i=>chain[i]?.unchanged))continue;
+    if(profile.requireFunctions?.some(i=>!chain[i]?.function||!resolvingVoices(chain[i],chain[i+1])))continue;
     if(requestedBasses&&chain.some((v,i)=>pc(v.notes[0])!==requestedBasses[i]))continue;
     if(profile.require?.some(i=>chain[i]?.unchanged||chain[i]?.rootPc!==profile.specs[i][0].rootPc||chain[i]?.quality!==profile.specs[i][0].quality))continue;
     chain.forEach((v,i)=>{if(!v.unchanged&&v.notes.join(',')!==frames[i].notes.join(','))selected.push({frame:frames[i],v});});
@@ -173,7 +197,8 @@ export function buildFixedHarmonyVariants(take,{message=''}={}) {
     const changed=applyTakeEdit(take,edit);if(!changed)continue;
     const example=comparedTakeExample(take,changed), signature=JSON.stringify(example?.events);
     if(!example||seen.has(signature))continue;seen.add(signature);
-    const changes=selected.map(({frame,v})=>({at:frame.at,goal:'enrich',technique:v.technique,source:frame.chord.name,chord:v.label,topMidi:frame.topMidi,bassMidi:v.notes[0],notes:v.notes}));
+    const changes=selected.map(({frame,v})=>({at:frame.at,goal:'enrich',technique:v.technique,source:frame.chord.name,chord:v.label,topMidi:frame.topMidi,bassMidi:v.notes[0],notes:v.notes,
+      rootPc:v.rootPc,quality:v.quality,function:v.function,phrase:v.phrase,interpretation:frame.interpretation}));
     const progression=chain.slice(0,4).map(v=>v.label).join(' → ')+(chain.length>4?' …':'');
     const advice={version:4,id:`fixed:${profile.id}`,goal:'enrich',take,changes,edit,text:profile.description};
     variants.push({id:profile.id,title:profile.title,description:profile.description,advice,

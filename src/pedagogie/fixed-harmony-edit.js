@@ -1,6 +1,6 @@
 // Édition de voicings fixes : basse et voix intérieures sous un dessus inchangé.
 // Aucun nouvel instant musical ; le dessus garde son occurrence MIDI exacte.
-import { realizesChord } from '../practice-exercise.js';
+import { realizesHarmony } from './harmonic-identity.js';
 import { respectsLowIntervalLimits } from '../voicing-engine/textbook-voicings.js';
 const pc = n => (n % 12 + 12) % 12;
 
@@ -21,8 +21,9 @@ export function applyFixedHarmony(take, edit, pairs) {
     const sorted = [...notes].sort((a,b) => a-b);
     if (sorted.at(-1) !== top.event.note || frame.topOn !== top.on) return null;
     if (frame.preserveBass && (pc(sorted[0]) !== pc(bass.event.note) || Math.abs(sorted[0]-bass.event.note)>12)) return null;
+    if (frame.exactBass && sorted[0] !== bass.event.note) return null;
     if (!Number.isInteger(frame.rootPc) || frame.rootPc < 0 || frame.rootPc > 11
-      || !realizesChord(sorted, frame.rootPc, frame.quality)
+      || !realizesHarmony(sorted, frame.rootPc, frame.quality)
       || !respectsLowIntervalLimits(sorted)) return null;
     const first = Math.min(...source.map(p => p.event.time));
     const last = Math.max(...source.map(p => p.event.time));

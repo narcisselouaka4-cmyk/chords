@@ -62,7 +62,7 @@ function heldPedal(events, start, end) {
 export function planPassingEdit(take, review, pairs, target, previous, notes, anchor, placement = null) {
   const timing = placement || rhythmicWindow(review, pairs, target);
   if (!timing || heldPedal(take.events, timing.start, timing.end)) return null;
-  const allowed = new Set([0, 4, 7, 10].map((n) => pc(notes[0] + n)));
+  const allowed = new Set(timing.allowedPitchClasses || [0, 4, 7, 10].map((n) => pc(notes[0] + n)));
   const melodyFloor = Math.min(Math.max(...previous.notes), Math.max(...target.notes));
   const adjustments = [];
   for (const p of pairs) {
