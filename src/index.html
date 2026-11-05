@@ -317,13 +317,6 @@
             <div class="tr-segment-control exercise-mode-selector" role="tablist" aria-label="Type d'exercice">
               <button class="exercise-mode-btn active is-active" data-mode="chord" role="tab" aria-selected="true" type="button">Accord cible</button>
               <button class="exercise-mode-btn" data-mode="movement" role="tab" aria-selected="false" type="button">Parcours harmonique</button>
-              <!-- [Claude] — 2026-11-05 — Troisième mode : SOLO. Demande de Narcisse —
-                   « il y a aussi du solo, et moi j'aime le solo […] se baser uniquement
-                   sur l'accompagnement, pour moi, c'est une erreur ». Les deux autres
-                   modes tournent autour de « joue l'accord annoncé » ; celui-ci joue une
-                   LIGNE sur un fond, et selon la fiche ne vérifie rien, ou le rythme
-                   seul, ou l'atterrissage sur le temps fort. -->
-              <button class="exercise-mode-btn" data-mode="solo" role="tab" aria-selected="false" type="button">Solo</button>
             </div>
             <!-- [Claude] — 2026-09-24 — Titre « Exercices » et « Reconnaissance locale »
                  retirés (Narcisse) : le sous-onglet nomme déjà la vue. Les actions
@@ -475,62 +468,6 @@
                 <span class="tr-eyebrow">VOICINGS</span>
                 <!-- Voicings disponibles pour l'accord affiché : rempli par main.js. -->
                 <div class="exercise-voicing-choices" id="exercise-voicing-choices"></div>
-              </div>
-            </div>
-          </section>
-
-          <!-- [Claude] — 2026-11-05 — Scène du mode Solo. Elle remplace la scène
-               d'exercice (jamais les deux en même temps) : rien ici ne parle d'accord
-               cible, de top note ni de voicing — on y joue une ligne sur un fond.
-               Remplie par src/ui/solo-panel.js. -->
-          <section class="solo-stage" id="solo-stage" hidden>
-            <div class="solo-library" role="group" aria-label="Exercices de solo">
-              <span class="tr-eyebrow">SOLO · SALSA</span>
-              <div class="solo-cards" id="solo-cards"></div>
-            </div>
-
-            <div class="solo-scene">
-              <div class="solo-head">
-                <span class="tr-eyebrow" id="solo-kind-label">PLAY-ALONG</span>
-                <h2 id="solo-title">Choisis un exercice</h2>
-                <p class="solo-promise" id="solo-promise"></p>
-              </div>
-
-              <!-- Ce que la fiche raconte : contexte, son, usage. -->
-              <div class="solo-brief" id="solo-brief"></div>
-
-              <div class="solo-transport">
-                <button class="tr-button tr-primary solo-start" type="button" id="solo-start-btn" disabled>
-                  <svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
-                  <span id="solo-start-label">Démarrer le fond</span>
-                </button>
-                <button class="tr-button solo-reset" type="button" id="solo-reset-btn" disabled title="Efface les frappes ramassées et repart de zéro">
-                  <svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
-                  Repartir de zéro
-                </button>
-                <div class="solo-tempo" id="solo-tempo-row">
-                  <label for="solo-tempo">Tempo</label>
-                  <button class="tr-icon-button" type="button" id="solo-tempo-down" aria-label="Tempo moins 4">−</button>
-                  <output id="solo-tempo" aria-live="off">90</output>
-                  <button class="tr-icon-button" type="button" id="solo-tempo-up" aria-label="Tempo plus 4">+</button>
-                </div>
-                <button class="solo-drums is-on" type="button" id="solo-drums-btn" aria-pressed="true" aria-label="Boucle de batterie">
-                  <svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="7" rx="9" ry="3.4"/><path d="M3 7v8c0 1.9 4 3.4 9 3.4s9-1.5 9-3.4V7"/><path d="m5.5 9.6 13 6.2M18.5 9.6l-13 6.2"/></svg>
-                  Batterie
-                </button>
-              </div>
-
-              <!-- Verdict. Vide pour un play-along : il n'y a rien à dire. -->
-              <div class="solo-verdict" id="solo-verdict" role="status" aria-live="polite"></div>
-
-              <!-- Détail mesuré : frappes attendues/jouées, ou atterrissages. -->
-              <div class="solo-detail" id="solo-detail"></div>
-
-              <div class="solo-settings" id="solo-settings" hidden>
-                <label for="solo-tolerance">Tolérance</label>
-                <input type="range" id="solo-tolerance" min="30" max="250" step="5" value="90" aria-describedby="solo-tolerance-value" />
-                <output id="solo-tolerance-value">90 ms</output>
-                <p class="solo-settings-hint">En deçà de cet écart, une frappe est comptée à sa place.</p>
               </div>
             </div>
           </section>

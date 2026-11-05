@@ -98,14 +98,7 @@ import {
   topNoteChoices,
   spellChordTone,
   movementChordNames,
-  chordToneIntervals,
 } from './practice-exercise.js';
-// [Claude] — 2026-11-05 — Mode Solo (demande de Narcisse du 05/11 : « il y a
-// aussi du solo »). Il ne passe pas par le moteur d'exercice : rien n'y est
-// jugé sur « l'accord annoncé ». Voir src/solo/ et src/ui/solo-panel.js.
-import { createSoloSession } from './solo/solo-session.js';
-import { createSoloPanel } from './ui/solo-panel.js';
-import soloCatalogue from './data/solo-studies.json' with { type: 'json' };
 import { loadGrids, saveGrids, upsertGrid, removeGrid, defaultGridName } from './practice-grids.js';
 import movementsLibrary, { archivedMovements, EXERCISE_KIND_LABELS } from './exercise-catalogue.js';
 import { keyLabel } from './practice-key-spelling.js';
@@ -179,11 +172,6 @@ let practiceExercise = null;
 // le Copilote les reçoit avec l'exercice (« Demander au Copilote », « Qu'en penses-tu ? »).
 const exerciseAttempts = [];
 let renderPracticeExercise = null;
-// Panneau du mode Solo. Tant qu'il tourne, les notes jouées lui vont et
-// l'exercice d'accords ne juge rien : les deux ne cohabitent jamais.
-let soloPanel = null;
-let soloModeActive = () => false;
-let soloApplyVisibility = null;
 
 // [Claude] — 2026-07-08 — Détection d'accord différée pour ne pas bloquer le thread
 // principal quand le clavier MIDI envoie beaucoup d'événements. Cela permet au
@@ -551,10 +539,7 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
     return;
   }
   // [Claude] — 2026-09-24 — Jouer soi-même arrête la démo en cours.
-  // [Claude] — 2026-11-05 — SAUF en mode Solo : là, le lecteur porte le fond de
-  // jeu, et on joue justement PAR-DESSUS. Sans cette exception, la première
-  // note du pianiste couperait l'accompagnement et le mode serait inutilisable.
-  if (!state.isPlayback && demoPlayer.isPlaying() && !soloPanel?.isRunning()) demoPlayer.stop();
+  if (!state.isPlayback && demoPlayer.isPlaying()) demoPlayer.stop();
   // Auto-clear suggestion notes when user plays real MIDI
   if (!state.isPlayback && state.suggestionNotes.size > 0) {
     for (const n of state.suggestionNotes) {
@@ -588,11 +573,6 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
     // pendant l'écoute, entre ses deux clics) : la note entendue (transposition
     // comprise), jamais une démo ni une relecture.
     liveTake.noteOn(transposed, safeVelocity, undefined, note);
-    // [Claude] — 2026-11-05 — Mode Solo : la frappe est horodatée sur le temps
-    // du fond de jeu. Elle est dans ce bloc exprès — les notes du fond lui-même
-    // arrivent par feedDemoEvent, qui lève state.isPlayback, et ne doivent
-    // jamais être comptées comme un jeu du pianiste.
-    soloPanel?.noteOn(transposed);
   }
   // La détection est différée pour ne pas bloquer le thread principal
   // (lecture audio / défilement de l'onglet Analyse).
@@ -2053,21 +2033,11 @@ function initPracticeExercise() {
 
   modeButtons.forEach((btn) => {
     btn.addEventListener('click', async () => {
-      const mode = btn.dataset.mode;
-      // [Claude] — 2026-11-05 — Le mode Solo ne touche pas au moteur
-      // d'exercice : il n'a ni cible ni score d'accords à perdre, et le moteur
-      // garde son mode précédent pour le retrouver intact au retour.
-      if (mode === 'solo') {
-        setModeButtonActive(mode);
-        soloApplyVisibility?.('solo');
-        return;
-      }
       // Ne pas perdre la progression en cours sur un clic accidentel :
       // si l'exercice courant a déjà été joué, demander confirmation.
-      if (!await maybeConfirmReset(mode === practiceExercise.getState().mode)) return;
-      setModeButtonActive(mode);
-      soloApplyVisibility?.(mode);
-      practiceExercise.setMode(mode);
+      if (!await maybeConfirmReset(btn.dataset.mode === practiceExercise.getState().mode)) return;
+      setModeButtonActive(btn.dataset.mode);
+      practiceExercise.setMode(btn.dataset.mode);
       feedbackDiv.textContent = '';
       render();
     });
@@ -3359,94 +3329,6 @@ function initPracticeExercise() {
     render();
   });
 
-  // ------------------------------------------------------------------ Mode Solo
-  // [Claude] — 2026-11-05 — Troisième mode : on y joue une LIGNE sur un fond.
-  //
-  // Il ne passe pas par `practiceExercise.setMode` : rien de ce que juge le
-  // moteur d'exercice (l'accord annoncé, la top note, les voicings) n'a de sens
-  // pour un solo, et les 549 vérifications du moteur restent intactes. Le mode
-  // Solo vit donc à côté — un panneau, une séance, et deux branchements : les
-  // notes jouées lui vont, et l'exercice d'accords se met en retrait.
-  //
-  // Le fond de jeu réutilise le lecteur de démos et la boucle de batterie, sans
-  // rien dupliquer. En passant par `demoDrums`, il hérite gratuitement de tout
-  // le mécanisme existant : la batterie se recale sur la position du lecteur
-  // (`syncDemoDrums`) et l'arrêt la rend au métronome global
-  // (`releaseDrumsToMetronome`).
-  const soloSession = createSoloSession({ chordTones: chordToneIntervals });
-  const exerciseStage = panel.parentElement?.querySelector('.tr-exercise-stage') || null;
-
-  soloPanel = createSoloPanel({
-    entries: soloCatalogue.movements,
-    session: soloSession,
-    getBeat: () => demoPlayer.position(),
-    isBackingPlaying: () => demoPlayer.isPlaying(),
-    stopBacking: () => { demoDrums = null; demoPlayer.stop(); },
-    async startBacking({ chordNames = [], tempo, kit, drums }) {
-      try {
-        await resumeAudio();
-      } catch (err) {
-        console.warn('[Solo] Audio indisponible', err);
-        return false;
-      }
-      const soloState = soloSession.state();
-      let events = [];
-      let beats = soloState.totalBeats;
-      if (chordNames.length) {
-        // Les voicings passent par la même fabrique que les aperçus de la
-        // bibliothèque. `keepTensions` garde les qualités écrites dans la
-        // fiche (Am7b5 reste un Am7b5), et on REFUSE de jouer si un accord a
-        // été perdu en route : VoicingLab ne publie pas toutes les qualités,
-        // et un fond amputé d'un accord sur trois ne dirait rien de lui-même.
-        const chords = practiceExercise.previewGrid(chordNames.join(' '), 'Solo', { keepTensions: true });
-        if (!chords || chords.length !== chordNames.length) {
-          console.warn('[Solo] fond de jeu incomplet :', chords?.length ?? 0, 'accords sur', chordNames.length);
-          return false;
-        }
-        const demo = buildDemo(chords, 'montuno');
-        events = demo.events;
-        beats = demo.beats || soloState.totalBeats;
-      }
-      // Un exercice de rythme n'a aucun accord : le lecteur tourne sans note,
-      // juste pour donner l'horloge, et la batterie donne le temps à l'oreille.
-      demoDrums = drums && kit && drumKitFor(kit) ? { name: kit, tempo } : null;
-      demoPlayer.play({ events, beats }, { tempo });
-      syncDemoDrums();
-      return true;
-    },
-  });
-
-  /** Vrai quand le mode Solo occupe la scène (le sélecteur de mode l'a choisi). */
-  function isSoloMode() {
-    return panel.querySelector('.exercise-mode-btn[data-mode="solo"]')?.classList.contains('is-active') === true;
-  }
-  soloModeActive = isSoloMode;
-
-  /**
-   * Bascule entre la scène d'exercice et celle du Solo. Les deux ne sont
-   * jamais visibles ensemble : elles parlent de choses différentes, et
-   * laisser la carte « accord cible » à l'écran pendant un solo induirait en
-   * erreur sur ce qui est vérifié.
-   */
-  function applySoloVisibility(mode) {
-    const solo = mode === 'solo';
-    if (exerciseStage) exerciseStage.hidden = solo;
-    // Les actions du mode accord n'ont pas d'objet en Solo.
-    for (const id of ['exercise-library-btn', 'exercise-grid-btn', 'prev-exercise-btn']) {
-      const btn = document.getElementById(id);
-      if (btn) btn.style.display = solo ? 'none' : '';
-    }
-    soloPanel?.show(solo);
-    if (solo) {
-      // Une démo d'exercice en cours n'a plus lieu d'être, et son son
-      // couvrirait le fond de jeu.
-      demoPlayer.stop();
-      if (feedbackDiv) feedbackDiv.textContent = '';
-    }
-  }
-  applySoloVisibility('chord');
-  soloApplyVisibility = applySoloVisibility;
-
   // Premier exercice au démarrage
   practiceExercise.next();
   render();
@@ -3456,10 +3338,6 @@ let feedbackHideTimer = null;
 
 function checkPracticeExercise(notes) {
   if (!practiceExercise) return;
-  // [Claude] — 2026-11-05 — En mode Solo, aucun accord n'est annoncé : juger
-  // une ligne contre une cible inexistante produirait un retour faux. La
-  // promesse affichée au pianiste (« seul le rythme est vérifié ») se tient ici.
-  if (soloModeActive()) return;
   const result = practiceExercise.check(notes);
   if (result.expectedName) {
     // Un accord réussi efface ses essais ; un essai pas encore retenu est gardé (dix au plus).
