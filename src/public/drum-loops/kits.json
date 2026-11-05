@@ -6,6 +6,7 @@
     "`beats` = nombre de temps de la boucle : 8 par défaut, 16 pour 4 mesures, 32 pour 8 mesures à 4/4.",
     "En développement, relancer l'application suffit. Une version construite nécessite un nouveau build.",
     "`layers` = couches superposées [fichier, volume 0-1]. `tempo` = tempo proposé.",
+    "Extension .wav ou .mp3 acceptée ; sans extension, .mp3 est utilisé. `fitToBeats: true` cale le fichier entier sur `beats` temps.",
     "Si une boucle ne plaît pas, remplacer le fichier ou changer la ligne : c'est",
     "l'oreille de Narcisse qui décide, pas la mienne — je n'entends rien."
   ],
@@ -13,41 +14,31 @@
   "styles": [
     {
       "id": "salsa",
-      "label": "Salsa / montuno",
-      "tempo": 96,
-      "layers": [["son-clave_104bpm", 0.8], ["conga-tumbao_100bpm", 0.9]]
-    },
-    {
-      "id": "salsa-montuno",
-      "label": "Salsa — Montuno",
-      "tempo": 118,
-      "beats": 16,
-      "layers": [["drum-montuno_118bpm", 0.85]]
-    },
-    {
-      "id": "salsa-latin",
-      "label": "Salsa — Latin drums",
-      "tempo": 100,
-      "beats": 32,
-      "layers": [["salsa-latin-drums_100bpm", 0.85]]
+      "label": "Salsa",
+      "tempo": 90,
+      "beats": 8,
+      "fitToBeats": true,
+      "layers": [["salsa-coro_90bpm.wav", 0.85]]
     },
     {
       "id": "merengue",
       "label": "Merengue",
-      "tempo": 132,
-      "layers": [["cowbell-groove_120bpm", 0.7], ["bongo-martillo_112bpm", 0.8]]
+      "tempo": 143,
+      "beats": 80,
+      "fitToBeats": true,
+      "layers": [["merengue-loop_143bpm.wav", 0.7]]
     },
     {
       "id": "latin-jazz",
       "label": "Latin jazz",
-      "tempo": 100,
-      "layers": [["son-clave_104bpm", 0.7], ["cajon-groove_96bpm", 0.75]]
+      "tempo": 121,
+      "layers": [["jazz-latin-drumgroove_121bpm.wav", 0.9]]
     },
     {
       "id": "bossa",
       "label": "Bossa-nova",
-      "tempo": 132,
-      "layers": [["bossa-nova_132bpm", 0.85]]
+      "tempo": 88,
+      "layers": [["bossa-nova-loop_88bpm.wav", 0.9]]
     },
     {
       "id": "jazz",
@@ -106,20 +97,8 @@
     {
       "id": "reggae",
       "label": "Reggae",
-      "tempo": 76,
-      "layers": [["one-drop_76bpm", 0.85]]
-    },
-    {
-      "id": "shaker",
-      "label": "Shaker seul",
-      "tempo": 100,
-      "layers": [["shaker-16ths_100bpm", 0.7]]
-    },
-    {
-      "id": "tambourin",
-      "label": "Tambourin seul",
-      "tempo": 110,
-      "layers": [["tambourine-8ths_110bpm", 0.6]]
+      "tempo": 92,
+      "layers": [["reggae-loop_92bpm.wav", 0.85]]
     }
   ],
   "_demoKits": [

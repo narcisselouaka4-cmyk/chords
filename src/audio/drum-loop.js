@@ -22,9 +22,9 @@
 /** Durée par défaut des boucles historiques : 2 mesures à 4/4. */
 export const LOOP_BEATS = 8;
 
-/** Les boucles personnelles peuvent déclarer leur nombre de temps. */
+/** Un nombre de temps fractionnaire permet aussi une coupe précise en secondes. */
 export function drumBeatsFor(kit) {
-  return Number.isInteger(kit?.beats) && kit.beats > 0 ? kit.beats : LOOP_BEATS;
+  return Number.isFinite(kit?.beats) && kit.beats > 0 ? kit.beats : LOOP_BEATS;
 }
 
 /**
@@ -118,7 +118,7 @@ export function setDrumManifest(raw) {
 /** Style du manifeste par son identifiant, sans passer par les correspondances. */
 function styleById(id) {
   const found = manifest?.styles.find((s) => s.id === id);
-  return found ? { tempo: found.tempo, layers: found.layers, label: found.label, beats: drumBeatsFor(found) } : null;
+  return found ? { tempo: found.tempo, layers: found.layers, label: found.label, beats: drumBeatsFor(found), fitToBeats: found.fitToBeats === true } : null;
 }
 
 /**
@@ -167,7 +167,7 @@ export function drumTempoFor(name) {
  * la table ci-dessus ne sert que de repli pour les boucles livrées.
  */
 export function naturalTempoOf(file) {
-  const fromName = /_(\d{2,3})bpm$/.exec(String(file || ''));
+  const fromName = /_(\d{2,3})bpm(?:\.(?:mp3|wav))?$/i.exec(String(file || ''));
   return fromName ? Number(fromName[1]) : (DRUM_FILES[file] || null);
 }
 
@@ -221,8 +221,9 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
     if (buffers.has(file)) return buffers.get(file);
     if (!readFile) { lastError = 'aucun lecteur de fichiers (hors Electron)'; return null; }
     try {
-      const bytes = await readFile(`${file}.mp3`);
-      if (!bytes) { lastError = `fichier illisible : ${file}.mp3`; return null; }
+      const filename = /\.(?:mp3|wav)$/i.test(file) ? file : `${file}.mp3`;
+      const bytes = await readFile(filename);
+      if (!bytes) { lastError = `fichier illisible : ${filename}`; return null; }
       const array = bytes.buffer
         ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
         : bytes;
@@ -232,7 +233,7 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
     } catch (e) {
       // Une panne ne casse pas la démo : elle joue sans batterie, mais on
       // garde la raison pour pouvoir la montrer au lieu d'un silence inexpliqué.
-      lastError = `${file}.mp3 : ${e?.message || e}`;
+      lastError = `${file} : ${e?.message || e}`;
       return null;
     }
   }
@@ -283,7 +284,11 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
         const buffer = loaded[i];
         if (!buffer) return;
         const natural = naturalTempoOf(file) || 100;
-        const playbackRate = target / natural;
+        // Un export WAV entier peut être légèrement plus court que le cycle
+        // théorique. Ce mode cale sa durée réelle sur les temps déclarés.
+        const fit = found.fitToBeats === true;
+        const secondsPerBeat = fit ? buffer.duration / loopBeats : 60 / natural;
+        const playbackRate = fit ? buffer.duration * target / (loopBeats * 60) : target / natural;
         const source = ctx.createBufferSource();
         source.buffer = buffer;
         source.loop = true;
@@ -291,14 +296,14 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
         // Durée musicale déclarée au tempo d'origine : on ne boucle pas sur la
         // longueur du fichier (l'encodage MP3 ajoute un silence au bout), mais
         // sur la durée musicale, sinon la boucle traîne à chaque tour.
-        source.loopEnd = Math.min(buffer.duration, (loopBeats * 60) / natural);
+        source.loopEnd = fit ? buffer.duration : Math.min(buffer.duration, (loopBeats * 60) / natural);
         source.playbackRate.value = playbackRate;
         const g = ctx.createGain();
         g.gain.value = gain;
         source.connect(g).connect(out);
         // `offset` place la boucle là où en est la démo : la batterie ne
         // redémarre pas à zéro après une reprise ou un saut.
-        const offset = (((beat % loopBeats) + loopBeats) % loopBeats) * (60 / natural);
+        const offset = (((beat % loopBeats) + loopBeats) % loopBeats) * secondsPerBeat;
         source.start(startAt, offset);
         sources.push(source);
         any = true;

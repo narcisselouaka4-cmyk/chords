@@ -50,9 +50,14 @@ fichiers ont été réencodés **depuis les WAV d'origine** en 320 kb/s.
 ## Ajouter ses propres boucles
 
 Le fichier `kits.json` de ce dossier est fait pour être modifié. Déposer un
-`.mp3` nommé `<nom>_<tempo>bpm.mp3`, puis ajouter une entrée dans `styles`.
+`.mp3` ou un `.wav` nommé `<nom>_<tempo>bpm`, puis ajouter une entrée dans `styles`.
+Pour un WAV, inclure l'extension dans `layers` (ex. `salsa-coro_90bpm.wav`).
+Sans extension, le lecteur conserve la convention historique `.mp3`.
 Le champ `beats` indique le nombre de temps du cycle : **8** par défaut
 (2 mesures à 4/4), **16** pour 4 mesures, **32** pour 8 mesures.
+`fitToBeats: true` utilise le fichier entier et ajuste sa vitesse pour qu'il
+dure exactement le nombre de temps déclaré au tempo choisi. La hauteur suit
+cet ajustement de vitesse ; ce mode ne préserve pas indépendamment la hauteur.
 En développement, relancer l'application suffit ; pour une version construite,
 reconstruire l'application afin de recopier les fichiers publics dans `dist`.
 
@@ -71,3 +76,16 @@ Deux choix indépendants du métronome : **Salsa — Montuno** et
 respectivement, selon le tempo indiqué et le nombre de temps déclaré.
 Les durées sont compatibles avec ces cycles, mais le premier temps, le tempo
 réel et la qualité des raccords restent à confirmer par une écoute humaine.
+
+### Remplacement salsa par le WAV fourni
+
+`Coro 1-2 90 BPM.wav`, fourni par Narcisse depuis son dossier Téléchargements,
+est copié sans modification sous `salsa-coro_90bpm.wav` : PCM 16 bits stéréo,
+44,1 kHz, 233 184 échantillons par canal, soit 5,287619 s.
+Le style **Salsa / Latin** utilise maintenant ce WAV entier, `tempo: 90`,
+`beats: 8`, `fitToBeats: true`. Sa vitesse est proche de 0,99143× pour fermer
+le cycle à 5,333333 s sans ajouter de silence. Le MP3 précédent est conservé.
+La provenance et la licence de ce WAV restent à renseigner ; il n'est pas
+couvert par la déclaration CC0 de la bibliothèque historique.
+Chargement, décodage et cycle ajusté vérifiés dans Chromium ; raccord musical
+et rendu natif Electron restent à confirmer par écoute humaine.
