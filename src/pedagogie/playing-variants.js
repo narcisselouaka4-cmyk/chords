@@ -1,6 +1,7 @@
 import {samePlayingSource} from './personal-source.js';
 // Intentions harmoniques et mouvements calculés sur la prise personnelle.
 import { buildPhraseVariants } from './phrase-variants.js';
+import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
 const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'").toLowerCase();
 
 export const buildPlayingVariants = buildPhraseVariants;
@@ -27,12 +28,13 @@ export function personalVariantsAnswer({message,messages=[],context}) {
  if(!broad&&!follow&&!(hear&&previous))return null;
  const request=follow&&previous.toolResult.harmonicRequest?continuedRequest(previous.toolResult.harmonicRequest,message):message;
  const exclude=follow?relevant.filter(m=>samePlayingSource(m.toolResult?.originalTake,take)).flatMap(m=>m.toolResult?.variants||[]).map(v=>JSON.stringify(v.example?.events)):[];
- const variants=!broad&&!follow&&previous?.toolResult.phraseHarmony&&previous.toolResult.variants?.length?previous.toolResult.variants:buildPhraseVariants(take,{message:request,exclude});
+ const variants=!broad&&!follow&&previous?.toolResult.proposalDiversity===PROPOSAL_DIVERSITY&&previous.toolResult.phraseHarmony&&previous.toolResult.variants?.length?previous.toolResult.variants:buildPhraseVariants(take,{message:request,exclude});
  if(!variants.length)return {ok:true,content:follow?'Je n’ai pas trouvé d’autre version assez différente avec ces contraintes. Tu peux préciser la couleur ou l’arrivée que tu souhaites travailler.':'Je n’ai pas trouvé de proposition compatible avec cette prise. Précise les accords ou les basses que tu souhaites garder.',toolResult:{played:[],ignored:0,suggestions:[],voicing:null,proposalPolicy:8,phraseHarmony:true,harmonicRequest:request,originalTake:take},suggestedActions:[]};
  const first=variants[0];
- const count=variants.length>1?`${variants.length} propositions`:'une proposition';
- return {ok:true,content:`Voici ${count}, avec des intentions différentes. Je conserve tes appuis mélodiques et leurs instants. Chaque version indique ce qu’elle change dans l’harmonie ou les liaisons.`,
-  toolResult:{played:[],ignored:0,suggestions:[],voicing:null,proposalPolicy:8,phraseHarmony:true,harmonicRequest:request,
+ const content=variants.length>1?`Voici ${variants.length} propositions différentes. Sous chaque lecteur, je t’indique ce qui change. Ta mélodie reste en place.`
+  :'Je te propose une seule version pour éviter des variantes trop proches. Sous le lecteur, je t’indique ce qui change. Ta mélodie reste en place.';
+ return {ok:true,content,
+  toolResult:{played:[],ignored:0,suggestions:[],voicing:null,proposalPolicy:8,proposalDiversity:PROPOSAL_DIVERSITY,phraseHarmony:true,harmonicRequest:request,
    fixedHarmony:variants.every(v=>v.advice.edit.type==='fixed-harmony'),originalTake:take,example:first.example,playingAdvice:first.advice,variants},
   suggestedActions:[],autoplay:hear};
 }

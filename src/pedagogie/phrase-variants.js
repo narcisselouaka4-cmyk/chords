@@ -5,6 +5,7 @@ import {applyTakeEdit} from './take-edit.js';
 import {comparedTakeExample} from './playing-diff.js';
 import {analyzePlayingStyle} from './playing-style.js';
 import {planPhraseMotions} from './phrase-motion.js';
+import {selectDistinctProposals} from './proposal-diversity.js';
 
 const plain = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
@@ -48,7 +49,7 @@ export function buildPhraseVariants(take, {message = '', exclude = []} = {}) {
   // Les cartes se différencient par leurs événements, pas uniquement par leur nom.
   const frames=arrangementFrames(take);
   const seen = new Set();
-  return variants.filter(v => {
+  const eligible = variants.filter(v => {
     // Une proposition de progression doit travailler la majorité de ses accords.
     // Les prises sans repères suffisants restent du ressort des corrections ciblées.
     const coverage=harmonicRewriteCoverage(take,v,frames);
@@ -61,7 +62,8 @@ export function buildPhraseVariants(take, {message = '', exclude = []} = {}) {
     const order = ['arrangement','arrangement-linked','enrich','two-lines','parallel-return','resolution','tritone','arrivals','relative','soft'];
     const rank = v => ['connection','passing'].includes(v.id) ? 2.5 : order.indexOf(v.id) < 0 ? 20 : order.indexOf(v.id);
     return rank(a) - rank(b);
-  }).filter(v => v.id !== 'soft' || variants.length < 3).slice(0,5);
+  }).filter(v => v.id !== 'soft' || variants.length < 3);
+  return selectDistinctProposals(eligible, take.events, {exclude});
 }
 
 /** Mesure des positions réellement jouées, indépendante des titres des cartes. */

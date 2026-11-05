@@ -33,7 +33,7 @@ const {variantMessages}=await import('./copilot-tab.js');
 for(const message of ['Fais-moi entendre une proposition à partir de mon jeu.','Fais-moi des propositions','Transforme tous mes accords en gardant ma top note']){
  // Nouvelle conversation : pas de référence ni de proposition dans l'historique.
  const response=await sendCopilotMessage({message,messages:[],context:{type:'session',playing:{session:source}}});
- const variants=response.toolResult.variants;assert(variants?.length>=2,message);
+ const variants=response.toolResult.variants;assert.equal(variants?.length,1,message);
  const main=variants.find(v=>v.id==='arrangement');assert(main&&main.advice.version===8);
  for(let i=0;i<approved.plan.length;i++)assert.deepEqual(main.harmony[i].notes,approved.plan[i].notes,`${message} / position ${i}`);
  for(const x of variants){const coverage=harmonicRewriteCoverage(source,x);assert(coverage.topPreserved&&coverage.ratio>=.8);}
@@ -41,7 +41,7 @@ for(const message of ['Fais-moi entendre une proposition à partir de mon jeu.',
  const persisted=JSON.parse(JSON.stringify(response.toolResult));assert(refreshPlayingResult(persisted));
  assert.equal(variantMessages({role:'assistant',toolResult:persisted}).length,variants.length);
 }
-console.log('✓ Nouvelle conversation via le client normal : 16 positions de référence présentes, deux versions différentes, au moins 80 % des positions transformées, top notes conservées et cartes persistées');
+console.log('✓ Nouvelle conversation via le client normal : 16 positions de référence présentes, une version retenue, au moins 80 % des positions transformées, top notes conservées et cartes persistées');
 const strong=await sendCopilotMessage({message:'Enrichis mon jeu',messages:[],context:{type:'session',playing:{session:source}}});
 const old={...strong.toolResult,proposalPolicy:undefined};
 const follow=await sendCopilotMessage({message:'Fais-moi entendre un exemple',messages:[{role:'assistant',toolResult:old}],context:{type:'session',playing:{session:source}}});

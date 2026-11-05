@@ -15,7 +15,7 @@ const replay=await sendCopilotMessage({message:'Rejoue ma session.',messages,con
 assert(replay.autoplay);assert.deepEqual(replay.toolResult.example.events,myPlayingExample({passage:source}).example.events);
 const actions=answerActions(old,{last:false});assert.equal(actions.length,1);
 const update=await sendCopilotMessage({message:actions[0].message,messages,context:null});
-assert(update.autoplay);assert.equal(update.toolResult.proposalPolicy,8);assert.equal(update.toolResult.variants.length,2);
+assert(update.autoplay);assert.equal(update.toolResult.proposalPolicy,8);assert.equal(update.toolResult.variants.length,1);
 const first=update.toolResult.variants[0];
 for(let i=0;i<approved.plan.length;i++)assert.deepEqual(first.harmony[i].notes,approved.plan[i].notes);
 const next=await sendCopilotMessage({message:'Propose une autre version de mon jeu.',messages,context:null});assert.equal(next.toolResult.proposalPolicy,8);assert(next.toolResult.variants.length);
@@ -27,4 +27,4 @@ assert.equal(restoreConversationPlaying({type:'autonomous',playing:{passage:fres
 const session={type:'session',events:fresh.events};assert.equal(restoreConversationPlaying(session,messages),session);
 const tutorial={type:'tutorial'};assert.equal(restoreConversationPlaying(tutorial,messages),tutorial);
 assert.equal(lastPlayingTake([{role:'assistant',toolResult:{example:{events:source.events}}}]),null);
-console.log('✓ Historique sans prise jointe : source originale récupérée, rejeu exact, bouton de mise à jour, deux reconstructions et 16 positions approuvées, relance locale, nouvelle prise prioritaire, autres contextes et archives inchangés');
+console.log('✓ Historique sans prise jointe : source originale récupérée, rejeu exact, bouton de mise à jour, une reconstruction et 16 positions approuvées, relance locale, nouvelle prise prioritaire, autres contextes et archives inchangés');
