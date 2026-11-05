@@ -1,3 +1,4 @@
+import {referenceVoicing,referenceFinalDominant} from './reference-voicings.js';
 // Construction de phrase, sans copier une session ni ajouter de ligne scalaire.
 import {reviewTake} from '../recorder/take-review.js';
 import {parseChordName} from './note-roles.js';
@@ -26,8 +27,10 @@ export function arrangementFrames(take) {
     // réellement jouées après retrait des petites notes d'approche.
     const pcs=new Set(held.map(p=>pc(p.event.note-chord.rootPc)));
     if(!c.matched&&!(pcs.has(0)&&pcs.has(minor(chord.quality)?3:4)&&pcs.has(7)))continue;
-    const start=Math.max(c.at,bass.event.time);
-    const accompaniment=held.filter(p=>p!==top&&p.event.note<top.event.note);
+    const innerStart=Math.min(...held.filter(p=>p!==bass&&p!==top).map(p=>p.event.time));
+    const start=Math.max(c.at,bass.event.time,innerStart-bass.event.time<.075?innerStart:bass.event.time);
+    const accompaniment=cluster.filter(p=>p!==top&&p.event.note<top.event.note
+      &&(p.end-p.event.time>=.22||p.event.note<top.event.note-4));
     if(!accompaniment.length)continue;
     frames.push({at:start,end:c.end,chord,source:held,notes:held.map(p=>p.event.note).sort((a,b)=>a-b),
       topMidi:top.event.note,bassMidi:bass.event.note,top,accompaniment});
@@ -49,6 +52,12 @@ function choose(f,rootPc,qualities,previous,melody,start,end,{preserveBass=false
   const tops=checkpoints.map(t=>sounding.filter(p=>p.event.time<=t+.00001&&p.end>t+.00001)
     .map(p=>p.event.note).filter(n=>n>f.bassMidi+5)).filter(ns=>ns.length).map(ns=>Math.max(...ns));
   const ceiling=Math.min(f.topMidi,...tops);
+  const reference=referenceVoicing(f,rootPc,qualities,ceiling,target);
+  if(reference&&(!preserveBass||pc(reference.notes[0])===pc(f.bassMidi))
+    &&(palette==null||reference.notes.every(n=>[0,2,4,5,7,9,11].some(i=>pc(palette+i)===pc(n))))) {
+    const fun=target?{kind:'dominant',targetRootPc:target.rootPc}:null;
+    if(!target||resolvingVoices({...reference,function:fun},target))return {...reference,function:fun};
+  }
   const candidates=[];
   // Un dessus joué pendant la fenêtre reste la limite réelle du voicing.
   for(let topMidi=ceiling;topMidi>=Math.max(48,ceiling-12);topMidi--){
@@ -85,8 +94,23 @@ export function buildPhraseArrangement(take,{message='',latin=false}={}){
   const palette=statedKey?pc(statedKey.rootPc+(statedKey.minor?3:0)):compatible.length===1?compatible[0]:null;
   const segments=[];let previous=null;
   for(let i=0;i<frames.length;i++){
-    const f=frames[i],end=Math.min(f.end,frames[i+1]?.at??take.duration)-.025;
-    const v=choose(f,f.chord.rootPc,((palette!=null&&pc(f.chord.rootPc-palette)===7&&!minor(f.chord.quality))?['13','9','7']:qualityChoices(f)),previous?.notes,melody,f.at,end,{preserveBass:true,palette});
+    const f=frames[i];
+    let end=Math.min(f.end,frames[i+1]?.at??take.duration)-.025;
+    const later=melody.filter(p=>p.event.time>f.at+.45&&p.event.time<end&&p.end-p.event.time>=.22).sort((a,b)=>a.event.time-b.event.time);
+    const triad=minor(f.chord.quality)?[0,3,7]:[0,4,7];
+    const arp=later.length>=3&&later.slice(0,3).every((p,j)=>triad.includes(pc(p.event.note-f.chord.rootPc))
+      &&(!j||p.event.note>later[j-1].event.note))?later[0]:null;
+    if(!arp){
+      const accompanimentPitches=new Set(f.accompaniment.map(p=>p.event.note));
+      for(const p of later)if(accompanimentPitches.has(p.event.note)&&p.event.note<f.topMidi-4
+        &&p.event.time<f.top.end&&velocity(p)<=velocity(f.top)*.9){
+        remove.add(p.on);const index=melody.indexOf(p);if(index>=0)melody.splice(index,1);
+      }
+    }
+    const oldEnd=end;
+    if(arp)end=Math.min(end,arp.event.time-.11);
+    else if(later.some(p=>p.event.note===f.topMidi))end=Math.min(end,f.top.end-.06);
+    const v=choose(f,f.chord.rootPc,((palette!=null&&pc(f.chord.rootPc-palette)===7&&!minor(f.chord.quality))?['13','9','7']:qualityChoices(f)),previous?.notes,melody,f.at,end,{preserveBass:keepBass,palette});
     if(!v||(keepBass&&v.notes[0]!==f.bassMidi)){
       // Une position non résolue ne fait pas disparaître toute la phrase :
       // garder exactement cet accord et travailler les autres destinations.
@@ -94,27 +118,36 @@ export function buildPhraseArrangement(take,{message='',latin=false}={}){
       segments.push({at:f.at,end,frame:f,rootPc:f.chord.rootPc,quality:f.chord.quality,notes:f.notes,label:f.chord.name,kind:'original',unchanged:true});
       previous={notes:f.notes};continue;
     }
-    segments.push({at:f.at,end,frame:f,...v,kind:'enrich'});previous=v;
+    segments.push({at:f.at,end,frame:f,...v,kind:'enrich'});
+    if(arp){
+      const bass=Math.min(...v.notes), shell=[bass,bass+10,bass+14];
+      if(minor(v.quality)&&shell.every(n=>n<f.topMidi))segments.push({at:arp.event.time-.06,end:Math.min(oldEnd-.12,arp.end+1.6),frame:f,rootPc:v.rootPc,quality:v.quality,notes:shell,label:v.label,kind:'arp-support'});
+    }
+    previous=v;
   }
   // Destinations choisies avant les positions. Une cadence ne remplit pas chaque
   // interstice : d'abord les longues phrases, puis au plus trois préparations.
   const targets=frames.map((f,i)=>({f,i,span:i?f.at-frames[i-1].at:0}))
     .filter(x=>x.i&&x.span>=1.5&&x.span<=6&&!/sus|dim|aug/.test(x.f.chord.quality))
     .sort((a,b)=>Number(minor(b.f.chord.quality))-Number(minor(a.f.chord.quality))||b.span-a.span);
+  const pulse=reviewTake(take.events)?.rhythm;
+  const beat=pulse?.steadiness<.18&&pulse.every>=.3&&pulse.every<=1?pulse.every:null;
   let count=0;
   if(!noPassing&&!hasPedal)for(const {f,i,span} of targets){
     if(count>=3)break;
     const base=segments.find(s=>s.frame===frames[i-1]&&s.kind==='enrich');
     const target=segments.find(s=>s.frame===f&&['enrich','original'].includes(s.kind));
     if(!base||base.unchanged||!target||base.end-base.at<.8)continue;
-    const end=f.at-.045,start=f.at-Math.min(.88,span*.36);
-    if(start-base.at<.6)continue;
     const tritone=!minor(f.chord.quality)&&minor(base.frame.chord.quality)&&pc(base.rootPc-f.chord.rootPc)===7;
+    const relativeMinor=minor(f.chord.quality)&&statedKey&&!statedKey.minor&&pc(f.chord.rootPc-statedKey.rootPc)===9;
+    const length=beat?(tritone?2:relativeMinor?1.5:1.25)*beat:Math.min(.88,span*.36);
+    const end=f.at-.045,start=f.at-Math.min(length,span*.48);
+    if(start-base.at<.6)continue;
     const dominant=choose(base.frame,pc(f.chord.rootPc+(tritone?1:7)),tritone?['13#11','9','7b9']:['7b9','7#5','9','13','7'],base.notes,melody,start,end,{target});
     if(!dominant)continue;
     let lead=null;
-    if(minor(f.chord.quality)&&span>=2.1){
-      const leadStart=start-Math.min(.55,span*.22),leadEnd=start-.045;
+    if(relativeMinor&&span>=2.1){
+      const leadStart=start-(beat?beat*.9:Math.min(.55,span*.22)),leadEnd=start-.045;
       if(leadStart-base.at>=.45)lead=choose(base.frame,pc(f.chord.rootPc+2),['m7b5'],base.notes,melody,leadStart,leadEnd);
       if(lead){segments.push({...lead,at:leadStart,end:leadEnd,frame:base.frame,kind:'iiø'});base.end=Math.min(base.end,leadStart-.035);}
     }
@@ -129,16 +162,19 @@ export function buildPhraseArrangement(take,{message='',latin=false}={}){
     if(finalTop&&take.duration-last.at>=1.7){
       const arrival=last.at+(take.duration-last.at)*.55;
       const tonic=choose({...last.frame,topMidi:finalTop.event.note},key.rootPc,['maj9','6/9','maj7'],last.notes,melody,arrival,take.duration);
-      const dom=tonic&&choose(last.frame,pc(key.rootPc+7),['7b9','7#5','9'],last.notes,melody,last.at,arrival-.045,{target:tonic});
+      const dom=tonic&&(referenceFinalDominant(tonic,Math.min(last.frame.topMidi,...melody.filter(p=>p.event.time<arrival&&p.end>last.at).map(p=>p.event.note)))||choose(last.frame,pc(key.rootPc+7),['7b9','7#5','9'],last.notes,melody,last.at,arrival-.045,{target:tonic}));
       if(dom){Object.assign(last,dom,{end:arrival-.045,kind:'dominant',targetAt:arrival});segments.push({...tonic,at:arrival,end:take.duration,frame:last.frame,kind:'tonic'});count++;}
     }
   }
   if(segments.filter(s=>!s.unchanged).length<2)return null;
   segments.sort((a,b)=>a.at-b.at);
+  const dynamics=melody.map(velocity).sort((a,b)=>a-b);
+  const typicalVelocity=dynamics[Math.floor(dynamics.length/2)]||.55;
   const notes=[];
   for(const s of segments){
     if(s.unchanged)continue;
-    const v=Math.max(.18,Math.min(.48,velocity(s.frame.top)*.65));
+    const roleGain=s.kind==='tonic'?.84:s.kind==='arp-support'?.8:['dominant','iiø'].includes(s.kind)?.94:1;
+    const v=Math.max(.18,Math.min(.43,(velocity(s.frame.top)+typicalVelocity)*.3*roleGain));
     for(const n of s.notes){
       if(keepBass&&n===s.frame.bassMidi)continue;
       const overlap=melody.filter(p=>p.event.note===n&&p.event.time<s.end&&p.end>s.at);
@@ -156,7 +192,7 @@ export function buildPhraseArrangement(take,{message='',latin=false}={}){
   if(!hasPedal&&!noPedal){
     for(let i=0;i<segments.length;i++){
       const s=segments[i],next=segments[i+1]?.at??take.duration+.32;
-      const on=s.at+.035,off=Math.min(next-.045,take.duration+.32);
+      const on=s.at+.035,off=i===segments.length-1?take.duration+.32:Math.min(next-.045,take.duration+.32);
       if(off-on>=.12)pedal.push({time:on,value:127},{time:off,value:0});
     }
   }
@@ -166,7 +202,7 @@ export function buildPhraseArrangement(take,{message='',latin=false}={}){
   const title='Une progression construite';
   const description=count?'Des accords enrichis et des tensions qui préparent les arrivées, sous ta mélodie.'
     :'Des accords enrichis sur la phrase, en gardant tes notes mélodiques.';
-  const changes=segments.map(s=>({at:s.at,end:s.end,chord:s.label,notes:s.notes,goal:s.kind==='original'?'preserved':s.kind==='enrich'?'enrich':'passing',kind:s.kind,targetAt:s.targetAt}));
+  const changes=segments.map(s=>({at:s.at,end:s.end,chord:s.label,notes:s.notes,goal:s.kind==='original'?'preserved':['enrich','arp-support'].includes(s.kind)?'enrich':'passing',kind:s.kind,targetAt:s.targetAt}));
   const advice={version:6,id:'phrase:arrangement',goal:'develop',take,edit,changes,text:description};
   return {id:'arrangement',title,description,advice,harmony:changes,example:{...example,title,subtitle:description}};
 }

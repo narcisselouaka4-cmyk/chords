@@ -1,0 +1,656 @@
+{
+  "provenance": "Session_017 : version avec sustain et 7–3 plaqué explicitement retenue par Narcisse, 2026-11-05. Oracle de test seulement ; ne pas importer dans le générateur.",
+  "melody": [
+    {
+      "time": 1.649,
+      "type": "note_on",
+      "note": 72,
+      "noteName": "C",
+      "velocity": 0.48031496062992124,
+      "channel": 0
+    },
+    {
+      "time": 2.101,
+      "type": "note_off",
+      "note": 72,
+      "noteName": "C",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 2.238,
+      "type": "note_on",
+      "note": 72,
+      "noteName": "C",
+      "velocity": 0.5669291338582677,
+      "channel": 0
+    },
+    {
+      "time": 2.819,
+      "type": "note_on",
+      "note": 71,
+      "noteName": "B",
+      "velocity": 0.3464566929133858,
+      "channel": 0
+    },
+    {
+      "time": 2.838,
+      "type": "note_off",
+      "note": 72,
+      "noteName": "C",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 3.286,
+      "type": "note_off",
+      "note": 71,
+      "noteName": "B",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 3.42,
+      "type": "note_on",
+      "note": 67,
+      "noteName": "G",
+      "velocity": 0.48031496062992124,
+      "channel": 0
+    },
+    {
+      "time": 3.531,
+      "type": "note_on",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0.5433070866141733,
+      "channel": 0
+    },
+    {
+      "time": 3.547,
+      "type": "note_off",
+      "note": 67,
+      "noteName": "G",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 5.14,
+      "type": "note_off",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 5.257,
+      "type": "note_on",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0.5905511811023622,
+      "channel": 0
+    },
+    {
+      "time": 5.706,
+      "type": "note_off",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 5.863,
+      "type": "note_on",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0.4330708661417323,
+      "channel": 0
+    },
+    {
+      "time": 5.942,
+      "type": "note_on",
+      "note": 71,
+      "noteName": "B",
+      "velocity": 0.6535433070866141,
+      "channel": 0
+    },
+    {
+      "time": 5.978,
+      "type": "note_off",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 7.461,
+      "type": "note_off",
+      "note": 71,
+      "noteName": "B",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 7.645,
+      "type": "note_on",
+      "note": 71,
+      "noteName": "B",
+      "velocity": 0.5905511811023622,
+      "channel": 0
+    },
+    {
+      "time": 8.069,
+      "type": "note_off",
+      "note": 71,
+      "noteName": "B",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 8.14,
+      "type": "note_on",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0.5433070866141733,
+      "channel": 0
+    },
+    {
+      "time": 8.233,
+      "type": "note_on",
+      "note": 71,
+      "noteName": "B",
+      "velocity": 0.5984251968503937,
+      "channel": 0
+    },
+    {
+      "time": 8.283,
+      "type": "note_off",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 8.781,
+      "type": "note_on",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0.6535433070866141,
+      "channel": 0
+    },
+    {
+      "time": 8.986,
+      "type": "note_off",
+      "note": 71,
+      "noteName": "B",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 9.381,
+      "type": "note_on",
+      "note": 67,
+      "noteName": "G",
+      "velocity": 0.5511811023622047,
+      "channel": 0
+    },
+    {
+      "time": 9.422,
+      "type": "note_off",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 9.896,
+      "type": "note_off",
+      "note": 67,
+      "noteName": "G",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 9.922,
+      "type": "note_on",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0.41732283464566927,
+      "channel": 0
+    },
+    {
+      "time": 10.455,
+      "type": "note_off",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 10.513,
+      "type": "note_on",
+      "note": 62,
+      "noteName": "D",
+      "velocity": 0.5590551181102362,
+      "channel": 0
+    },
+    {
+      "time": 10.612,
+      "type": "note_off",
+      "note": 62,
+      "noteName": "D",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 10.613,
+      "type": "note_on",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0.5039370078740157,
+      "channel": 0
+    },
+    {
+      "time": 11.142,
+      "type": "note_on",
+      "note": 57,
+      "noteName": "A",
+      "velocity": 0.5511811023622047,
+      "channel": 0
+    },
+    {
+      "time": 11.707,
+      "type": "note_on",
+      "note": 60,
+      "noteName": "C",
+      "velocity": 0.5905511811023622,
+      "channel": 0
+    },
+    {
+      "time": 11.812,
+      "type": "note_off",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 12.297,
+      "type": "note_on",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0.6141732283464567,
+      "channel": 0
+    },
+    {
+      "time": 12.65,
+      "type": "note_off",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 12.748,
+      "type": "note_off",
+      "note": 57,
+      "noteName": "A",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 12.813,
+      "type": "note_off",
+      "note": 60,
+      "noteName": "C",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 12.858,
+      "type": "note_on",
+      "note": 65,
+      "noteName": "F",
+      "velocity": 0.6062992125984252,
+      "channel": 0
+    },
+    {
+      "time": 14.703,
+      "type": "note_on",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0.5039370078740157,
+      "channel": 0
+    },
+    {
+      "time": 14.951,
+      "type": "note_off",
+      "note": 69,
+      "noteName": "A",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 14.969,
+      "type": "note_off",
+      "note": 65,
+      "noteName": "F",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 15.279,
+      "type": "note_on",
+      "note": 67,
+      "noteName": "G",
+      "velocity": 0.5196850393700787,
+      "channel": 0
+    },
+    {
+      "time": 16.569,
+      "type": "note_off",
+      "note": 67,
+      "noteName": "G",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 17.138,
+      "type": "note_on",
+      "note": 65,
+      "noteName": "F",
+      "velocity": 0.4330708661417323,
+      "channel": 0
+    },
+    {
+      "time": 17.768,
+      "type": "note_on",
+      "note": 62,
+      "noteName": "D",
+      "velocity": 0.5275590551181102,
+      "channel": 0
+    },
+    {
+      "time": 17.787,
+      "type": "note_off",
+      "note": 65,
+      "noteName": "F",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 17.835,
+      "type": "note_on",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0.4645669291338583,
+      "channel": 0
+    },
+    {
+      "time": 17.879,
+      "type": "note_off",
+      "note": 62,
+      "noteName": "D",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 18.765,
+      "type": "note_off",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 18.944,
+      "type": "note_on",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0.5590551181102362,
+      "channel": 0
+    },
+    {
+      "time": 19.03,
+      "type": "note_on",
+      "note": 65,
+      "noteName": "F",
+      "velocity": 0.5748031496062992,
+      "channel": 0
+    },
+    {
+      "time": 19.044,
+      "type": "note_off",
+      "note": 64,
+      "noteName": "E",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 19.921,
+      "type": "note_off",
+      "note": 65,
+      "noteName": "F",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 20.14,
+      "type": "note_on",
+      "note": 65,
+      "noteName": "F",
+      "velocity": 0.5433070866141733,
+      "channel": 0
+    },
+    {
+      "time": 20.23,
+      "type": "note_on",
+      "note": 67,
+      "noteName": "G",
+      "velocity": 0.5826771653543307,
+      "channel": 0
+    },
+    {
+      "time": 20.264,
+      "type": "note_off",
+      "note": 65,
+      "noteName": "F",
+      "velocity": 0,
+      "channel": 0
+    },
+    {
+      "time": 22.239,
+      "type": "note_off",
+      "note": 67,
+      "noteName": "G",
+      "velocity": 0,
+      "channel": 0
+    }
+  ],
+  "plan": [
+    {
+      "at": 3.548,
+      "end": 5.08,
+      "notes": [
+        41,
+        53,
+        60,
+        64,
+        67
+      ],
+      "label": "Fa majeur 9"
+    },
+    {
+      "at": 5.899,
+      "end": 7.28,
+      "notes": [
+        43,
+        53,
+        59,
+        64
+      ],
+      "label": "Sol 13"
+    },
+    {
+      "at": 7.42,
+      "end": 8.1,
+      "notes": [
+        47,
+        57,
+        60,
+        63,
+        67
+      ],
+      "label": "Si 7 b9 b13 : vers Mi mineur"
+    },
+    {
+      "at": 8.181,
+      "end": 9.01,
+      "notes": [
+        40,
+        55,
+        59,
+        62,
+        64
+      ],
+      "label": "Mi mineur 11"
+    },
+    {
+      "at": 9.05,
+      "end": 9.56,
+      "notes": [
+        47,
+        53,
+        57,
+        62
+      ],
+      "label": "Si mineur 7 b5 : degré 7 vers Mi"
+    },
+    {
+      "at": 9.6,
+      "end": 10.42,
+      "notes": [
+        40,
+        53,
+        56,
+        60,
+        62
+      ],
+      "label": "Mi 7 b9 b13 : vers La mineur"
+    },
+    {
+      "at": 10.481,
+      "end": 11.03,
+      "notes": [
+        45,
+        55,
+        57,
+        59,
+        60
+      ],
+      "label": "La mineur 9"
+    },
+    {
+      "at": 11.08,
+      "end": 12.67,
+      "notes": [
+        45,
+        55,
+        59
+      ],
+      "label": "La mineur 9, espace pour son arpège"
+    },
+    {
+      "at": 12.876,
+      "end": 14.08,
+      "notes": [
+        50,
+        57,
+        60,
+        64
+      ],
+      "label": "Ré mineur 9"
+    },
+    {
+      "at": 14.16,
+      "end": 15.23,
+      "notes": [
+        44,
+        54,
+        58,
+        60,
+        62
+      ],
+      "label": "La bémol 13 #11 : approche de Sol"
+    },
+    {
+      "at": 15.309,
+      "end": 16.56,
+      "notes": [
+        43,
+        53,
+        59,
+        62
+      ],
+      "label": "Sol 9"
+    },
+    {
+      "at": 17.02,
+      "end": 17.72,
+      "notes": [
+        41,
+        53,
+        57,
+        60,
+        64
+      ],
+      "label": "Fa majeur 9"
+    },
+    {
+      "at": 17.809,
+      "end": 18.72,
+      "notes": [
+        48,
+        55,
+        59,
+        62
+      ],
+      "label": "Do majeur 9"
+    },
+    {
+      "at": 18.925,
+      "end": 19.91,
+      "notes": [
+        50,
+        57,
+        60,
+        64
+      ],
+      "label": "Ré mineur 9"
+    },
+    {
+      "at": 20.131,
+      "end": 21.26,
+      "notes": [
+        47,
+        53,
+        56,
+        58,
+        63
+      ],
+      "label": "Sol 7 altéré sur Si : vers Do"
+    },
+    {
+      "at": 21.32,
+      "end": 22.269,
+      "notes": [
+        48,
+        52,
+        55,
+        59,
+        62,
+        64
+      ],
+      "label": "Do majeur 9 sous le Sol tenu"
+    }
+  ]
+}
