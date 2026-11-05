@@ -1,3 +1,4 @@
+import {planPhraseMotions} from './phrase-motion.js';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buildFixedHarmonyVariants,fixedFrames} from './fixed-harmony.js';
@@ -67,32 +68,22 @@ await check('Le détour parallèle est suivi d’un retour présent, et n’est 
   assert(!buildFixedHarmonyVariants(noReturn,{message:'En do majeur, enrichis'}).some(v=>v.id==='parallel-return'));
 });
 await check('Les variantes développées sont différentes et protègent les événements mélodiques',()=>{
-  assert(variants.some(v=>v.id==='connection'));assert(variants.some(v=>v.id==='passing'));
+  assert(variants.some(v=>v.id==='arrangement'));assert(!variants.some(v=>v.id==='connection'));
   assert(variants.length<=5);assert.equal(new Set(variants.map(v=>JSON.stringify(v.example.events))).size,variants.length);
   for(const v of variants){const changed=applyTakeEdit(take,v.advice.edit);assert(changed);assertTops(take,changed);
     assert.equal(notePairs(changed.events).length,changed.events.filter(e=>e.type==='note_on'&&e.velocity>0).length);
   }
 });
-await check('Les liaisons de deux notes résolvent sous la mélodie, sur une note réellement attaquée',()=>{
-  const v=variants.find(v=>v.id==='connection');const changed=applyTakeEdit(take,v.advice.edit);
-  for(const c of v.advice.changes.filter(c=>c.technique==='inner-line')){
-    assert.equal(c.edit.notes.length,2);assert(Math.abs(c.edit.notes[1].note-c.resolvesTo.note)===1);
-    assert(c.edit.notes.at(-1).end<c.resolvesTo.time);
-    assert(changed.events.some(e=>e.type==='note_on'&&e.note===c.resolvesTo.note&&e.time===c.resolvesTo.time));
-  }
+await check('Aucune ligne intérieure automatique dans les propositions construites',()=>{
+  assert(!variants.some(v=>v.advice.changes.some(c=>c.technique==='inner-line')));
 });
-await check('Un passage dans un silence a une durée audible, des attaques groupées et aucune arrivée déplacée',()=>{
-  const v=variants.find(v=>v.id==='passing');
-  for(const c of v.advice.changes.filter(c=>c.goal==='passing')){
-    assert(c.end-c.at>=.32);assert.equal(new Set(c.edit.attacks).size,1);
-    assert(c.end<c.function.targetAt);assert.equal(c.edit.adjustments.length,0);
-  }
+await check('Un passage unitaire dans un silence a une durée audible et aucune arrivée déplacée',()=>{
+  const plan=planPhraseMotions(take,{kind:'passing'});assert(plan.motions.length);
+  for(const c of plan.motions){assert(c.end-c.at>=.32);assert.equal(new Set(c.edit.attacks).size,1);assert(c.end<c.function.targetAt);assert.equal(c.edit.adjustments.length,0);}
 });
-await check('Un accord tenu cède seulement son accompagnement, avec dessus et relâchement mélodique intacts',()=>{
-  const v=buildPhraseVariants(held,{message}).find(v=>v.id==='passing');assert(v);
-  const motion=v.advice.changes.find(c=>c.placement==='held-phrase');assert(motion);
-  assert(motion.edit.adjustments.length);assert(motion.end-motion.at>=.35);
-  assertTops(held,applyTakeEdit(held,v.advice.edit));
+await check('Un accord tenu garde son dessus dans le nouvel arrangement',()=>{
+  const v=buildPhraseVariants(held,{message}).find(v=>v.id==='arrangement');assert(v);
+  assert(v.advice.changes.some(c=>c.goal==='passing'));assertTops(held,applyTakeEdit(held,v.advice.edit));
 });
 await check('Pédale maintenue ou relâchée à l’intérieur du passage : aucun mouvement incompatible',()=>{
   for(const release of [1.6,8]){
@@ -123,7 +114,7 @@ await check('Le motif latin ne reçoit pas de cadence gospel ni de débit chroma
   }
 });
 await check('Les séquences et leurs comparaisons survivent à JSON et à la réouverture',()=>{
-  const v=JSON.parse(JSON.stringify(variants.find(v=>v.id==='passing')));
+  const v=JSON.parse(JSON.stringify(variants.find(v=>v.id==='arrangement')));
   const r=refreshPlayingResult({example:v.example,playingAdvice:v.advice});assert(r);
   assert.deepEqual(applyTakeEdit(take,v.advice.edit).events,applyTakeEdit(v.advice.take,v.advice.edit).events);
   assert(v.example.comparison.changes.some(c=>c.kind==='added'));

@@ -16,6 +16,7 @@ function continuedRequest(previous, message) {
 
 export function personalVariantsAnswer({message,messages=[],context}) {
  const text=plain(message),take=context?.playing?.passage;if(!take?.events?.length)return null;
+ if(/hasard|n'importe quoi|aleatoire|sans intention|test des touches/.test(text))return null;
  if(/rejoue ma|re.e?coute ma|explique|quel.*style|drop\s*2|upper.?structure|alle?g|supprim/.test(text))return null;
  const boundary=messages.findLastIndex(m=>m.role==='user'&&m.take?.events?.length);
  const relevant=messages.slice(Math.max(0,boundary));

@@ -1,3 +1,4 @@
+import {buildPhraseArrangement} from './phrase-arrangement.js';
 import {buildFixedHarmonyVariants} from './fixed-harmony.js';
 import {applyTakeEdit} from './take-edit.js';
 import {comparedTakeExample} from './playing-diff.js';
@@ -17,11 +18,12 @@ export function buildPhraseVariants(take, {message = '', exclude = []} = {}) {
     && /mouv|liaison|passage|developp|ameliore|plus loin|autre chose/.test(text);
   const fixed = buildFixedHarmonyVariants(take, {message, functional: !latin});
   const harmonious = latin ? fixed.filter(v => ['enrich','soft','bass'].includes(v.id)) : fixed;
-  const variants = [...harmonious];
+  const arranged=buildPhraseArrangement(take,{message,latin});
+  const variants = [...(arranged?[arranged]:[]),...harmonious];
   const source = harmonious.find(v => v.id === 'enrich') || harmonious[0];
   if (source && movement) {
     const changed = applyTakeEdit(take, source.advice.edit);
-    for (const kind of changed ? noPassing?['connection']:['connection','passing'] : []) {
+    for (const kind of changed && !arranged ? noPassing?[]:['passing'] : []) {
       const plan = planPhraseMotions(changed, {kind, changes: source.harmony});
       if (!plan.edits.length) continue;
       const title = kind === 'connection' ? 'Approches et liaisons' : 'Des accords pour conduire la phrase';
@@ -47,7 +49,7 @@ export function buildPhraseVariants(take, {message = '', exclude = []} = {}) {
     if (seen.has(key) || exclude.includes(key)) return false;
     seen.add(key); return true;
   }).sort((a,b) => {
-    const order = ['enrich','two-lines','parallel-return','resolution','tritone','arrivals','relative','soft'];
+    const order = ['arrangement','enrich','two-lines','parallel-return','resolution','tritone','arrivals','relative','soft'];
     const rank = v => ['connection','passing'].includes(v.id) ? 2.5 : order.indexOf(v.id) < 0 ? 20 : order.indexOf(v.id);
     return rank(a) - rank(b);
   }).filter(v => v.id !== 'soft' || variants.length < 3).slice(0,5);

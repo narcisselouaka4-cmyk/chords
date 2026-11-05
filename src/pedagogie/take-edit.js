@@ -1,3 +1,4 @@
+import {applyArrangement} from './arrangement-edit.js';
 import { applyFixedHarmony } from './fixed-harmony-edit.js';
 // Les éditions restent indexées sur la prise originale, même quand plusieurs changements sont combinés.
 const SOURCE_INDEX = Symbol('copilot-source-event');
@@ -22,6 +23,7 @@ export function applyTakeEdit(take, edit) {
   if (!edit || !Array.isArray(take?.events)) return null;
   // Les étapes suivantes sont indexées sur le résultat précédent. À distinguer
   // d'un plan d'éditions indépendantes indexées toutes sur la même source.
+  if (edit.type === 'arrangement') return applyArrangement(take,edit);
   if (edit.type === 'sequence') {
     if (!Array.isArray(edit.edits) || !edit.edits.length || edit.edits.length > 16
       || edit.edits.some(e => !e || ['sequence', 'plan'].includes(e.type))) return null;

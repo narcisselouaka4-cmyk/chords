@@ -14,7 +14,7 @@ const blockTake=blocks=>({duration:blocks.length*2,events:blocks.flatMap((notes,
 ])).sort((a,b)=>a.time-b.time)});
 const take=blockTake([[48,55,60,64],[50,57,60,65],[52,59,62,67]]);
 const context={playing:{passage:take}};
-const message='En do majeur, enrichis mes accords';
+const message='En do majeur, enrichis mes accords, uniquement des accords fixes';
 const variants=buildPlayingVariants(take,{message});
 let count=0;async function check(title,test){await test();count++;console.log(`✓ ${title}`);}
 await check('Les propositions sont des voicings fixes réellement distincts',()=>{
@@ -117,7 +117,7 @@ await check('Les nouvelles demandes ne reprennent pas les mouvements d’un anci
  const old={role:'assistant',toolResult:{variants:[{id:'connect',advice:{version:3}}]}};
  const before=JSON.stringify(old);
  const r=personalVariantsAnswer({message:'Fais-moi entendre un exemple',context,messages:[old]});
- assert(r.toolResult.fixedHarmony);assert(r.toolResult.variants.every(v=>v.advice.edit.type==='fixed-harmony'));
+ assert.equal(r,null);
  assert.equal(JSON.stringify(old),before);
 });
 await check('Une nouvelle prise délimite le suivi des propositions',()=>{
@@ -126,12 +126,12 @@ await check('Une nouvelle prise délimite le suivi des propositions',()=>{
 });
 await check('Le chemin réel Copilot reste local et propose les voicings de la prise',async()=>{
  const r=await sendCopilotMessage({message:message+' et joue-moi un exemple',context,messages:[]});
- assert(r.autoplay);assert(r.toolResult.fixedHarmony);assert.equal(r.toolResult.originalTake,take);
+ assert(r.autoplay);assert(r.toolResult.phraseHarmony);assert.equal(r.toolResult.originalTake,take);
 });
 await check('Les deux prises réelles restent utilisables sans nouveaux instants musicaux',()=>{
  for(const file of ['copilot-development-take.json','copilot-approved-links.json']){
   const data=JSON.parse(readFileSync(new URL(`./fixtures/${file}`,import.meta.url))),source=data.take||data;
-  const vs=buildPlayingVariants(source,{message:'Enrichis mes accords'});assert(vs.length,file);
+  const vs=buildPlayingVariants(source,{message:'Enrichis mes accords, uniquement des accords fixes'});assert(vs.length,file);
   for(const v of vs){
    const changed=applyTakeEdit(source,v.advice.edit);assert(changed);
    const times=new Set(source.events.filter(e=>e.type==='note_on').map(e=>e.time));

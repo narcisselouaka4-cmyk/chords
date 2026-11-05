@@ -9,7 +9,7 @@ const before=JSON.stringify(session);
 const context={type:'session',playing:{session}};
 const adapted=personalContext(context).playing.passage;
 assert.equal(adapted.events.find(e=>e.type==='note_on').note,session.events.find(e=>e.type==='note_on').note+2);
-assert(adapted.events.some(e=>e.type==='control'&&e.controller===64));assert.equal(JSON.stringify(session),before);
+assert(adapted.events.some(e=>e.type==='control'&&e.controller===64));assert.equal(JSON.stringify(session),before);assert.equal(adapted.key,'D majeur');
 const first=await sendCopilotMessage({message:'Enrichis mes accords',messages:[],context});
 assert(first.toolResult.variants.length);assert.deepEqual(first.toolResult.originalTake.events,adapted.events);
 const hear=await sendCopilotMessage({message:'Fais-moi entendre un exemple',messages:[{role:'assistant',...first}],context});
