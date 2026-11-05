@@ -6,16 +6,22 @@
   overflow: auto;
 }
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-mode { gap: 14px; }
+/* [Claude] — 2026-11-05 — Plus de cadre : « ce panneau-là, le grand panneau, le
+   panneau principal qui affiche tout, tu me l'enlèves. Pour qu'il y ait un seul
+   et unique et même fond. » La scène était une carte crème à rayon 14 px posée
+   sur le décor ; elle devient transparente et le fond court d'un bord à
+   l'autre. La STRUCTURE ne bouge pas : les deux colonnes et leurs séparations
+   restent, c'est le cadre qui part. */
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
   grid-template-rows: 100px 460px;
   min-height: 560px;
   flex: 0 0 auto;
-  border-radius: 14px;
-  background: var(--tr-surface);
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
-  overflow: hidden;
+  overflow: visible;
 }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-chord-head,
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-brief {
@@ -335,8 +341,15 @@
   color: var(--tr-text);
 }
 
+/* [Claude] — 2026-11-05 — La page est SŒUR de la vue Exercices, pas dedans
+   (l'ancien overlay était posé après elle). Sans ancêtre positionné, `inset: 0`
+   se calait sur #practice-tab — barre des sous-onglets comprise — et le bouton
+   « Retour aux accords » recouvrait Sessions MIDI. On positionne donc le
+   conteneur des vues, qui commence SOUS la navigation. */
+#practice-body.tr-workspace { position: relative; }
+
 /* Le reste de l'onglet s'efface : pas de superposition, pas de flou. */
-.practice-exercices.library-page-open > :not(#exercise-library) {
+#practice-body.library-page-open > :not(#exercise-library) {
   visibility: hidden;
   pointer-events: none;
 }
@@ -456,6 +469,10 @@
 
 /* Une entrée de liste : identité seule. La phrase et les actions sont à droite. */
 #exercise-library .exercise-library-card {
+  /* `flex: none` : sans lui, chaque entrée rétrécit pour tenir dans la colonne
+     — mesuré à 20 px de haut pour 23 études, nom et route coupés. La liste
+     défile, les entrées gardent leur hauteur. */
+  flex: none;
   display: grid;
   gap: 2px;
   width: 100%;
@@ -573,15 +590,92 @@
   color: var(--tr-text);
 }
 
-#exercise-library .exercise-library-detail-actions {
+/* ---- Le lecteur : écouter, suivre, travailler ---- */
+
+#exercise-library .exercise-library-player {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-surface);
 }
 
-#exercise-library .exercise-library-detail-actions .is-danger { border-color: var(--tr-border); }
-#exercise-library .exercise-library-detail-actions .is-danger.is-armed { border-color: var(--tr-accent); }
+#exercise-library .exercise-library-progress {
+  flex: 1 1 160px;
+  min-width: 90px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--tr-border);
+  overflow: hidden;
+}
+
+#exercise-library .exercise-library-progress > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tr-accent);
+}
+
+#exercise-library .exercise-library-player .is-danger { border-color: var(--tr-border); }
+#exercise-library .exercise-library-player .is-danger.is-armed { border-color: var(--tr-accent); }
+
+/* ---- Les accords de l'étude, chacun sur son clavier ----
+   « On peut rajouter des cartes d'accord. Tu peux rajouter des
+   mini-keyboardings à chaque fois, pour illustrer les accords montrés. »
+   Ils remplissent la colonne avec ce qui sert : ce qu'on va jouer. */
+
+#exercise-library .exercise-library-chords {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+
+#exercise-library .exercise-library-chord {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-surface);
+}
+
+#exercise-library .exercise-library-chord figcaption {
+  font-size: .92rem;
+  font-weight: 600;
+  color: var(--tr-text);
+}
+
+#exercise-library .exercise-library-chord-kb {
+  display: block;
+  width: 100%;
+}
+
+#exercise-library .exercise-library-chord-kb svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 58px;
+}
+
+#exercise-library .exercise-library-chord-notes {
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: .72rem;
+  line-height: 1.4;
+  color: var(--tr-secondary);
+  overflow-wrap: anywhere;
+}
+
+#exercise-library .exercise-library-noschords {
+  margin: 0;
+  font-size: .82rem;
+  color: var(--tr-secondary);
+}
 
 /* Fenêtre étroite : la liste passe au-dessus de l'étude regardée plutôt que
    d'écraser le texte dans une colonne de 250 px. */
@@ -601,3 +695,4 @@
   #exercise-library .exercise-library-detail { overflow: visible; }
   #exercise-library .exercise-library-what { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+

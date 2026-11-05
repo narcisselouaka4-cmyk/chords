@@ -102,6 +102,7 @@ import {
 import { loadGrids, saveGrids, upsertGrid, removeGrid, defaultGridName } from './practice-grids.js';
 import movementsLibrary, { archivedMovements, EXERCISE_KIND_LABELS } from './exercise-catalogue.js';
 import { keyLabel } from './practice-key-spelling.js';
+import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
 import {
   loadFavorites,
   saveFavorites,
@@ -282,7 +283,6 @@ const els = {
   exerciseLibrary: document.getElementById('exercise-library'),
   exerciseLibrarySearch: document.getElementById('exercise-library-search'),
   exerciseLibraryCategories: document.getElementById('exercise-library-categories'),
-  exerciseLibraryPanels: document.getElementById('exercise-library-panels'),
   exerciseLibraryGrid: document.getElementById('exercise-library-grid'),
   practiceViewMidiSessions: document.getElementById('practice-view-midi-sessions'),
   practiceViewCoach: document.getElementById('practice-view-coach'),
@@ -2118,7 +2118,6 @@ function initPracticeExercise() {
   // astra-shell.js : fond, Échap, ✕) ; onglet Progressions retiré avec le mode.
   let libraryCategory = null;
   // [Claude] — 2026-11-04 — Panneau actif À L'INTÉRIEUR de la catégorie (''= tout).
-  let libraryPanel = '';
   // Ma grille : accords choisis, dans l'ordre ({ root, quality, top }).
   let gridChords = [];
   // Grilles enregistrées (catégorie Perso de la bibliothèque).
@@ -2212,33 +2211,6 @@ function initPracticeExercise() {
    * rien à tenir à jour ici quand une étude arrive. Les niveaux passent en
    * premier, le reste suit par ordre alphabétique.
    */
-  const PANEL_ORDER = ['Débutant', 'Intermédiaire', 'Avancé'];
-  function renderLibraryPanels(items) {
-    const host = els.exerciseLibraryPanels;
-    if (!host) return;
-    const counts = new Map();
-    for (const item of items) {
-      for (const tag of item.tags || []) counts.set(tag, (counts.get(tag) || 0) + 1);
-    }
-    // Un panneau qui contiendrait TOUTES les fiches ne trie rien : on l'omet.
-    const tags = [...counts.keys()]
-      .filter((t) => counts.get(t) < items.length || counts.size > 1)
-      .sort((a, b) => {
-        const ia = PANEL_ORDER.indexOf(a);
-        const ib = PANEL_ORDER.indexOf(b);
-        if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-        return a.localeCompare(b);
-      });
-    // Le panneau actif a pu disparaître en changeant de catégorie.
-    if (libraryPanel && !tags.includes(libraryPanel)) libraryPanel = '';
-    host.hidden = tags.length < 2;
-    if (host.hidden) { host.innerHTML = ''; return; }
-    host.innerHTML = [`<button type="button" class="exercise-library-panel${libraryPanel ? '' : ' active'}" data-panel="" aria-pressed="${!libraryPanel}">Tout</button>`]
-      .concat(tags.map((tag) => {
-        const on = libraryPanel === tag;
-        return `<button type="button" class="exercise-library-panel${on ? ' active' : ''}" data-panel="${escapeAttr(tag)}" aria-pressed="${on}">${escapeHtml(tag)}<span class="exercise-library-count">${counts.get(tag)}</span></button>`;
-      })).join('');
-  }
 
   function renderLibrary() {
     const all = getLibraryItems();
@@ -2264,7 +2236,7 @@ function initPracticeExercise() {
     // Débutant/Avancé, Montuno, Tumbao — devient un panneau à l'intérieur (voir
     // plus bas). Les Archives marchent pareil : leurs familles musicales, qu'on
     // écrasait, redeviennent des panneaux.
-    const categoryOrder = ['Progressions', 'Passages A → B', 'Gestes & voix',
+    const categoryOrder = ['Progressions', 'Mouvements', 'Gestes & voix',
       LATIN_CATEGORY, PERSO_CATEGORY, ARCHIVE_CATEGORY];
     const categories = categoryOrder;
     if (els.exerciseLibraryCategories) {
@@ -2276,8 +2248,13 @@ function initPracticeExercise() {
         })).join('');
     }
     if (libraryCategory) items = items.filter((i) => i.category === libraryCategory);
-    renderLibraryPanels(items);
-    if (libraryPanel) items = items.filter((i) => (i.tags || []).includes(libraryPanel));
+    // [Claude] — 2026-11-05 — Les « panneaux » (bulles Débutant, Clave, Danzón…)
+    // sont retirés. Narcisse : « c'est sous forme de bulles, mais quand je suis
+    // dans progression, passage, geste et voix, je vois qu'il y a juste des
+    // étiquettes. Si je devais choisir entre les deux, je choisis largement les
+    // étiquettes. » Et surtout ils trompaient : affichés sous « Études », ils
+    // ne montraient que les tags de Latino sans dire d'où ils venaient. Les
+    // catégories suffisent ; les tags restent dans le JSON et dans la recherche.
     items.sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category) || a.name.localeCompare(b.name));
     if (!els.exerciseLibraryGrid) return;
     const current = practiceExercise.getState().progression?.name;
@@ -2312,17 +2289,62 @@ function initPracticeExercise() {
     if (!item) { host.innerHTML = ''; return; }
     const isCurrent = item.name === current;
     const quoi = item.context || '';
+    const playing = previewId === item.id;
+
+    // Les accords de l'étude, avec leurs vraies notes : c'est ce qui remplit la
+    // colonne et ce qui sert — « on peut rajouter des cartes d'accord, tu peux
+    // rajouter des mini-keyboardings à chaque fois pour illustrer les accords ».
+    // Même fabrique que l'aperçu sonore : ce qu'on voit est ce qu'on entendra.
+    const key = practiceExercise.getState().keyChoice ?? 0;
+    let voiced = null;
+    try {
+      voiced = item.grid
+        ? practiceExercise.previewGrid(item.grid.chords, item.grid.name)
+        : practiceExercise.previewMovement(item.id, key);
+    } catch (e) {
+      voiced = null;
+    }
+    const chordCards = (voiced || []).map((c) => {
+      const notes = [...new Set([...(c.leftHand || []), ...(c.rightHand || []), ...(c.notes || [])])].sort((a, b) => a - b);
+      if (!notes.length) return '';
+      const kb = miniKeyboardForNotes(notes, { leftHand: c.leftHand || [], rightHand: c.rightHand || [] });
+      const names = notes.map((n) => `${noteName(n)}${Math.floor(n / 12) - 1}`).join(' · ');
+      return `<figure class="exercise-library-chord">
+          <figcaption>${escapeHtml(c.name || '')}</figcaption>
+          <div class="exercise-library-chord-kb">${kb.svg}</div>
+          <span class="exercise-library-chord-notes">${escapeHtml(names)}</span>
+        </figure>`;
+    }).filter(Boolean).join('');
+
     host.innerHTML = `
       <span class="tr-eyebrow">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)}</span>
       <h2 class="exercise-library-detail-name">${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</h2>
       ${item.route ? `<p class="exercise-library-detail-route">${escapeHtml(item.route)}</p>` : ''}
       ${quoi ? `<div class="exercise-library-what"><span class="exercise-library-what-label">Ce que c'est</span><p>${escapeHtml(quoi)}</p></div>` : ''}
-      <div class="exercise-library-detail-actions">
+
+      <div class="exercise-library-player${playing ? ' is-playing' : ''}">
+        <button type="button" class="exercise-library-play" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${playing ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${playing ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${playing ? 'Arrêter' : 'Écouter'}</span></button>
+        <div class="exercise-library-progress" role="presentation"><span id="exercise-library-progress-fill"></span></div>
         <button type="button" class="tr-button tr-primary" data-study-select="${escapeAttr(item.id)}">Travailler</button>
-        <button type="button" class="tr-button exercise-library-play${previewId === item.id ? ' is-playing' : ''}" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${previewId === item.id ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${previewId === item.id ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${previewId === item.id ? 'Arrêter' : 'Écouter'}</span></button>
         ${item.grid ? `<button type="button" class="tr-button" data-grid-load="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Modifier la grille ${item.name}`)}">Modifier</button>
         <button type="button" class="tr-button is-danger${gridDeleteArmed === item.id ? ' is-armed' : ''}" data-grid-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Supprimer la grille ${item.name}`)}">${gridDeleteArmed === item.id ? 'Confirmer' : 'Supprimer'}</button>` : ''}
-      </div>`;
+      </div>
+
+      ${chordCards ? `<div class="exercise-library-chords" role="group" aria-label="Accords de l'étude">${chordCards}</div>`
+    : '<p class="exercise-library-noschords">Cette grille n\'a pas de position jouable à montrer.</p>'}`;
+  }
+
+  /**
+   * La barre du lecteur suit l'aperçu en cours. Elle n'existe que pendant la
+   * lecture : rien à animer quand rien ne joue.
+   */
+  function tickLibraryProgress() {
+    const fill = document.getElementById('exercise-library-progress-fill');
+    if (!fill) return;
+    const total = demoPlayer.isActive() ? demoPlayer.duration() : 0;
+    const at = demoPlayer.position();
+    const pct = total > 0 ? Math.max(0, Math.min(100, (at / total) * 100)) : 0;
+    fill.style.width = `${pct}%`;
   }
 
   /**
@@ -2351,13 +2373,16 @@ function initPracticeExercise() {
 
 
   /** Prépare le contenu ; l'ouverture elle-même est faite par astra-shell.js (data-astra-open). */
-  /** La vue qui porte la page : c'est elle qui s'efface derrière la bibliothèque. */
-  const exerciseView = () => document.getElementById('practice-view-exercices');
+  /**
+   * Le conteneur des vues : c'est lui qui s'efface derrière la bibliothèque, et
+   * lui qui cadre la page. La bibliothèque est sa fille, SŒUR de la vue
+   * Exercices — héritage de l'ancien overlay, posé après elle dans le markup.
+   */
+  const exerciseView = () => document.getElementById('practice-body');
 
   function openLibrary() {
     libraryCategory = null;
     librarySearch = '';
-    libraryPanel = '';
     librarySelected = null;
     if (els.exerciseLibrarySearch) els.exerciseLibrarySearch.value = '';
     // [Claude] — 2026-11-05 — Plus de fenêtre : la bibliothèque est une PAGE de
@@ -2366,6 +2391,7 @@ function initPracticeExercise() {
     if (els.exerciseLibrary) els.exerciseLibrary.hidden = false;
     exerciseView()?.classList.add('library-page-open');
     renderLibrary();
+    startLibraryProgress();
     els.exerciseLibrarySearch?.focus();
     // [Claude] — 2026-11-04 — On décode les boucles pendant qu'il choisit son
     // étude : à la première écoute, la batterie doit entrer en même temps que
@@ -2382,6 +2408,7 @@ function initPracticeExercise() {
     // Un aperçu en cours n'a plus de raison de sonner quand on quitte la page.
     if (demoContext?.kind === 'preview') demoPlayer.stop();
     els.exerciseLibrary.hidden = true;
+    stopLibraryProgress();
     exerciseView()?.classList.remove('library-page-open');
     els.exerciseLibraryBtn?.focus();
   }
@@ -2717,19 +2744,33 @@ function initPracticeExercise() {
     if (!chip) return;
     const cat = chip.dataset.category || null;
     libraryCategory = libraryCategory === cat ? null : cat;
-    // Changer de case remet les panneaux à zéro : ceux de l'ancienne case
-    // n'ont aucun sens dans la nouvelle.
-    libraryPanel = '';
     renderLibrary();
   });
 
-  els.exerciseLibraryPanels?.addEventListener('click', (e) => {
-    const chip = e.target.closest('button[data-panel]');
-    if (!chip) return;
-    const panel = chip.dataset.panel || '';
-    libraryPanel = libraryPanel === panel ? '' : panel;
-    renderLibrary();
-  });
+  /**
+   * La barre du lecteur se met à jour tant que la PAGE est ouverte, pas
+   * seulement pendant la lecture : `startDemo` est asynchrone
+   * (`await resumeAudio()`), si bien qu'au premier passage rien ne joue encore.
+   *
+   * Un `setInterval` plutôt qu'une boucle d'images : une chaîne de
+   * requestAnimationFrame se réarme à chaque image, et si une seule est ratée
+   * — onglet non rendu, fenêtre masquée — la chaîne meurt sans se relancer, le
+   * drapeau restant posé. Dix rafraîchissements par seconde suffisent à l'œil
+   * pour une barre de progression et ne dépendent pas du rythme de rendu.
+   */
+  let libraryProgressTimer = null;
+  function startLibraryProgress() {
+    stopLibraryProgress();
+    libraryProgressTimer = setInterval(() => {
+      if (els.exerciseLibrary?.hidden) { stopLibraryProgress(); return; }
+      tickLibraryProgress();
+    }, 100);
+  }
+  function stopLibraryProgress() {
+    if (libraryProgressTimer == null) return;
+    clearInterval(libraryProgressTimer);
+    libraryProgressTimer = null;
+  }
 
   const pickLibraryCard = (id) => {
     const item = getLibraryItems().find((i) => i.id === id);
@@ -2742,6 +2783,7 @@ function initPracticeExercise() {
     const play = e.target.closest('[data-preview]');
     if (play) {
       togglePreview(play.dataset.preview);
+      startLibraryProgress();
       return;
     }
     // Grille Perso : « Modifier » l'ouvre dans « Ma grille » (même nom = mise à jour),
