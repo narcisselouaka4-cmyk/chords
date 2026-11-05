@@ -1315,7 +1315,7 @@ function renderOneMessage(msg, { last = false } = {}) {
   if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || msg.toolResult.example.source?.kind === 'passage vidéo')) {
     if (msg.toolResult.originalTake) content.append(createTakePlayer(msg.toolResult.originalTake, { id: `${exampleIdOf(msg)}-original`, title: 'Ton jeu original' }));
     for(const variant of variantMessages(msg)) content.appendChild(renderExampleCard(variant));
-    const grid=renderProposalChordGrid(msg.toolResult,{notation:document.getElementById('notation-select')?.value || 'english'});
+    const grid=renderProposalChordGrid(msg.toolResult,{notation:document.getElementById('notation-select')?.value || 'english',id:exampleIdOf(msg)});
     if(grid)content.appendChild(grid);
   } else if (msg.toolResult?.played?.length) {
     // Anciennes conversations : notes jouées à l'époque, pour mémoire.

@@ -2401,16 +2401,27 @@
 /* Comparaison des progressions : accords espacés, lignes alignées et défilement
    horizontal local, sans tasser toute une prise dans la largeur du message. */
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-comparison {
+  margin: 8px 0 4px;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-comparison > summary {
+  width: fit-content;
+  padding: 5px 2px;
+  color: var(--tr-secondary);
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-scroll {
   max-width: 100%;
   min-width: 0;
   overflow-x: auto;
-  margin: 12px 0 4px;
-  padding-bottom: 5px;
+  margin-top: 6px;
+  padding-bottom: 2px;
   border: 1px solid var(--tr-border);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--tr-surface);
 }
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-comparison:focus-visible {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) :is(.copilot-chord-scroll, .copilot-chord-comparison > summary):focus-visible {
   outline: 2px solid var(--tr-accent);
   outline-offset: 3px;
 }
@@ -2421,23 +2432,16 @@
   color: var(--tr-text);
   text-align: center;
 }
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table caption {
-  padding: 12px 14px 8px;
-  color: var(--tr-text);
-  font-size: 13px;
-  font-weight: 650;
-  text-align: left;
-}
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table :is(th, td) {
   box-sizing: border-box;
-  min-width: 112px;
-  padding: 13px 16px;
+  min-width: 92px;
+  padding: 8px 12px;
   border-right: 1px solid var(--tr-border);
   border-bottom: 1px solid var(--tr-border);
   vertical-align: middle;
 }
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table thead th {
-  padding-block: 8px;
+  padding-block: 6px;
   color: var(--tr-secondary);
   font: 11px var(--tr-mono);
   font-weight: 400;
@@ -2446,8 +2450,8 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  min-width: 170px;
-  max-width: 190px;
+  min-width: 125px;
+  max-width: 150px;
   background: var(--tr-surface);
   text-align: left;
   box-shadow: 2px 0 3px -2px var(--tr-border);
@@ -2456,18 +2460,9 @@
   font-size: 12px;
   font-weight: 650;
 }
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table tbody th small {
-  display: block;
-  max-width: 155px;
-  margin-top: 4px;
-  color: var(--tr-secondary);
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.5;
-}
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-grid-chord {
   display: block;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.5;
   white-space: nowrap;

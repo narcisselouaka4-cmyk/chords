@@ -3,6 +3,7 @@ import {reviewTake} from '../recorder/take-review.js';
 const ROOT = /^(?:(Sol|Do|Ré|Re|Mi|Fa|La|Si)([♯♭#b]?)(?=\s|$|maj|m(?:\d|$)|add|sus|dim|alt|\d)|([A-G])([♯♭#b]?))/u;
 const LETTERS = {Do:'C',Ré:'D',Re:'D',Mi:'E',Fa:'F',Sol:'G',La:'A',Si:'B'};
 const LATIN = {C:'Do',D:'Ré',E:'Mi',F:'Fa',G:'Sol',A:'La',B:'Si'};
+const openGrids = new Set();
 
 /** Une même notation pour le jeu détecté et les noms du plan harmonique. */
 export function gridChordName(name, notation = 'english') {
@@ -68,13 +69,19 @@ export function gridMoment(at, precise = false) {
   return precise ? `${time},${Math.floor((at%1)*10+1e-6)}` : time;
 }
 
-export function renderProposalChordGrid(result, options) {
+export function renderProposalChordGrid(result, options = {}) {
   const grid=proposalChordGrid(result,options);
   if (!grid) return null;
-  const region=node('div','copilot-chord-comparison');
+  const details=node('details','copilot-chord-comparison');
+  details.open=Boolean(options.id && openGrids.has(options.id));
+  details.addEventListener('toggle',() => {
+    if(options.id) details.open ? openGrids.add(options.id) : openGrids.delete(options.id);
+  });
+  details.append(node('summary','','Grilles d’accords'));
+  const region=node('div','copilot-chord-scroll');
   region.setAttribute('role','region');region.setAttribute('aria-label','Comparaison des grilles d’accords');region.tabIndex=0;
   const table=node('table','copilot-chord-table');
-  table.append(node('caption','','Grilles d’accords'));
+  table.setAttribute('aria-label','Grilles d’accords');
   const head=node('thead'),tr=node('tr'),corner=node('th','','Moment');corner.scope='col';tr.append(corner);
   for (const c of grid.columns) {
     const precise=grid.columns.filter(x=>Math.floor(x.at)===Math.floor(c.at)).length>1;
@@ -87,7 +94,7 @@ export function renderProposalChordGrid(result, options) {
     const row=node('tr',r.original?'is-original':'');
     const label=node('th');label.scope='row';
     label.append(node('span','',r.original?'Ton jeu':grid.rows.length===2?'Proposition':`Proposition ${i}`));
-    if (!r.original) label.append(node('small','',r.title));
+    if (!r.original) { label.title=r.title;label.setAttribute('aria-label',`${label.textContent} : ${r.title}`); }
     row.append(label);
     for (const c of grid.columns) {
       const cell=node('td'),chord=c.cells[i];
@@ -97,5 +104,5 @@ export function renderProposalChordGrid(result, options) {
     }
     body.append(row);
   });
-  table.append(body);region.append(table);return region;
+  table.append(body);region.append(table);details.append(region);return details;
 }
