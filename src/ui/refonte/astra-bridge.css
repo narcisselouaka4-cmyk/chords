@@ -2398,6 +2398,86 @@
   flex-shrink: 0;
   gap: 6px;
 }
+/* Comparaison des progressions : accords espacés, lignes alignées et défilement
+   horizontal local, sans tasser toute une prise dans la largeur du message. */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-comparison {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  margin: 12px 0 4px;
+  padding-bottom: 5px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-surface);
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-comparison:focus-visible {
+  outline: 2px solid var(--tr-accent);
+  outline-offset: 3px;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--tr-text);
+  text-align: center;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table caption {
+  padding: 12px 14px 8px;
+  color: var(--tr-text);
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table :is(th, td) {
+  box-sizing: border-box;
+  min-width: 112px;
+  padding: 13px 16px;
+  border-right: 1px solid var(--tr-border);
+  border-bottom: 1px solid var(--tr-border);
+  vertical-align: middle;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table thead th {
+  padding-block: 8px;
+  color: var(--tr-secondary);
+  font: 11px var(--tr-mono);
+  font-weight: 400;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table tr > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 170px;
+  max-width: 190px;
+  background: var(--tr-surface);
+  text-align: left;
+  box-shadow: 2px 0 3px -2px var(--tr-border);
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table tbody th {
+  font-size: 12px;
+  font-weight: 650;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table tbody th small {
+  display: block;
+  max-width: 155px;
+  margin-top: 4px;
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-grid-chord {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table .is-original .copilot-grid-chord {
+  color: var(--tr-secondary);
+  font-weight: 450;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table tr:last-child > * { border-bottom: 0; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chord-table tr > :last-child { border-right: 0; }
 /* [Claude] — 2026-10-03 — La barre de lecture de l'exemple qui joue (Narcisse : « revenir en
    arrière manuellement quand le copilote joue, un peu comme sur un lecteur ») : Pause /
    Reprendre, « ⟲ 5 s », le curseur avec les moments où le prof parle, la phrase pendant

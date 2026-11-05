@@ -1,6 +1,7 @@
 import {isPersonalExample} from './personal-demo.js';
 import {samePlayingSource} from './personal-source.js';
 import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
+import {renderProposalChordGrid} from './proposal-chord-grid.js';
 // [Claude] — 2026-09-09 — Copilot IA : contrôleur du sous-onglet.
 //
 // Orchestration pure : écoute la sélection Pédagogie, charge l'historique,
@@ -1314,6 +1315,8 @@ function renderOneMessage(msg, { last = false } = {}) {
   if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || msg.toolResult.example.source?.kind === 'passage vidéo')) {
     if (msg.toolResult.originalTake) content.append(createTakePlayer(msg.toolResult.originalTake, { id: `${exampleIdOf(msg)}-original`, title: 'Ton jeu original' }));
     for(const variant of variantMessages(msg)) content.appendChild(renderExampleCard(variant));
+    const grid=renderProposalChordGrid(msg.toolResult,{notation:document.getElementById('notation-select')?.value || 'english'});
+    if(grid)content.appendChild(grid);
   } else if (msg.toolResult?.played?.length) {
     // Anciennes conversations : notes jouées à l'époque, pour mémoire.
     const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
