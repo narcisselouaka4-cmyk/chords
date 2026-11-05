@@ -2,6 +2,8 @@ import {isPersonalExample} from './personal-demo.js';
 import {samePlayingSource} from './personal-source.js';
 import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
 import {renderProposalChordGrid} from './proposal-chord-grid.js';
+import {mountMemoryPanel} from './memory-panel.js';
+import {conversationSourceForTurn} from './copilot-memory.js';
 // [Claude] — 2026-09-09 — Copilot IA : contrôleur du sous-onglet.
 //
 // Orchestration pure : écoute la sélection Pédagogie, charge l'historique,
@@ -1618,7 +1620,7 @@ async function onDeleteEmptyConversations() {
 
 async function loadHistoryItem(conversationId) {
   const history = await loadHistory(conversationId);
-  if (!history) return;
+  if (!history) return false;
   resetComposer();
   currentConversationId = conversationId;
   messages = history.messages || [];
@@ -1634,6 +1636,7 @@ async function loadHistoryItem(conversationId) {
   showChatArea();
   renderMessages();
   await renderHistoryList();
+  return true;
 }
 
 // [Claude] — 2026-10-09 — Narcisse : la mention « Copilot IA » en haut à gauche « ne sert à rien »
@@ -1871,7 +1874,8 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
     if (take) lastTake = take;
     const turnMessages = messages;
     const turnConversationId = currentConversationId;
-    messages.push({ role: 'user', content: text, ...(take ? { take } : {}), timestamp: new Date().toISOString() });
+    const userMessage={ role: 'user', content: text, ...(take ? { take } : {}), timestamp: new Date().toISOString() };
+    messages.push(userMessage);
     addTypingIndicator();
 
     const base = getTutorialContext() || getSessionContext() || getExerciseContext();
@@ -1882,8 +1886,12 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
     if (lastTake || playing) context = { ...(base || { type: 'autonomous' }) };
     if (lastTake?.lines?.length) context.take = lastTake.lines;
     if (playing) context.playing = playing;
+    if(!userMessage.take){
+      const source=conversationSourceForTurn(context,messages);
+      if(source){userMessage.take=source;lastTake=source;}
+    }
     const copilotStyleId = 'auto';
-    const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId, review });
+    const res = await sendCopilotMessage({ message: text, messages, context, conversationId:turnConversationId, copilotStyleId, review });
 
     // Une réponse lente ne doit jamais atterrir dans une autre conversation.
     if (messages !== turnMessages || currentConversationId !== turnConversationId) return;
@@ -1952,6 +1960,7 @@ export async function initCopilotTab() {
   els.historyList = document.getElementById('copilot-history-list');
   els.newConvSidebarBtn = document.getElementById('copilot-new-conv-sidebar-btn');
   els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
+  mountMemoryPanel(els.root,()=>messages,{getConversationId:()=>currentConversationId,onOpenConversation:loadHistoryItem});
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
   // [Claude] — 2026-09-26 — « Qu'en penses-tu ? » : dans la case, à la place de « IA connectée ».

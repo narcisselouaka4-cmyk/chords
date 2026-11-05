@@ -12,6 +12,7 @@
 // lit/écrit une structure JSON stable.
 
 import { getUserDataDir } from './tutorial-library.js';
+import {buildConversationMemory,MEMORY_FILE} from './copilot-memory.js';
 
 export const STORAGE_VERSION = 2;
 export const COPILOT_DIR_NAME = 'PedagogieCopilot';
@@ -89,7 +90,8 @@ export async function loadHistory(conversationId) {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed.messages)) return null;
-    return { conversationId, tutorialPath: parsed.tutorialPath || '', messages: parsed.messages };
+    // Réindexation des anciens échanges aussi : aucune migration destructive.
+    return { conversationId, tutorialPath: parsed.tutorialPath || '', messages: parsed.messages, memory:buildConversationMemory(parsed.messages,{conversationId}) };
   } catch (err) {
     if (err?.code === 'ENOENT' || err?.message?.includes('ENOENT')) return null;
     console.warn('[CopilotHistory] Chargement impossible :', err);
@@ -119,6 +121,7 @@ export async function saveHistory(conversationId, tutorialPath, messages) {
     tutorialPath: tutorialPath || '',
     updatedAt: new Date().toISOString(),
     messages,
+    memory: buildConversationMemory(messages,{conversationId}),
   };
   try {
     await api.writeFile(filePath, payload);
@@ -207,7 +210,7 @@ export async function listAllConversations() {
     const entries = await api.readDir(dir);
     const conversations = [];
     for (const entry of entries || []) {
-      if (!entry.name?.endsWith('.json')) continue;
+      if (!entry.name?.endsWith('.json') || entry.name === MEMORY_FILE) continue;
       const filePath = `${dir}/${entry.name}`;
       let updatedAt = null;
       let preview = '';

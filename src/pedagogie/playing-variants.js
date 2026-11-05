@@ -15,7 +15,7 @@ function continuedRequest(previous, message) {
  return `${inherited}\n${message}`;
 }
 
-export function personalVariantsAnswer({message,messages=[],context}) {
+export function personalVariantsAnswer({message,messages=[],context,preferences=[]}) {
  const text=plain(message),take=context?.playing?.passage;if(!take?.events?.length)return null;
  if(/hasard|n'importe quoi|aleatoire|sans intention|test des touches/.test(text))return null;
  if(/rejoue ma|re.e?coute ma|explique|quel.*style|drop\s*2|upper.?structure|alle?g|supprim/.test(text))return null;
@@ -26,15 +26,20 @@ export function personalVariantsAnswer({message,messages=[],context}) {
  const broad=/(?:propose|fais|faire|donne).*(?:propositions?|versions?|variantes?)|transform.*(?:accord|progression|jeu|session)|enrich|reharmonis|voicings?|developp|mouvements?|liaisons?|accords? de passage|ameliore.*(?:jeu|progression|accord)|plusieurs (?:propositions|versions|variantes)|rends.*(?:accords|jeu).*(?:beau|riche)|(?:rajoute|ajoute|ajouter).*(?:mouvements|accords)|basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text);
  const follow=previous&&/une autre (?:version|proposition|variante)|encore|va plus loin|c'est tout|rien.*plus|ajout.*plus|autre chose|autre.*(?:couleur|accord)|(?:prefere|robot|catastroph|mieux).*(?:liaison|arpege)|(?:liaison|arpege).*(?:robot|catastroph|mieux)/.test(text);
  if(!broad&&!follow&&!(hear&&previous))return null;
- const request=follow&&previous.toolResult.harmonicRequest?continuedRequest(previous.toolResult.harmonicRequest,message):message;
+ const baseRequest=follow&&previous.toolResult.harmonicRequest?continuedRequest(previous.toolResult.harmonicRequest,message):message;
+ // Une consigne actuelle sur le même sujet remplace la préférence ancienne.
+ const subjects=[/basse/i,/p[eé]dale|sustain/i,/mouvements?|passages?|accords? fixes/i,/tonalit[eé]/i];
+ const activePreferences=preferences.filter(p=>!subjects.some(subject=>subject.test(message)&&subject.test(p)));
+ const request=baseRequest
+  +(activePreferences.length?`\nPréférences retenues :\n${activePreferences.join('\n')}`:'');
  const exclude=follow?relevant.filter(m=>samePlayingSource(m.toolResult?.originalTake,take)).flatMap(m=>m.toolResult?.variants||[]).map(v=>JSON.stringify(v.example?.events)):[];
  const variants=!broad&&!follow&&previous?.toolResult.proposalDiversity===PROPOSAL_DIVERSITY&&previous.toolResult.phraseHarmony&&previous.toolResult.variants?.length?previous.toolResult.variants:buildPhraseVariants(take,{message:request,exclude});
- if(!variants.length)return {ok:true,content:follow?'Je n’ai pas trouvé d’autre version assez différente avec ces contraintes. Tu peux préciser la couleur ou l’arrivée que tu souhaites travailler.':'Je n’ai pas trouvé de proposition compatible avec cette prise. Précise les accords ou les basses que tu souhaites garder.',toolResult:{played:[],ignored:0,suggestions:[],voicing:null,proposalPolicy:8,phraseHarmony:true,harmonicRequest:request,originalTake:take},suggestedActions:[]};
+ if(!variants.length)return {ok:true,content:follow?'Je n’ai pas trouvé d’autre version assez différente avec ces contraintes. Tu peux préciser la couleur ou l’arrivée que tu souhaites travailler.':'Je n’ai pas trouvé de proposition compatible avec cette prise. Précise les accords ou les basses que tu souhaites garder.',toolResult:{played:[],ignored:0,suggestions:[],voicing:null,proposalPolicy:8,phraseHarmony:true,harmonicRequest:baseRequest,originalTake:take},suggestedActions:[]};
  const first=variants[0];
  const content=variants.length>1?`Voici ${variants.length} propositions différentes. Sous chaque lecteur, je t’indique ce qui change. Ta mélodie reste en place.`
   :'Je te propose une seule version pour éviter des variantes trop proches. Sous le lecteur, je t’indique ce qui change. Ta mélodie reste en place.';
  return {ok:true,content,
-  toolResult:{played:[],ignored:0,suggestions:[],voicing:null,proposalPolicy:8,proposalDiversity:PROPOSAL_DIVERSITY,phraseHarmony:true,harmonicRequest:request,
+  toolResult:{played:[],ignored:0,suggestions:[],voicing:null,proposalPolicy:8,proposalDiversity:PROPOSAL_DIVERSITY,phraseHarmony:true,harmonicRequest:baseRequest,
    fixedHarmony:variants.every(v=>v.advice.edit.type==='fixed-harmony'),originalTake:take,example:first.example,playingAdvice:first.advice,variants},
   suggestedActions:[],autoplay:hear};
 }

@@ -1,6 +1,8 @@
 import {sessionAdjustmentAnswer} from './session-adjustments.js';
 import {personalContext,samePlayingSource,restoreConversationPlaying} from './personal-source.js';
 import {personalDemoAnswer, isPersonalExample} from './personal-demo.js';
+import {buildConversationMemory,conversationMemoryContext,loadPersonalMemories,personalMemoryContext,memoryCommandAnswer,rememberedMessages} from './copilot-memory.js';
+import {isExplanationQuestion,explicitPlaybackRequest,proposalExplanationAnswer} from './proposal-explanation.js';
 // [Claude] — 2026-09-06 — Copilot IA : client de chat avec outil clavier.
 //
 // Ce module encapsule l'appel au modèle OpenAI-compatible (Groq via la config
@@ -780,6 +782,7 @@ const HEAR_PATTERNS = [
 
 /** Vrai si le message demande d'entendre l'exemple tout de suite. */
 export function wantsToHear(message) {
+  if(isExplanationQuestion(message)&&!explicitPlaybackRequest(message))return false;
   const text = String(message || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'").toLowerCase();
   return HEAR_PATTERNS.some((re) => re.test(text));
 }
@@ -796,6 +799,7 @@ const EXAMPLE_PATTERNS = [
 ];
 /** Vrai si le message demande un exemple à écouter (« joue-moi », « fais entendre », « montre-moi », « un exemple »…). */
 export function asksForExample(message) {
+  if(isExplanationQuestion(message)&&!explicitPlaybackRequest(message))return false;
   if (wantsToHear(message)) return true;
   const text = String(message || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'").toLowerCase();
   return EXAMPLE_PATTERNS.some((re) => re.test(text));
@@ -1495,6 +1499,7 @@ function looksLikeDemoAnnouncement(content) {
 
 export function looksLikeDemoRequest(message) {
   if (!message) return false;
+  if(isExplanationQuestion(message)&&!explicitPlaybackRequest(message))return false;
   return DEMO_REQUEST_PATTERNS.some((re) => re.test(message));
 }
 
@@ -1821,8 +1826,15 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
  * @param {string} [params.copilotStyleId='auto']
  * @returns {Promise<{ok: true, content: string, toolResult: {played: object[], ignored: number}} | {ok: false, error: string}>}
  */
-export async function sendCopilotMessage({ message, messages, context, copilotStyleId = 'auto', review = false }) {
+export async function sendCopilotMessage({ message, messages = [], context, conversationId = null, copilotStyleId = 'auto', review = false }) {
   context = personalContext(restoreConversationPlaying(context,messages));
+  const memory=buildConversationMemory(messages,{take:context?.playing?.passage,conversationId});
+  const command=await memoryCommandAnswer(message,{memory});if(command)return command;
+  const explanation=isExplanationQuestion(message)&&!explicitPlaybackRequest(message);
+  const explained=proposalExplanationAnswer({message,memory});if(explained)return explained;
+  const remembered=await loadPersonalMemories();
+  const preferences=remembered.ok?remembered.entries.map(e=>e.text):[];
+  if(!explanation){
   // Un rejeu exact ne nécessite ni réponse du modèle ni génération musicale.
   const replay=myPlayingRequest(message,{session:Boolean(context?.playing?.session||context?.type==='session')});
   if(replay&&!/amélior|amelior|enrich|reharmoni|réharmoni|modifi|corrig|plaqu|aér|aer/i.test(message||'')){
@@ -1833,21 +1845,22 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
   }
   // Réécouter une correction réutilise ses événements, sans lancer une autre génération.
   if (/^\s*(?:réécouter|reecouter|écouter|ecouter) (?:cette|la) (?:correction|proposition)[.!?]?\s*$/i.test(message||'')) {
-    const previous=[...(messages||[])].reverse().find(m=>m.role==='assistant'&&!m.isTyping)?.toolResult;
+    const previous=[...(messages||[])].reverse().find(m=>m.role==='assistant'&&!m.isTyping&&m.toolResult?.example&&samePlayingSource(m.toolResult.originalTake,context?.playing?.passage))?.toolResult;
     if (previous?.example && previous.playingAdvice?.version !== 6 && samePlayingSource(previous.originalTake,context?.playing?.passage)) {
       return {ok:true,content:'Voici la même proposition, à comparer avec ton jeu original.',toolResult:previous,suggestedActions:[],autoplay:true};
     }
   }
   const adjustment=sessionAdjustmentAnswer({message,context});
   if(adjustment)return adjustment;
-  const demo = personalDemoAnswer({message, messages, context});
+  const demo = personalDemoAnswer({message, messages, context, preferences});
   if (demo) return demo;
   const style = playingStyleAnswer({ message, messages, context });
   if (style) return style;
-  const variants = personalVariantsAnswer({ message, messages, context });
+  const variants = personalVariantsAnswer({ message, messages, context, preferences });
   if (variants) return variants;
   const personal = personalPlayingAnswer({ message, messages, context, review });
   if (personal) return personal;
+  }
   const lastReply = [...(messages || [])].reverse().find((m) => m.role === 'assistant' && !m.isTyping);
   if (!review && String(message || '').trim().toLowerCase() === HEAR_IT_ACTION.toLowerCase() && lastReply?.toolResult?.transferStatus) {
     const previous = lastReply.toolResult;
@@ -1912,7 +1925,7 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     return { ok: false, error: 'Aucune clé API configurée.' };
   }
 
-  const contextText = formatContext(context || {}, { copilotStyleId });
+  const contextText = [formatContext(context || {}, { copilotStyleId }),conversationMemoryContext(memory),personalMemoryContext(remembered.ok?remembered.entries:[],message)].filter(Boolean).join('\n\n');
   // [Claude] — 2026-09-25 — Notes du professeur (tutoriel) : pour ses outils, pas pour le texte.
   // [Claude] — 2026-10-03 — Plus la grille et le passage regardé (apply_tutorial_passage).
   const tutorialData = context?.type === 'tutorial' && Array.isArray(context.noteEvents) && context.noteEvents.length
@@ -1937,7 +1950,7 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
   const toolContext = { styleId: copilotStyleId, tutorial: tutorialData, exercise: exerciseData, playing: playingData };
   // Groq rejette tout champ inconnu dans les messages (timestamp, toolResult,
   // etc.). On ne garde que role et content pour la requête réseau.
-  const sanitized = (Array.isArray(messages) ? messages : [])
+  const sanitized = rememberedMessages(Array.isArray(messages) ? messages : [],message)
     .filter((m) => !m.isTyping && !m.isError && ['user', 'assistant'].includes(m.role) && typeof m.content === 'string' && m.content.trim())
     .map((m) => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }));
   // Le contrôleur a déjà affiché la question : ne pas la transmettre deux fois.
@@ -2390,7 +2403,9 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     // Les démonstrations doivent provenir d'une transformation de la prise.
     if (toolResult.example && !isPersonalExample(toolResult) && toolResult.example.source?.kind !== 'passage vidéo') {
       toolResult = {...toolResult, example:null, voicing:null, played:[], suggestions:[]};
-      content = 'Pour une démonstration, envoie ta prise avec « Qu’en penses-tu ? ». Je préparerai des propositions à partir de ton jeu.';
+      if(!explanation)content = playingData
+        ? 'Ton jeu est déjà disponible. Utilise « Écouter une version enrichie » pour préparer une proposition à partir de cette prise.'
+        : 'Pour une démonstration, envoie ta prise avec « Qu’en penses-tu ? ». Je préparerai des propositions à partir de ton jeu.';
     }
 
     // Journalisation de validation musicale : lecture seule, jamais de

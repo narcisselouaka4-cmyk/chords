@@ -4,7 +4,7 @@ import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
 
 // Une démonstration personnelle doit garder une prise comme source, même si
 // le contexte live a disparu depuis le tour précédent.
-export function personalDemoAnswer({message, messages = [], context}) {
+export function personalDemoAnswer({message, messages = [], context, preferences = []}) {
   if (context?.type && !['autonomous','session'].includes(context.type)) return null;
   const hear = /entendre|écout|ecout|démonstration|demonstration|\bd[eé]mo\b|montre.moi|joue.moi/i.test(message || '');
   if (!hear) return null;
@@ -14,7 +14,7 @@ export function personalDemoAnswer({message, messages = [], context}) {
   if (previous) return {ok:true, content:previous.toolResult.variants.length===1?'Voici la proposition préparée à partir de ta prise.':'Voici les propositions préparées à partir de ta prise.', toolResult:previous.toolResult, suggestedActions:[], autoplay:true};
   const take = context?.playing?.passage || (boundary >= 0 ? messages[boundary].take : null);
   if (take?.events?.length) {
-    const answer = personalVariantsAnswer({message:`Améliore mon jeu avec plusieurs propositions.\n${message}`, messages:recent, context:{...context,playing:{...context?.playing,passage:take}}});
+    const answer = personalVariantsAnswer({message:`Améliore mon jeu avec plusieurs propositions.\n${message}`, messages:recent, context:{...context,playing:{...context?.playing,passage:take}},preferences});
     if (answer) return {...answer, autoplay:Boolean(answer.toolResult?.example)};
   }
   return {ok:true,content:'Enregistre ton jeu avec « Qu’en penses-tu ? », puis envoie la prise. Je pourrai te faire entendre des propositions à partir de ce que tu as joué.',toolResult:{played:[],ignored:0,suggestions:[],example:null,voicing:null},suggestedActions:[],autoplay:false};
