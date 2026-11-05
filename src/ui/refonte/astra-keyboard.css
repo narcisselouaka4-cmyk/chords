@@ -296,3 +296,36 @@
   #keyboard-panel .vk-field-narrow > input { width: 44px; }
   #keyboard-panel .vk-stepper > span { display: none; }
 }
+
+/* Les réglages rejoignent la bordure inférieure, sur la ligne « Toi / L'app ».
+   Les mêmes éléments restent branchés ; seule leur disposition change. */
+#keyboard-panel .vk-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 40px;
+}
+#keyboard-panel .vk-bed {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  padding-bottom: 7px;
+}
+#keyboard-panel .vk-toolbar {
+  grid-column: 2;
+  grid-row: 2;
+  height: 40px;
+  min-width: 0;
+  gap: 12px;
+  padding: 0 10px;
+  border-top: 1px solid var(--vk-line-soft);
+  border-bottom: 0;
+  background: var(--vk-shell);
+  overflow-y: hidden;
+}
+#keyboard-panel .vk-status {
+  grid-column: 1;
+  grid-row: 2;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--vk-shell);
+}
+#keyboard-panel .vk-select:has(#spelling-select) { display: none; }
