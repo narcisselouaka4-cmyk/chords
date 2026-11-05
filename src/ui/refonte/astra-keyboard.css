@@ -299,3 +299,10 @@
 
 /* Disposition d’origine conservée ; seul le choix d’altérations est masqué. */
 #keyboard-panel .vk-select:has(#spelling-select) { display: none; }
+
+/* Le son garde un état visible sans libellé supplémentaire dans la barre. */
+#keyboard-panel .vk-sound-switch { width: 30px; height: 26px; padding: 0; justify-content: center; }
+#keyboard-panel .vk-sound-switch > span { display: grid; place-items: center; }
+#keyboard-panel .vk-sound-off { display: none; }
+#keyboard-panel .vk-sound-switch:has(> input:checked) .vk-sound-on { display: none; }
+#keyboard-panel .vk-sound-switch:has(> input:checked) .vk-sound-off { display: block; }

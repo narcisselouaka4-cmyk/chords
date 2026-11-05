@@ -679,7 +679,7 @@
                 <p>Utilisez votre clavier MIDI connecté, le clavier virtuel du bas, ou
                    les touches du clavier d'ordinateur :</p>
                 <div class="tr-computer-keys"><kbd>A</kbd><kbd>W</kbd><kbd>S</kbd><kbd>E</kbd><kbd>D</kbd><kbd>F</kbd><kbd>T</kbd><kbd>G</kbd><kbd>Y</kbd><kbd>H</kbd><kbd>U</kbd><kbd>J</kbd><kbd>K</kbd></div>
-                <p class="tr-secondary">Le routage PC → MIDI se règle sous le clavier virtuel.</p>
+                <p class="tr-secondary">Les touches du clavier d’ordinateur jouent lorsque tu ne saisis pas de texte.</p>
                 <button class="tr-button tr-primary" type="button" data-astra-close>À moi de jouer<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
               </div>
             </div>
@@ -1966,6 +1966,28 @@
                   <small class="settings-note" id="audio-latency-note">Délai entre l'appui sur une touche et le son du piano intégré.</small>
                 </div>
               </div>
+              <div class="settings-virtual-keyboard" id="settings-virtual-keyboard">
+                <h4>Clavier MIDI virtuel</h4>
+                <div class="settings-rows">
+                  <div class="settings-row">
+                    <label for="note-start">Début du clavier</label>
+                    <div class="settings-control"><input type="text" id="note-start" value="C0" spellcheck="false" /></div>
+                  </div>
+                  <div class="settings-row">
+                    <label for="note-end">Fin du clavier</label>
+                    <div class="settings-control"><input type="text" id="note-end" value="C9" spellcheck="false" /></div>
+                  </div>
+                  <div class="settings-row">
+                    <label for="notation-select">Notation</label>
+                    <div class="settings-control">
+                      <select id="notation-select">
+                        <option value="latin">Latine (Do/Ré/Mi)</option>
+                        <option value="english" selected>Anglaise (C/D/E)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="settings-status" id="status-bar" role="status" aria-live="polite"></div>
              </div>
             </div>
@@ -2083,8 +2105,9 @@
           <div class="vk-toolbar">
             <div class="vk-group vk-brand">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5h20v11H2z"/><path d="M6 6.5v6M10 6.5v6M14 6.5v6M18 6.5v6M2 12.5h20"/></svg>
-              <span class="vk-brand-name keyboard-section-title" id="keyboard-section-title">Clavier MIDI</span>
-              <span class="vk-range" id="keyboard-range-readout"></span>
+              <label class="vk-switch" title="Afficher ou masquer les molettes de pitch bend et de modulation">
+                <input type="checkbox" id="keyboard-wheels-toggle" checked aria-controls="keyboard-wheels" /><span>Molettes</span>
+              </label>
             </div>
 
             <!-- Lecture d'accord en direct : miroir de la scène Temps réel,
@@ -2112,17 +2135,6 @@
                 <button type="button" data-step-target="#transpose" data-step="1" aria-label="Monter la transposition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
               </div>
 
-              <label class="vk-select vk-field-narrow"><span>Début</span><input type="text" id="note-start" value="C0" /></label>
-              <label class="vk-select vk-field-narrow"><span>Fin</span><input type="text" id="note-end" value="C9" /></label>
-
-              <label class="vk-select">
-                <span>Notation</span>
-                <select id="notation-select">
-                  <option value="latin">Latine (Do/Ré/Mi)</option>
-                  <option value="english" selected>Anglaise (C/D/E)</option>
-                </select>
-              </label>
-
               <label class="vk-select" title="Comment écrire les fondamentales noires : A♭maj7 ou G♯maj7">
                 <span>Altérations</span>
                 <select id="spelling-select">
@@ -2138,14 +2150,12 @@
               <!-- Interrupteurs : l'apparence est celle d'Astra, la mécanique
                    reste la case à cocher que main.js lit (.checked). -->
               <div class="vk-switches">
-                <label class="vk-switch" title="Afficher ou masquer les molettes de pitch bend et de modulation">
-                  <input type="checkbox" id="keyboard-wheels-toggle" checked aria-controls="keyboard-wheels" /><span>Molettes</span>
-                </label>
-                <label class="vk-switch" title="Activer/désactiver le routage du clavier PC vers le clavier MIDI virtuel">
-                  <input type="checkbox" id="pc-keyboard-midi" checked /><span>PC → MIDI</span>
-                </label>
-                <label class="vk-switch is-warn" title="Couper le son du clavier virtuel">
-                  <input type="checkbox" id="silent-mode" /><span>Silencieux</span>
+                <label class="vk-switch vk-sound-switch is-warn" title="Activer ou couper le son du clavier virtuel">
+                  <input type="checkbox" id="silent-mode" aria-label="Couper le son du clavier virtuel" />
+                  <span aria-hidden="true">
+                    <svg class="vk-sound-on" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m11 5-6 4H2v6h3l6 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+                    <svg class="vk-sound-off" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m11 5-6 4H2v6h3l6 4V5Z"/><path d="m17 9 5 6m0-6-5 6"/></svg>
+                  </span>
                 </label>
               </div>
               <button type="button" class="vk-collapse keyboard-collapse-btn" id="keyboard-collapse-btn"
