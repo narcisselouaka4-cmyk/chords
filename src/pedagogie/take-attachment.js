@@ -36,3 +36,11 @@ export function takeEnvelope(take, count = 96) {
 export function lastAttachedTake(messages) {
   return [...messages].reverse().find((m) => m.role === 'user' && m.take?.events?.length)?.take || null;
 }
+
+/** Une session confiée autrefois peut être conservée dans l'original d'une proposition. */
+export function lastPlayingTake(messages = []) {
+  // Une nouvelle prise utilisateur est une frontière : une ancienne réponse ne l'écrase pas.
+  const attached=lastAttachedTake(messages);
+  if(attached)return attached;
+  return [...messages].reverse().find(m=>m.role==='assistant'&&m.toolResult?.originalTake?.events?.length)?.toolResult.originalTake||null;
+}

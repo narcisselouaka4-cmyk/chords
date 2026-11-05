@@ -1,3 +1,4 @@
+import {lastPlayingTake} from './take-attachment.js';
 import {extractKey} from './intent-classifier.js';
 /** Adapte la session confiée au même format que les prises, sans modifier la source. */
 export function personalContext(context) {
@@ -13,4 +14,12 @@ export function personalContext(context) {
 
 export function samePlayingSource(a, b) {
   return Boolean(a?.events?.length && b?.events?.length && JSON.stringify(a.events) === JSON.stringify(b.events));
+}
+
+/** Rouvre le jeu de cette conversation sans remplacer un contexte actif explicite. */
+export function restoreConversationPlaying(context,messages=[]) {
+  if(context?.type&&context.type!=='autonomous')return context;
+  if(context?.playing?.passage?.events?.length||context?.playing?.session?.events?.length)return context;
+  const take=lastPlayingTake(messages);
+  return take?{...(context||{type:'autonomous'}),playing:{...context?.playing,passage:take}}:context;
 }

@@ -1,5 +1,5 @@
 import {sessionAdjustmentAnswer} from './session-adjustments.js';
-import {personalContext,samePlayingSource} from './personal-source.js';
+import {personalContext,samePlayingSource,restoreConversationPlaying} from './personal-source.js';
 import {personalDemoAnswer, isPersonalExample} from './personal-demo.js';
 // [Claude] — 2026-09-06 — Copilot IA : client de chat avec outil clavier.
 //
@@ -1822,7 +1822,7 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
  * @returns {Promise<{ok: true, content: string, toolResult: {played: object[], ignored: number}} | {ok: false, error: string}>}
  */
 export async function sendCopilotMessage({ message, messages, context, copilotStyleId = 'auto', review = false }) {
-  context = personalContext(context);
+  context = personalContext(restoreConversationPlaying(context,messages));
   // Un rejeu exact ne nécessite ni réponse du modèle ni génération musicale.
   const replay=myPlayingRequest(message,{session:Boolean(context?.playing?.session||context?.type==='session')});
   if(replay&&!/amélior|amelior|enrich|reharmoni|réharmoni|modifi|corrig|plaqu|aér|aer/i.test(message||'')){

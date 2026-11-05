@@ -1,4 +1,5 @@
 import {isPersonalExample} from './personal-demo.js';
+import {samePlayingSource} from './personal-source.js';
 // [Claude] — 2026-09-09 — Copilot IA : contrôleur du sous-onglet.
 //
 // Orchestration pure : écoute la sélection Pédagogie, charge l'historique,
@@ -37,7 +38,7 @@ import { createSpeedMenu, setSpeedMenuValue, clampSpeed } from '../ui/components
 import { appConfirm } from '../ui/components/app-dialog.js';
 import { notify } from '../ui/components/app-notify.js';
 import { createTakePlayer, refreshTakePlayers, refreshTakeCursor } from './take-player.js';
-import { lastAttachedTake } from './take-attachment.js';
+import { lastPlayingTake } from './take-attachment.js';
 import { createDictation } from './copilot-dictation.js';
 import { refreshPlayingResult } from './playing-advice.js';
 
@@ -1220,20 +1221,22 @@ const sameText = (a, b) => String(a || '').trim().replace(/[\s.!?…]+$/, '').to
  * d'inscriptions), ni après une erreur ni après une demande de détail ; puis les suggestions
  * du Copilote (sans redire « Plus de détails »).
  * @param {object} msg - la réponse
- * @param {{last?: boolean, asked?: string, source?: 'session'|'passage'|null}} [options] - réponse, question et jeu réellement disponible
+ * @param {{last?: boolean, asked?: string, source?: 'session'|'passage'|null, takeSource?: object|null}} [options] - réponse, question et jeu réellement disponible
  * @returns {{label: string, message: string}[]}
  */
-export function answerActions(msg, { last = false, asked = '', source = null } = {}) {
+export function answerActions(msg, { last = false, asked = '', source = null, takeSource = null } = {}) {
   if (!msg || msg.role !== 'assistant' || msg.isTyping || msg.isError || !String(msg.content||'').trim()) return [];
   const suggested=(msg.suggestedActions||[]).filter(a=>a&&String(a.message||a.label||'').trim());
-  if(!last)return suggested;
-  const actions=[];
+  const legacy=Boolean(msg.toolResult?.originalTake?.events?.length&&msg.toolResult?.variants?.length&&msg.toolResult.proposalPolicy!==8&&(!takeSource||samePlayingSource(msg.toolResult.originalTake,takeSource)));
+  const upgrade={label:'Écouter les nouvelles propositions',message:'Fais-moi entendre de nouvelles propositions à partir de mon jeu.'};
+  if(!last)return legacy?[upgrade,...suggested]:suggested;
+  const actions=legacy?[upgrade]:[];
   const detailsAsked=MORE_DETAILS_ASKED.test(String(asked||''));
   const result=msg.toolResult;
   const personal=Boolean(result?.originalTake?.events?.length && (result.example || result.variants?.length));
   const playing=source || (personal || ['session','passage'].includes(result?.example?.source) ? result?.example?.source === 'session' ? 'session' : 'passage' : null);
   if(playing)actions.push({label:playing==='session'?'Rejouer la session':'Rejouer mon jeu',message:playing==='session'?'Rejoue ma session.':'Rejoue mon jeu.'});
-  if(personal)actions.push({label:'Réécouter la proposition',message:'Réécouter cette proposition.'});
+  if(personal&&!legacy)actions.push({label:'Réécouter la proposition',message:'Réécouter cette proposition.'});
   // Les corrections citées dans une réponse deviennent des demandes prêtes à envoyer.
   // Les moments restent ceux du paragraphe concerné, jamais ceux d'un autre conseil.
   if(playing)for(const paragraph of String(msg.content).split(/\n+/)){
@@ -1324,7 +1327,7 @@ function renderOneMessage(msg, { last = false } = {}) {
   // [Claude] — 2026-10-04 — « Plus de détails » sous la dernière réponse, puis les suggestions.
   const asked = last ? messages[messages.length - 2] : null;
   const source = getSessionContext()?.events?.length ? 'session' : lastTake?.events?.length ? 'passage' : null;
-  const actions = answerActions(msg, { last, source, asked: asked?.role === 'user' ? asked.content : '' });
+  const actions = answerActions(msg, { last, source, takeSource:lastTake, asked: asked?.role === 'user' ? asked.content : '' });
   if (actions.length) {
     const chips = renderActionChips(actions);
     if (chips) content.appendChild(chips);
@@ -1615,7 +1618,7 @@ async function loadHistoryItem(conversationId) {
   resetComposer();
   currentConversationId = conversationId;
   messages = history.messages || [];
-  lastTake = lastAttachedTake(messages);
+  lastTake = lastPlayingTake(messages);
   currentMode = 'autonomous';
   currentSessionId = null;
   currentSessionContext = null;
@@ -1713,7 +1716,7 @@ async function resumeOrStartConversation(key) {
       const history = await loadHistory(latest.conversationId);
       if (history?.messages?.length) {
         resetComposer();
-        lastTake = lastAttachedTake(history.messages);
+        lastTake = lastPlayingTake(history.messages);
         currentConversationId = latest.conversationId;
         messages = history.messages;
         return currentConversationId;
