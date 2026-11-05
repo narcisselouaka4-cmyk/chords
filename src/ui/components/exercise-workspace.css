@@ -929,12 +929,18 @@
    réchauffent. Les touches elles-mêmes ne bougent pas — elles, elles sont
    l'instrument. */
 :root[data-theme='light'] #practice-tab .keybed {
-  background: linear-gradient(180deg, #fbf6ec 0%, #f3ece0 55%, #ece3d4 100%);
-  border-color: rgba(60, 44, 30, 0.16);
+  /* [Claude] — 2026-11-05 — Narcisse : « je veux que la couleur du boîtier en
+     mode clair soit la même couleur que le fond blanc de l'app (actuellement
+     c'est couleur crème là) ». Le crème choisi plus tôt était une teinte à
+     moi, pas celle de l'app : il prend maintenant --tr-surface, le blanc exact
+     des autres cadres (#ffffff), et --tr-border, le même filet que partout
+     ailleurs — plus de dégradé propre au clavier. */
+  background: var(--tr-surface);
+  border-color: var(--tr-border);
   box-shadow:
-    0 18px 38px -26px rgba(60, 44, 30, 0.35),
-    0 2px 8px -5px rgba(60, 44, 30, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    0 18px 38px -26px rgba(60, 44, 30, 0.28),
+    0 2px 8px -5px rgba(60, 44, 30, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 /* Les textes du boîtier : sur crème, le gris chaud de l'original n'est plus
