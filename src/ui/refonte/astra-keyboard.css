@@ -302,17 +302,17 @@
 #keyboard-panel .vk-body {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) 40px;
+  grid-template-rows: 24px minmax(0, 1fr) 26px;
 }
 #keyboard-panel .vk-bed {
   grid-column: 1 / -1;
-  grid-row: 1;
-  padding-bottom: 7px;
+  grid-row: 2;
+  padding: 3px 10px 4px;
 }
 #keyboard-panel .vk-toolbar {
   grid-column: 2;
-  grid-row: 2;
-  height: 40px;
+  grid-row: 3;
+  height: 26px;
   min-width: 0;
   gap: 12px;
   padding: 0 10px;
@@ -323,9 +323,82 @@
 }
 #keyboard-panel .vk-status {
   grid-column: 1;
-  grid-row: 2;
-  height: 40px;
+  grid-row: 3;
+  height: 26px;
   padding: 0 12px;
   background: var(--vk-shell);
 }
 #keyboard-panel .vk-select:has(#spelling-select) { display: none; }
+
+/* Pictogramme seul ; réglages typographiques plutôt qu'une rangée de cases. */
+#keyboard-panel .vk-brand-name,
+#keyboard-range-readout,
+#keyboard-panel .vk-rail-title > span { display: none; }
+#keyboard-panel .vk-brand { padding-right: 0; border-right: 0; }
+#keyboard-panel .vk-brand > svg { width: 15px; height: 15px; }
+#keyboard-panel .vk-toolbar .vk-controls { justify-content: flex-start; gap: 14px; }
+#keyboard-panel .vk-stepper > button,
+#keyboard-panel .vk-stepper > input[type='number'],
+#keyboard-panel .vk-select > select,
+#keyboard-panel .vk-select.vk-field-narrow > input {
+  height: 20px;
+  padding: 0 3px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: none;
+}
+#keyboard-panel .vk-stepper > button { width: 18px; }
+#keyboard-panel .vk-stepper > input[type='number'] { width: 28px; }
+#keyboard-panel .vk-select.vk-field-narrow > input { width: 30px; }
+#keyboard-panel .vk-select #notation-select { width: 132px; min-width: 132px; }
+#keyboard-panel .vk-stepper > button:hover,
+#keyboard-panel .vk-select > select:hover { background: var(--vk-line-soft); }
+#keyboard-panel .vk-stepper > input:focus-visible,
+#keyboard-panel .vk-select > input:focus-visible,
+#keyboard-panel .vk-select > select:focus-visible { outline: 1px solid var(--vk-accent); outline-offset: 1px; }
+#keyboard-panel .vk-readout { flex-basis: 210px; width: 210px; }
+#keyboard-panel .vk-readout strong { width: 80px; max-width: 80px; font-size: 14px; }
+
+/* Molettes, routage PC et son restent discrets dans la bordure du haut. */
+#keyboard-panel .vk-right { padding: 0; border: 0; gap: 0; }
+#keyboard-panel .vk-switches { position: absolute; top: 4px; right: 45px; height: 20px; }
+#keyboard-panel .vk-switch {
+  height: 20px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vk-muted);
+  font-size: 10px;
+}
+#keyboard-panel .vk-switch:has(> input:checked) {
+  background: color-mix(in srgb, var(--vk-accent) 8%, transparent);
+  color: var(--vk-accent);
+}
+#keyboard-panel .vk-switch:hover { background: var(--vk-line-soft); color: var(--vk-text); }
+
+/* Un emplacement identique en haut à droite, indépendant du texte des accords. */
+#keyboard-panel .vk-collapse,
+#keyboard-panel .vk-expand {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  place-content: center;
+  gap: 0;
+  width: 26px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+#keyboard-panel .vk-collapse:hover,
+#keyboard-panel .vk-expand:hover { background: var(--vk-line-soft); }
+#keyboard-panel .vk-collapse:focus-visible,
+#keyboard-panel .vk-expand:focus-visible { outline: 1px solid var(--vk-accent); outline-offset: 1px; }
+#keyboard-panel .vk-rail { padding-right: 45px; }
+#keyboard-panel .vk-rail-readout { flex: 1; min-width: 0; }
+#keyboard-panel .vk-rail-readout strong { overflow: hidden; text-overflow: ellipsis; }
