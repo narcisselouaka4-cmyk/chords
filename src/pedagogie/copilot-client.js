@@ -1,3 +1,4 @@
+import {melodySource,melodyTechniqueAnswer} from './melody-accompaniment.js';
 import {TEACHING_GUIDANCE,readableTeachingText} from './teaching-language.js';
 import {personalStyleCapabilityAnswer} from './style-capabilities.js';
 import {playingHarmonyFacts} from './playing-harmony-facts.js';
@@ -1844,6 +1845,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   context = personalContext(restoreConversationPlaying(context,messages));
   const memory=buildConversationMemory(messages,{take:context?.playing?.passage,conversationId});
   const command=await memoryCommandAnswer(message,{memory});if(command)return command;
+  if((review||/qu['’]en penses|ton avis|analyse (?:ma session|mon jeu)/i.test(message))&&!/hasard|n'importe quoi|al[eé]atoire/.test(message)&&melodySource(context?.playing?.passage))return {ok:true,content:'Ta session contient surtout une mélodie, avec quelques notes qui se chevauchent. Ces chevauchements ne suffisent pas à retrouver une progression d’accords. Je peux te proposer un accompagnement sous cette mélodie en gardant tes notes et ton rythme.',toolResult:{played:[],ignored:0,suggestions:[],example:null,voicing:null,originalTake:context.playing.passage},suggestedActions:[{label:'Accompagner ma mélodie',message:'Fais-moi entendre un accompagnement sous ma mélodie.'},{label:'Rejouer mon jeu',message:'Rejoue mon jeu.'}],autoplay:false};
   const capability=personalStyleCapabilityAnswer({message,context});if(capability)return capability;
   const style = playingStyleAnswer({ message, messages, context });
   if (style) return style;
@@ -1854,7 +1856,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   if(!explanation){
   // Un rejeu exact ne nécessite ni réponse du modèle ni génération musicale.
   const replay=myPlayingRequest(message,{session:Boolean(context?.playing?.session||context?.type==='session')});
-  if(replay&&!/amélior|amelior|enrich|reharmoni|réharmoni|modifi|corrig|plaqu|aér|aer/i.test(message||'')){
+  if(replay&&!/amélior|amelior|enrich|reharmoni|réharmoni|modifi|corrig|plaqu|aér|aer|accompagnement sous|accompagne/i.test(message||'')){
     if(/session/i.test(message||'')&&context?.playing?.session)replay.source='session';
     const result=myPlayingExample(context?.playing,replay);
     return {ok:true,content:result.example?'Voici ton jeu, rejoué à partir de ses notes MIDI.':result.note||'Je n’ai pas de jeu disponible dans ce contexte.',
@@ -1869,6 +1871,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   }
   const adjustment=sessionAdjustmentAnswer({message,context});
   if(adjustment)return adjustment;
+  const melodyTechnique=melodyTechniqueAnswer({message,context});if(melodyTechnique)return melodyTechnique;
   const demo = personalDemoAnswer({message, messages, context, preferences});
   if (demo) return demo;
   const variants = personalVariantsAnswer({ message, messages, context, preferences });

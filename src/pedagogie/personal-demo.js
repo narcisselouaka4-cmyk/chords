@@ -16,6 +16,7 @@ export function personalDemoAnswer({message, messages = [], context, preferences
   if (take?.events?.length) {
     const answer = personalVariantsAnswer({message:`Améliore mon jeu avec plusieurs propositions.\n${message}`, messages:recent, context:{...context,playing:{...context?.playing,passage:take}},preferences});
     if (answer) return {...answer, autoplay:Boolean(answer.toolResult?.example)};
+    return null; // La prise existe : laisser le chemin de technique répondre, sans demander de réenregistrer.
   }
   return {ok:true,content:'Enregistre ton jeu avec « Qu’en penses-tu ? », puis envoie la prise. Je pourrai te faire entendre des propositions à partir de ce que tu as joué.',toolResult:{played:[],ignored:0,suggestions:[],example:null,voicing:null},suggestedActions:[],autoplay:false};
 }

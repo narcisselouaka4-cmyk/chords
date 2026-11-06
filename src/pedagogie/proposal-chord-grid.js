@@ -1,3 +1,4 @@
+import {notePairs} from './take-edit.js';
 import {reviewTake} from '../recorder/take-review.js';
 
 const ROOT = /^(?:(Sol|Do|Ré|Re|Mi|Fa|La|Si)([♯♭#b]?)(?=\s|$|maj|m(?:\d|$)|add|sus|dim|alt|\d)|([A-G])([♯♭#b]?))/u;
@@ -24,8 +25,12 @@ export function gridChordName(name, notation = 'english') {
 function plannedTimeline(variant, original) {
   const changes = variant.advice?.changes || variant.playingAdvice?.changes || [];
   const planned = changes.filter(c => Number.isFinite(c.at) && c.at >= 0 && typeof c.chord === 'string' && c.chord.trim() && c.notes?.length)
-    .map(c => ({at:c.at, name:c.chord.trim(), uncertain:false}));
+    .map(c => ({at:c.at,end:c.end,name:c.chord.trim(),uncertain:false}));
   if (!planned.length) return [];
+  if(variant.advice?.goal==='accompany'){
+    const silence=planned.filter((p,i)=>Number.isFinite(p.end)&&(planned[i+1]?.at??Infinity)-p.end>=.15).map(p=>({at:p.end,silent:true}));
+    return [...planned,...silence].sort((a,b)=>a.at-b.at);
+  }
   // Les accords source qui n'ont pas été retravaillés restent dans la grille.
   // Le plan utilise les attaques du bloc, parfois légèrement après sa détection.
   const untouched = original.filter(c => !planned.some(p => Math.abs(p.at-c.at) <= .4));
@@ -35,8 +40,13 @@ function plannedTimeline(variant, original) {
 /** Grille harmonique (pas une partition rythmique), tirée du plan effectivement joué. */
 export function proposalChordGrid(result, {notation = 'english'} = {}) {
   if (!result?.originalTake?.events?.length || !result.variants?.length) return null;
-  const original = (reviewTake(result.originalTake.events)?.chords || []).map(c => ({at:c.at,name:c.name,uncertain:!c.matched}));
-  const rows = [{title:'Ton jeu', original:true, timeline:original}];
+  const accompanying=result.variants.some(v=>v.advice?.goal==='accompany');
+  const names=['C','D♭','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+  const original = accompanying?result.variants.find(v=>v.advice?.goal==='accompany').advice.changes.map(c=>{
+    const active=notePairs(result.originalTake.events).filter(p=>p.event.time<=c.at+.001&&p.end>c.at);
+    return active.length?{at:c.at,name:names[Math.max(...active.map(p=>p.event.note))%12],uncertain:false}:null;
+  }).filter(Boolean):(reviewTake(result.originalTake.events)?.chords || []).map(c => ({at:c.at,name:c.name,uncertain:!c.matched}));
+  const rows = [{title:accompanying?'Ta mélodie':'Ton jeu', original:true, timeline:original}];
   for (const [variantIndex,v] of result.variants.filter(v => v.advice?.version !== 6).entries()) {
     const timeline = plannedTimeline(v, original);
     if (timeline.length) rows.push({title:v.title || v.example?.title || 'Proposition',timeline,variantIndex});
@@ -54,7 +64,7 @@ export function proposalChordGrid(result, {notation = 'english'} = {}) {
   const held = rows.map(() => null);
   return {rows:rows.map(({title,original,variantIndex}) => ({title,original:Boolean(original),variantIndex})),columns:columns.map(col => {
     for (const [row,chord] of col.changes) held[row]=chord;
-    return {at:col.at,cells:held.map(c => c ? {name:gridChordName(c.name,notation),fullName:c.name,uncertain:c.uncertain,at:c.at} : null)};
+    return {at:col.at,cells:held.map(c => c && !c.silent ? {name:gridChordName(c.name,notation),fullName:c.name,uncertain:c.uncertain,at:c.at} : null)};
   })};
 }
 
@@ -96,7 +106,7 @@ export function renderProposalChordGrid(result, options = {}) {
     const row=node('tr',r.original?'is-original':'');
     row.dataset.playbackId=r.original?options.originalId||'':options.variantIds?.[r.variantIndex]||'';
     const label=node('th');label.scope='row';
-    label.append(node('span','',r.original?'Ton jeu':grid.rows.length===2?'Proposition':`Proposition ${i}`));
+    label.append(node('span','',r.original?r.title:grid.rows.length===2?'Proposition':`Proposition ${i}`));
     if (!r.original) { label.title=r.title;label.setAttribute('aria-label',`${label.textContent} : ${r.title}`); }
     row.append(label);
     for (const [index,c] of grid.columns.entries()) {
@@ -123,7 +133,7 @@ export function activeChordColumn(grid,row,position,duration=Infinity) {
   let current=-1;
   grid.columns.forEach((c,i)=>{
     const chord=c.cells[row];
-    if(chord&&c.at<=position&&chord.at<=position)current=i;
+    if(c.at<=position){if(!chord)current=-1;else if(chord.at<=position)current=i;}
   });
   return current;
 }

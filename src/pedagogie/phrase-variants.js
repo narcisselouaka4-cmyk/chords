@@ -1,3 +1,4 @@
+import {melodySource,buildMelodyAccompaniment} from './melody-accompaniment.js';
 import {buildPhraseArrangement,arrangementFrames} from './phrase-arrangement.js';
 import {notePairs} from './take-edit.js';
 import {buildFixedHarmonyVariants} from './fixed-harmony.js';
@@ -12,6 +13,10 @@ const plain = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'
 /** Intentions différentes sur le même original ; chaque carte a son propre plan. */
 export function buildPhraseVariants(take, {message = '', exclude = []} = {}) {
   const text = plain(message);
+  if(melodySource(take)){
+    const accompanied=buildMelodyAccompaniment(take,{message});
+    return selectDistinctProposals(accompanied?[accompanied]:[],take.events,{exclude});
+  }
   const latin = analyzePlayingStyle(take).hypothesis === 'latin-montuno';
   const bassConstraint = /basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text);
   const fixedOnly = /sans (?:aucun )?(?:mouvement|passage|ajout rythmique)|(?:uniquement|seulement).*accords? (?:fixes|enrichis)|pas de mouvements?/.test(text);

@@ -53,6 +53,7 @@ export function compareProposals(left, right) {
 
 function describe(variant, source, first) {
   const original = compareProposals(source, variant.example.events);
+  if(variant.advice?.goal==='accompany'&&!first)return variant.description;
   if (first) {
     const delta = compareProposals(first.example.events, variant.example.events);
     if (delta.bass >= .35) return `Par rapport à la première : la basse suit un autre chemin, dès ${clock(delta.firstBass)}. La mélodie reste la même.`;
