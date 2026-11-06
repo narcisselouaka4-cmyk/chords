@@ -3225,19 +3225,20 @@ export function renderVoicingChoices(target, options = {}) {
 // maquette (il ne couvrait que 14 techniques) ; placées ici en Orchestration,
 // avec cluster/upper_structure/block/stride — même registre de couleur et de
 // relief harmonique, pas une structure de base ou un évidement.
-const VOICING_EXPLORER_GROUPS = [
-  { label: 'Position', hint: 'Densité & tenue', ids: ['close', 'fourway_close'] },
-  { label: 'Shell & rootless', hint: 'Structure', ids: ['shell', 'two_note_shell', 'rootless'] },
-  { label: 'Drop & spread', hint: 'Espace', ids: ['drop2', 'drop3', 'drop2_4', 'spread', 'open'] },
-  { label: 'Orchestration', hint: 'Couleur & relief', ids: ['block', 'stride', 'cluster', 'upper_structure', 'quartal', 'so_what'] },
+const VOICING_EXPLORER_IDS = [
+  'close', 'fourway_close',
+  'shell', 'two_note_shell', 'rootless',
+  'drop2', 'drop3', 'drop2_4', 'spread', 'open',
+  'block', 'stride', 'cluster', 'upper_structure', 'quartal', 'so_what',
 ];
 
 /**
- * [Claude] — 2026-11-05 — Colonne de droite du mode Accord cible, devenu un
- * explorateur libre (demande de Narcisse sur la maquette du candidat) : les
- * techniques groupées par famille, puis la disposition active avec ses deux
- * mains et le bouton d'écoute. Une fonction à part de renderVoicingChoices :
- * celle-ci reste inchangée pour Parcours harmonique, dont rien ne dépend ici.
+ * [Claude] — 2026-11-06 — Colonne de droite du mode Accord cible, devenu un
+ * explorateur libre : seulement la grille des techniques (Narcisse : trop de
+ * choses affichées). Ni titres de famille (Position, Shell…) ni disposition
+ * active en bas — « on le constate déjà à la lecture du voicing ». Une
+ * fonction à part de renderVoicingChoices : celle-ci reste inchangée pour
+ * Parcours harmonique, dont rien ne dépend ici.
  *
  * `data-technique`, `data-variant-delta` et `data-action="listen-exercise"`
  * sont les MÊMES attributs que renderVoicingCategories : handleVoicingClick
@@ -3297,35 +3298,9 @@ export function renderChordExplorerVoicings(target, categories) {
       <span class="voicing-btn-label">${escapeHtml(TECHNIQUE_LABELS.auto)}</span>
     </button>`;
 
-  const groupsHtml = VOICING_EXPLORER_GROUPS.map((g) => {
-    const buttons = g.ids.map(button).filter(Boolean).join('');
-    if (!buttons) return '';
-    return `<div class="voicing-group">
-        <div class="voicing-group-head"><span>${escapeHtml(g.label)}</span><span class="voicing-group-hint">${escapeHtml(g.hint)}</span></div>
-        <div class="voicing-group-grid">${buttons}</div>
-      </div>`;
-  }).join('');
+  const buttonsHtml = VOICING_EXPLORER_IDS.map(button).filter(Boolean).join('');
 
-  const lh = voicing.leftHand || [];
-  const rh = voicing.rightHand || [];
-  const techLabel = TECHNIQUE_LABELS[activeTechnique] || activeTechnique;
-  const footer = `
-    <div class="voicing-active">
-      <div class="voicing-active-head">
-        <span class="voicing-active-tag">Actif</span>
-        <span class="voicing-active-name">${escapeHtml(techLabel)}</span>
-      </div>
-      <div class="voicing-active-hands">
-        <span class="voicing-active-hand is-lh"><span class="voicing-active-hand-tag">MG</span><span class="voicing-active-hand-notes">${escapeHtml(formatHandNotes(lh))}</span></span>
-        <span class="voicing-active-hand is-rh"><span class="voicing-active-hand-tag">MD</span><span class="voicing-active-hand-notes">${escapeHtml(formatHandNotes(rh))}</span></span>
-      </div>
-      <button type="button" class="tr-button tr-primary voicing-active-play" data-action="listen-exercise" aria-label="Écouter la disposition active">
-        <svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
-        <span>Écouter</span>
-      </button>
-    </div>`;
-
-  return `<div class="voicing-auto-row">${autoBtn}</div>${groupsHtml}${footer}`;
+  return `<div class="voicing-auto-row">${autoBtn}</div><div class="voicing-grid">${buttonsHtml}</div>`;
 }
 
 /**

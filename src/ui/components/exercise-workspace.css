@@ -1001,9 +1001,7 @@
 
 :root[data-skin] #practice-tab #practice-view-exercices {
   --hand-lh: #c39a4d;
-  --hand-lh-strong: #a97f37;
   --hand-rh: #c04d7c;
-  --hand-rh-strong: #a92b5c;
 }
 
 /* ---------------------------------------------------------- La grille à trois colonnes */
@@ -1153,14 +1151,8 @@
   color: var(--tr-accent);
 }
 
-:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-hint {
-  margin: 0;
-  font-size: 10.5px;
-  line-height: 1.4;
-  color: var(--tr-secondary);
-}
-
-/* Résumé : symbole, famille, difficulté — rempli par main.js. */
+/* Résumé : symbole et difficulté — rempli par main.js. [Claude] — 2026-11-06 —
+   Plus de ligne famille/nombre de sons (sous-titre jugé inintéressant). */
 :root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary {
   display: flex;
   align-items: center;
@@ -1172,16 +1164,11 @@
   background: var(--tr-raised, var(--tr-inset));
 }
 
-:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary-name { min-width: 0; }
 :root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary-symbol {
   margin: 0;
+  min-width: 0;
   font-size: 22px;
   line-height: 1;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary-meta {
-  margin: 4px 0 0;
-  font-size: 10px;
-  color: var(--tr-secondary);
 }
 :root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-summary-stars {
   display: flex;
@@ -1219,10 +1206,14 @@
   font-size: 9px;
 }
 
+/* [Claude] — 2026-11-06 — Démarcation renforcée entre les groupes du panneau
+   (Fondamentale & qualité / Top note / Favoris récents) : Narcisse ne les
+   distinguait pas avec un simple filet de 1px à la couleur du fond. Trait
+   plus marqué + air au-dessus/en-dessous, sans ajouter de nouveaux cadres. */
 :root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-rule {
-  margin: 0;
+  margin: 4px 0;
   border: 0;
-  border-top: 1px solid var(--tr-border);
+  border-top: 2px solid color-mix(in srgb, var(--tr-text) 13%, transparent);
 }
 
 :root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-shortcuts {
@@ -1289,73 +1280,10 @@
   max-width: 48%;
 }
 
-/* ---------------------------------------------------------- Colonne centrale : le nom + pastilles */
-
-:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-display {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.03em;
-  font-family: var(--tr-display, inherit);
-  font-weight: 450;
-  line-height: 0.95;
-  letter-spacing: -0.02em;
-  color: var(--tr-text);
-}
-:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-root {
-  font-size: clamp(44px, 5.4vw, 72px);
-}
-:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-quality {
-  font-size: clamp(28px, 3.4vw, 44px);
-  color: var(--tr-secondary);
-}
-
-:root[data-skin] #practice-tab #practice-view-exercices .chord-explorer-pills {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 6px;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .chord-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 25px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid var(--tr-border);
-  background: var(--tr-surface);
-  font-size: 10px;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-label {
-  font-family: var(--tr-mono, ui-monospace, monospace);
-  font-size: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--tr-secondary);
-}
-:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-value {
-  font-weight: 600;
-  color: var(--tr-text);
-}
-/* Même règle : pas de texte en --tr-accent (mesuré 2,48:1). La valeur de la
-   pastille « Disposition » reste distincte par sa taille/graisse, pas sa
-   couleur. */
-:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-value.is-accent {
-  color: var(--tr-text);
-  font-size: 9.5px;
-  letter-spacing: 0.04em;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-hands i {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-hands i.is-lh { background: var(--hand-lh); }
-:root[data-skin] #practice-tab #practice-view-exercices .chord-pill-hands i.is-rh { background: var(--hand-rh); }
+/* [Claude] — 2026-11-06 — Colonne centrale : plus de nom/pastilles dupliqués
+   au-dessus de la carte (Narcisse : « il est écrit deux fois ») — la carte
+   exercise-target porte déjà le nom. Règles .chord-explorer-display/-root/
+   -quality/-pills et .chord-pill* retirées avec leur HTML. */
 
 /* Les mains de la carte (exercise-hand) reprennent les couleurs du keybed. */
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .exercise-hand {
@@ -1377,34 +1305,23 @@
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .exercise-hand-lh::before { background: var(--hand-lh); }
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .exercise-hand-rh::before { background: var(--hand-rh); }
 
-/* ---------------------------------------------------------- Colonne de droite : dispositions */
+/* ---------------------------------------------------------- Colonne de droite : dispositions
+   [Claude] — 2026-11-06 — Narcisse : « trop de sidebars, panneau dans un
+   panneau ». .exercise-chord-side n'a plus son propre cadre (bordure/fond/
+   radius) : .tr-exercise-progress.is-chord-side (déjà bordé à gauche, déjà
+   la seule colonne visible) reste le SEUL cadre de cette colonne. Plus
+   d'étiquette « Voicings » en tête (ni vrai titre, ni intéressante) : rien
+   à afficher ici d'autre que la grille elle-même. */
 
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-chord-side {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: 100%;
-  border: 1px solid var(--tr-border);
-  border-radius: 14px;
-  background: var(--tr-surface);
-  overflow: hidden;
-  padding: 0;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .exercise-chord-side > .tr-eyebrow {
-  flex: none;
-  padding: 14px 16px;
-  margin: 0;
-  border-bottom: 1px solid var(--tr-border);
-  font-size: 9px;
 }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-voicing-choices {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
 }
 
 :root[data-skin] #practice-tab #practice-view-exercices .voicing-auto-row { flex: none; }
@@ -1465,89 +1382,13 @@
   white-space: nowrap;
 }
 
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-group-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  font-family: var(--tr-mono, ui-monospace, monospace);
-  font-size: 8.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--tr-secondary);
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-group-hint {
-  text-transform: none;
-  letter-spacing: 0;
-  opacity: 0.75;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-group-grid {
+/* [Claude] — 2026-11-06 — Plus de groupes avec titre (Position, Shell &
+   rootless…) ni sous-titre (Densité & tenue…) : « on le constate déjà à la
+   lecture du voicing ». Une seule grille plate pour toutes les techniques. */
+:root[data-skin] #practice-tab #practice-view-exercices .voicing-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-}
-
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active {
-  flex: none;
-  padding: 12px;
-  border-top: 1px solid var(--tr-border);
-  background: var(--tr-raised, var(--tr-inset));
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-tag {
-  font-family: var(--tr-mono, ui-monospace, monospace);
-  font-size: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--tr-secondary);
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-name {
-  font-size: 14px;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hands {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  padding: 5px 7px;
-  border-radius: 7px;
-  border: 1px solid var(--tr-border);
-  background: var(--tr-surface);
-  min-width: 0;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand-tag {
-  font-family: var(--tr-mono, ui-monospace, monospace);
-  font-size: 7.5px;
-  text-transform: uppercase;
-  flex: none;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand.is-lh .voicing-active-hand-tag { color: var(--hand-lh-strong); }
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand.is-rh .voicing-active-hand-tag { color: var(--hand-rh-strong); }
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-hand-notes {
-  font-family: var(--tr-mono, ui-monospace, monospace);
-  font-size: 9.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-active-play {
-  width: 100%;
-  justify-content: center !important;
 }
 
 /* Fenêtre étroite : une colonne, la carte d'abord, puis dispositions, puis

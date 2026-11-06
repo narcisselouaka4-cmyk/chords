@@ -275,8 +275,6 @@ const els = {
   chordExplorerLeft: document.getElementById('chord-explorer-left'),
   chordExplorerSummary: document.getElementById('chord-explorer-summary'),
   chordExplorerFavoritesPreview: document.getElementById('chord-explorer-favorites-preview'),
-  chordExplorerDisplay: document.getElementById('chord-explorer-display'),
-  chordExplorerPills: document.getElementById('chord-explorer-pills'),
   exerciseFavorites: document.getElementById('exercise-favorites'),
   exerciseFavoritesSearch: document.getElementById('exercise-favorites-search'),
   exerciseFavoritesDialog: document.getElementById('exercise-favorites-dialog'),
@@ -1856,7 +1854,6 @@ function initPracticeExercise() {
     }
     els.exerciseChordSide?.closest('.tr-exercise-progress')?.classList.toggle('is-chord-side', isChord);
     if (els.exerciseChordSide) els.exerciseChordSide.hidden = !exState.target;
-    renderChordExplorerDisplay(exState, isChord);
     renderChordExplorerSummary(exState, isChord);
     renderChordExplorerFavoritesPreview(isChord);
     // Voicings disponibles de l'accord affiché (hors de la carte en Accord cible).
@@ -1894,53 +1891,21 @@ function initPracticeExercise() {
   }
 
   /**
-   * [Claude] — 2026-11-05 — Le grand nom de l'accord et ses trois pastilles
-   * (disposition, top note, nombre de notes par main), au-dessus de la carte.
-   * Porté de la maquette : `chord.rootName` / `chord.quality.suffix` séparés
-   * pour une taille différente — ici, `target.name` moins le nom de la
-   * fondamentale, qui se reconstruit à l'identique (voir targetFromVoicing).
-   */
-  function renderChordExplorerDisplay(exState, isChord) {
-    if (!els.chordExplorerDisplay || !els.chordExplorerPills) return;
-    const target = exState.target;
-    const show = isChord && target;
-    els.chordExplorerDisplay.hidden = !show;
-    els.chordExplorerPills.hidden = !show;
-    if (!show) { els.chordExplorerDisplay.innerHTML = ''; els.chordExplorerPills.innerHTML = ''; return; }
-    const rootLabel = formatPc(target.rootPc, false);
-    const suffix = target.name.startsWith(rootLabel) ? target.name.slice(rootLabel.length) : '';
-    els.chordExplorerDisplay.innerHTML = `<span class="chord-explorer-root">${escapeHtmlForDisplay(rootLabel)}</span><span class="chord-explorer-quality">${escapeHtmlForDisplay(suffix)}</span>`;
-    const v = target.voicing;
-    const lh = v?.leftHand?.length || 0;
-    const rh = v?.rightHand?.length || 0;
-    const notes = [...new Set([...(v?.leftHand || []), ...(v?.rightHand || [])])].sort((a, b) => a - b);
-    const topLabel = notes.length ? `${noteName(notes[notes.length - 1])}${Math.floor(notes[notes.length - 1] / 12) - 1}` : '—';
-    const techniqueLabel = TECHNIQUE_LABELS[v?.technique || 'auto'] || v?.technique || '';
-    els.chordExplorerPills.innerHTML = `
-      <span class="chord-pill"><span class="chord-pill-label">Disposition</span><span class="chord-pill-value is-accent">${escapeHtmlForDisplay(techniqueLabel.toUpperCase())}</span></span>
-      <span class="chord-pill"><span class="chord-pill-label">Top note</span><span class="chord-pill-value">${escapeHtmlForDisplay(topLabel)}</span></span>
-      <span class="chord-pill chord-pill-hands"><i class="is-lh"></i><span class="chord-pill-value">${lh}</span><i class="is-rh"></i><span class="chord-pill-value">${rh}</span></span>`;
-  }
-
-  /**
-   * Résumé « Accord de travail » du panneau de gauche : symbole, famille
-   * (lue dans TARGET_QUALITY_GROUPS, qui groupe déjà les qualités jouables)
-   * et difficulté — même échelle 1-5 que le reste de l'application
+   * Résumé « Accord de travail » du panneau de gauche : symbole et
+   * difficulté — même échelle 1-5 que le reste de l'application
    * (difficultyOfVoicing), pas une échelle à 3 inventée pour l'occasion.
+   * [Claude] — 2026-11-06 — Plus de ligne famille/nombre de sons sous le
+   * symbole (Narcisse : sous-titres inintéressants) ; le nom de l'accord
+   * étant déjà visible au centre, ce résumé n'est plus qu'un repère rapide.
    */
   function renderChordExplorerSummary(exState, isChord) {
     if (!els.chordExplorerSummary) return;
     const target = exState.target;
     if (!isChord || !target) { els.chordExplorerSummary.innerHTML = ''; return; }
-    const family = TARGET_QUALITY_GROUPS.find((g) => g.qualities.includes(target.symbol))?.label || '';
-    const toneCount = new Set((target.notes || []).map((n) => ((n % 12) + 12) % 12)).size;
     const stars = difficultyOfVoicing(target);
     const dots = Array.from({ length: 5 }, (_, i) => `<span class="chord-explorer-dot${i < stars ? ' is-on' : ''}"></span>`).join('');
     els.chordExplorerSummary.innerHTML = `
-      <div class="chord-explorer-summary-name">
-        <p class="chord-explorer-summary-symbol">${escapeHtmlForDisplay(target.name)}</p>
-        <p class="chord-explorer-summary-meta">${escapeHtmlForDisplay(family)}${family ? ' · ' : ''}${toneCount} son${toneCount > 1 ? 's' : ''}</p>
-      </div>
+      <p class="chord-explorer-summary-symbol">${escapeHtmlForDisplay(target.name)}</p>
       <div class="chord-explorer-summary-stars">${dots}</div>`;
   }
 

@@ -404,7 +404,6 @@
                     <option value="10">A# / Bb</option>
                     <option value="11">B</option>
                   </select>
-                  <p class="chord-explorer-hint">Filtre la note la plus aiguë du voicing.</p>
                 </section>
 
                 <!-- Accords dont le sommet correspond à la top note choisie : affiché
@@ -451,10 +450,10 @@
               <div class="tr-arena-ellipse tr-ellipse-outer" aria-hidden="true"></div>
               <div class="tr-target-chord">
                 <span class="tr-eyebrow" id="exercise-arena-eyebrow">À VOUS DE JOUER</span>
-                <!-- Accord cible : grand nom + pastilles, au-dessus de la carte — remplis
-                     par main.js, lus sur exState.target. -->
-                <div class="chord-explorer-display" id="chord-explorer-display" hidden></div>
-                <div class="chord-explorer-pills" id="chord-explorer-pills" hidden></div>
+                <!-- [Claude] — 2026-11-06 — Plus d'affichage dupliqué du nom de l'accord
+                     au-dessus de la carte (Narcisse : « il est écrit deux fois ») : la
+                     carte exercise-target porte déjà le nom, les pastilles disposition/
+                     top note/mains sont retirées avec lui. -->
                 <div class="exercise-target" id="exercise-target" style="display:none;"></div>
               </div>
             </div>
@@ -490,8 +489,11 @@
                    (score inutile ici) accueille les voicings de l'accord affiché ;
                    les favoris sont passés à gauche. Les autres modes gardent leur
                    avancement. -->
+              <!-- [Claude] — 2026-11-06 — Plus d'étiquette « Voicings » au-dessus (Narcisse :
+                   ni vrai titre, ni intéressante) ; plus de panneau dans le panneau non plus
+                   (exercise-chord-side n'a plus son propre cadre, voir exercise-workspace.css) :
+                   .tr-exercise-progress.is-chord-side reste le seul cadre visible. -->
               <div class="exercise-chord-side" id="exercise-chord-side" hidden>
-                <span class="tr-eyebrow">Voicings</span>
                 <!-- Voicings disponibles pour l'accord affiché : rempli par main.js. -->
                 <div class="exercise-voicing-choices" id="exercise-voicing-choices"></div>
               </div>
