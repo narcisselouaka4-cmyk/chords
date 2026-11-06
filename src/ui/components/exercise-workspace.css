@@ -60,6 +60,10 @@
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-chord-head { justify-content: flex-start; }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-chord-head-controls { justify-content: flex-start; }
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .tr-exercise-brief { display: none; }
+/* [Claude] — 2026-11-06 — « À VOUS DE JOUER » masqué en Accord cible (Narcisse
+   l'a annoté à retirer) ; gardé tel quel en Parcours harmonique, où ce même
+   span affiche aussi la tonalité et le numéro d'accord en cours (main.js). */
+:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode #exercise-arena-eyebrow { display: none; }
 :root[data-skin] #practice-tab #practice-view-exercices .tr-chord-arena {
   grid-column: 1;
   grid-row: 2;
@@ -1309,14 +1313,24 @@
    [Claude] — 2026-11-06 — Narcisse : « trop de sidebars, panneau dans un
    panneau ». .exercise-chord-side n'a plus son propre cadre (bordure/fond/
    radius) : .tr-exercise-progress.is-chord-side (déjà bordé à gauche, déjà
-   la seule colonne visible) reste le SEUL cadre de cette colonne. Plus
-   d'étiquette « Voicings » en tête (ni vrai titre, ni intéressante) : rien
-   à afficher ici d'autre que la grille elle-même. */
+   la seule colonne visible) reste le SEUL cadre de cette colonne. L'étiquette
+   « Voicings » (petite, grise) ne se lisait pas comme un titre et a d'abord
+   été retirée ; Narcisse a ensuite demandé un vrai titre — « Dispositions »,
+   en gras et à bonne taille, avec un filet sous lui comme celui du panneau
+   de gauche (chord-explorer-head), pas un simple eyebrow. */
 
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-chord-side {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .exercise-chord-side-title {
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--tr-border);
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--tr-text);
 }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-voicing-choices {
   display: flex;

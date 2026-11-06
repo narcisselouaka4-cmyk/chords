@@ -3082,7 +3082,6 @@ export function renderExerciseTarget(target, options = {}) {
     ? (n) => `${spellPcInKey(n, options.spelling.keyPc, options.spelling.minor)}${Math.floor(n / 12) - 1}`
     : formatNoteNameWithOctave;
   const allNames = cardNotes.map((n) => noteLabel(n)).join(' · ');
-  const handCount = Number(leftHand.length > 0) + Number(rightHand.length > 0);
   // Accord cible : le choix du voicing et les doublures quittent la carte
   // (colonne de droite et fenêtre Filtres) ; la carte garde l'essentiel.
   // [Claude] — 2026-11-05 — Le clavier dessiné RESTE sur la carte. Je l'avais
@@ -3102,7 +3101,6 @@ export function renderExerciseTarget(target, options = {}) {
           <div class="exercise-target-name">${escapeHtml(target.name)}</div>
           ${target.passing ? `<div class="exercise-target-passing">↳ Accord de passage${options.passingTo ? `, vers ${escapeHtml(options.passingTo)}` : ''}</div>` : ''}
         </div>
-        <div class="exercise-voicing-facts">${cardNotes.length} notes · ${handCount || 1} main${handCount > 1 ? 's' : ''}</div>
       </div>
       ${compact || options.separateVoicings ? '' : renderVoicingChoices(target, options)}
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}

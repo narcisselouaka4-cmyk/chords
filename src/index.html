@@ -410,7 +410,6 @@
                      seulement quand cette recherche est active (logique JS inchangée). -->
                 <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
                   <section class="exercise-choice-section exercise-topnote-section" aria-label="Accords par top note">
-                    <span class="tr-eyebrow">Accords avec cette note au sommet</span>
                     <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
                   </section>
                 </div>
@@ -489,11 +488,14 @@
                    (score inutile ici) accueille les voicings de l'accord affiché ;
                    les favoris sont passés à gauche. Les autres modes gardent leur
                    avancement. -->
-              <!-- [Claude] — 2026-11-06 — Plus d'étiquette « Voicings » au-dessus (Narcisse :
-                   ni vrai titre, ni intéressante) ; plus de panneau dans le panneau non plus
-                   (exercise-chord-side n'a plus son propre cadre, voir exercise-workspace.css) :
-                   .tr-exercise-progress.is-chord-side reste le seul cadre visible. -->
+              <!-- [Claude] — 2026-11-06 — L'étiquette « Voicings » du 05/11 (petite, grise)
+                   ne se lisait pas comme un titre ; retirée un temps, puis Narcisse a demandé
+                   un vrai titre à la place — pas un retour en arrière, un titre qui se VOIT.
+                   Plus de panneau dans le panneau non plus (exercise-chord-side n'a plus son
+                   propre cadre, voir exercise-workspace.css) : .tr-exercise-progress.is-chord-side
+                   reste le seul cadre visible. -->
               <div class="exercise-chord-side" id="exercise-chord-side" hidden>
+                <h3 class="exercise-chord-side-title">Dispositions</h3>
                 <!-- Voicings disponibles pour l'accord affiché : rempli par main.js. -->
                 <div class="exercise-voicing-choices" id="exercise-voicing-choices"></div>
               </div>

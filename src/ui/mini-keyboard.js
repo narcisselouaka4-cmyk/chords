@@ -260,13 +260,12 @@ export function miniKeyboardForNotes(activeNotes, options = {}) {
  * @param {number[]} [options.added] - doublures et notes ajoutées
  * @param {number} [options.startMidi]
  * @param {number} [options.endMidi]
- * @param {string} [options.title]
  * @param {(midi: number) => string} [options.formatNote]
  * @returns {string}
  */
 export function keybedMarkup({
   leftHand = [], rightHand = [], added = [],
-  startMidi = 36, endMidi = 84, title = 'Aperçu du voicing', formatNote = null,
+  startMidi = 36, endMidi = 84, formatNote = null,
 } = {}) {
   const lh = new Set(leftHand.filter((n) => Number.isFinite(n)));
   const rh = new Set(rightHand.filter((n) => Number.isFinite(n)));
@@ -322,16 +321,12 @@ export function keybedMarkup({
     plus.size ? '<span class="keybed-legend-item is-added"><i></i>Ajoutée</span>' : '',
   ].filter(Boolean).join('');
 
-  const etendue = actives.length ? `${nom(actives[0])} — ${nom(actives[actives.length - 1])}` : '';
-  const compte = actives.length ? `${actives.length} note${actives.length > 1 ? 's' : ''} active${actives.length > 1 ? 's' : ''}` : '';
-
+  // [Claude] — 2026-11-06 — Plus de titre « Aperçu du voicing » ni de pied
+  // (étendue, compte de notes actives) : Narcisse les a annotés à retirer.
+  // La légende des mains reste seule, si une main joue vraiment.
   return `<div class="keybed">
-      <div class="keybed-head">
-        <span class="keybed-title">${escapeHtmlText(title)}</span>
-        ${legende ? `<span class="keybed-legend">${legende}</span>` : ''}
-      </div>
+      ${legende ? `<div class="keybed-head"><span class="keybed-legend">${legende}</span></div>` : ''}
       <div class="piano-keys" role="img" aria-label="${escapeAttribute(ariaDuVoicing(actives, lh, rh, nom))}">${touches}</div>
-      ${etendue || compte ? `<div class="keybed-foot"><span>${escapeHtmlText(etendue)}</span><span class="keybed-count">${escapeHtmlText(compte)}</span></div>` : ''}
     </div>`;
 }
 

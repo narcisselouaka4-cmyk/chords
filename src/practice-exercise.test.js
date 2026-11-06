@@ -1510,7 +1510,6 @@ function checkCardDemoAdditions() {
     // nomme une main que si elle joue : annoncer « main gauche » sur un voicing
     // qui n'en a pas serait une information fausse.
     let legendeMenteuse = 0;
-    let sansCompte = 0;
     let sansRepere = 0;
     let examineesKeybed = 0;
     ex2.setLeftHandStyle('none');
@@ -1525,13 +1524,11 @@ function checkCardDemoAdditions() {
         const markup = renderExerciseTarget(cible, {});
         if (markup.includes('Main gauche</span>') !== ((v.leftHand || []).length > 0)) legendeMenteuse += 1;
         if (markup.includes('Main droite</span>') !== ((v.rightHand || []).length > 0)) legendeMenteuse += 1;
-        if (!/notes? active/.test(markup)) sansCompte += 1;
         if (!/class="key-caption"/.test(markup)) sansRepere += 1;
       }
     }
     check('La legende du clavier ne nomme que les mains qui jouent vraiment',
       legendeMenteuse === 0, `${legendeMenteuse} ecart(s) sur ${examineesKeybed} cartes`);
-    check('Le clavier annonce combien de notes sonnent', sansCompte === 0, `${sansCompte} sans compte`);
     check('Le clavier porte ses reperes d octave', sansRepere === 0, `${sansRepere} sans repere`);
   }
   const moved = renderExerciseTarget(target, { demo: { ...demo, doubled: [], movedToRight: true, styleLabel: 'Ballade' } });
