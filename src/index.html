@@ -2092,22 +2092,22 @@
            d'état, la poignée de hauteur et le rail replié — jamais .vk-white
            ni .vk-black. -->
       <section class="keyboard-panel global-keyboard-panel vk-root" id="keyboard-panel">
+        <!-- Une seule commande, ancrée au châssis dans les deux états. -->
+        <button type="button" class="vk-collapse keyboard-collapse-btn" id="keyboard-collapse-btn"
+                aria-expanded="true" aria-controls="keyboard-container" aria-label="Réduire le clavier virtuel"
+                title="Réduire le clavier virtuel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
         <!-- Rail de rappel, affiché quand le clavier est replié. -->
         <div class="vk-rail">
           <button type="button" class="vk-rail-title" data-astra-click="#keyboard-collapse-btn" aria-label="Déployer le clavier MIDI virtuel">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5h20v11H2z"/><path d="M6 6.5v6M10 6.5v6M14 6.5v6M18 6.5v6M2 12.5h20"/></svg><span>Clavier MIDI virtuel</span>
           </button>
           <div class="vk-rail-readout" id="keyboard-rail-readout"><span class="vk-rail-idle">Prêt · jouez au clavier</span></div>
-          <button type="button" class="vk-expand" data-astra-click="#keyboard-collapse-btn" aria-label="Déployer le clavier"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
         </div>
 
         <div class="vk-body">
           <div class="vk-toolbar">
             <div class="vk-group vk-brand">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5h20v11H2z"/><path d="M6 6.5v6M10 6.5v6M14 6.5v6M18 6.5v6M2 12.5h20"/></svg>
-              <label class="vk-switch" title="Afficher ou masquer les molettes de pitch bend et de modulation">
-                <input type="checkbox" id="keyboard-wheels-toggle" checked aria-controls="keyboard-wheels" /><span>Molettes</span>
-              </label>
             </div>
 
             <!-- Lecture d'accord en direct : miroir de la scène Temps réel,
@@ -2127,25 +2127,6 @@
               <button type="button" class="vk-playing-btn" data-action="stop" aria-label="Arrêter la lecture" title="Arrêter"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg></button>
             </div>
 
-            <div class="vk-group vk-controls">
-              <div class="vk-stepper" aria-label="Transposition">
-                <span>Transposition</span>
-                <button type="button" data-step-target="#transpose" data-step="-1" aria-label="Baisser la transposition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
-                <input type="number" id="transpose" value="0" min="-12" max="12" />
-                <button type="button" data-step-target="#transpose" data-step="1" aria-label="Monter la transposition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
-              </div>
-
-              <label class="vk-select" title="Comment écrire les fondamentales noires : A♭maj7 ou G♯maj7">
-                <span>Altérations</span>
-                <select id="spelling-select">
-                  <option value="auto" selected>Automatique (A♭maj7, C♯°7)</option>
-                  <option value="sharps">Dièses (G♯maj7, A♯7)</option>
-                  <option value="flats">Bémols (A♭maj7, B♭7)</option>
-                </select>
-              </label>
-
-            </div>
-
             <div class="vk-group vk-right">
               <!-- Interrupteurs : l'apparence est celle d'Astra, la mécanique
                    reste la case à cocher que main.js lit (.checked). -->
@@ -2158,9 +2139,6 @@
                   </span>
                 </label>
               </div>
-              <button type="button" class="vk-collapse keyboard-collapse-btn" id="keyboard-collapse-btn"
-                      aria-expanded="true" aria-controls="keyboard-container"
-                      title="Réduire le clavier virtuel"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
             </div>
           </div>
 
@@ -2185,13 +2163,36 @@
           </div>
 
           <div class="vk-status">
+            <div class="vk-group vk-brand">
+              <label class="vk-switch" title="Afficher ou masquer les molettes de pitch bend et de modulation">
+                <input type="checkbox" id="keyboard-wheels-toggle" checked aria-controls="keyboard-wheels" /><span>Molettes</span>
+              </label>
+            </div>
+            <div class="vk-group vk-controls">
+              <div class="vk-stepper" role="group" aria-label="Transposition">
+                <button type="button" data-step-target="#transpose" data-step="-1" aria-label="Baisser la transposition" title="Transposer d’un demi-ton plus bas"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3.5v17"/><path d="M9.5 20.5c4.6-1.6 7.2-4.2 7.2-7 0-2.6-2.9-3.6-7.2-.2"/></svg></button>
+                <input type="number" id="transpose" value="0" min="-12" max="12" step="1" aria-label="Transposition en demi-tons" title="Transposition en demi-tons · 0 : hauteur d’origine" />
+                <button type="button" data-step-target="#transpose" data-step="1" aria-label="Monter la transposition" title="Transposer d’un demi-ton plus haut"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v15.5M15 4v15.5"/><path d="M6 10.6 19 8.4M6 16.6 19 14.4" stroke-width="2.7"/></svg></button>
+              </div>
+
+              <label class="vk-select" title="Comment écrire les fondamentales noires : A♭maj7 ou G♯maj7">
+                <span>Altérations</span>
+                <select id="spelling-select">
+                  <option value="auto" selected>Automatique (A♭maj7, C♯°7)</option>
+                  <option value="sharps">Dièses (G♯maj7, A♯7)</option>
+                  <option value="flats">Bémols (A♭maj7, B♭7)</option>
+                </select>
+              </label>
+
+            </div>
+
             <!-- [Claude] — 2026-09-25 — Qui joue ? Bleu : toi ; jaune : l'application
                  (Copilote, démos, relecture). Plus d'étiquettes sur les touches. -->
             <div class="vk-legend">
               <!-- [Claude] — 2026-10-13 — Un clic sur la pastille règle la couleur des touches (Toi / L'app) :
                    la case « couleur des notes » de Réglages est supprimée. -->
-              <label class="vk-legend-pick" title="Clique pour changer la couleur de tes notes"><i class="vk-dot vk-dot-you"></i>Toi<input type="color" id="color-you" value="#2563eb" aria-label="Couleur de tes notes" /></label>
-              <label class="vk-legend-pick" title="Clique pour changer la couleur de ce que joue l'application"><i class="vk-dot vk-dot-app"></i>L'app<input type="color" id="color-app" value="#f2b705" aria-label="Couleur de ce que joue l'application" /></label>
+              <label class="vk-legend-pick" title="Clique pour changer la couleur de tes notes"><i class="vk-dot vk-dot-you"></i>Toi<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 1.2 1.2 0 0 1 .9-2H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3Z"/><circle cx="7.5" cy="10" r=".8"/><circle cx="10" cy="6.8" r=".8"/><circle cx="14" cy="6.8" r=".8"/><circle cx="17" cy="10" r=".8"/></svg><input type="color" id="color-you" value="#2563eb" aria-label="Couleur de tes notes" /></label>
+              <label class="vk-legend-pick" title="Clique pour changer la couleur de ce que joue l'application"><i class="vk-dot vk-dot-app"></i>L'app<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 1.2 1.2 0 0 1 .9-2H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3Z"/><circle cx="7.5" cy="10" r=".8"/><circle cx="10" cy="6.8" r=".8"/><circle cx="14" cy="6.8" r=".8"/><circle cx="17" cy="10" r=".8"/></svg><input type="color" id="color-app" value="#f2b705" aria-label="Couleur de ce que joue l'application" /></label>
             </div>
             <!-- [Claude] — 2026-10-13 — Plus de compteur « 1 note, 2 notes… » (pas nécessaire). -->
           </div>

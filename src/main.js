@@ -3929,6 +3929,7 @@ function initKeyboardCollapse() {
     panel.classList.toggle('collapsed', collapsed);
     btn.setAttribute('aria-expanded', String(!collapsed));
     btn.title = collapsed ? 'Afficher le clavier virtuel' : 'Réduire le clavier virtuel';
+    btn.setAttribute('aria-label', btn.title);
     // Le clavier se redessine sur la largeur disponible : on prévient les
     // composants qui écoutent le redimensionnement.
     window.dispatchEvent(new Event('resize'));
