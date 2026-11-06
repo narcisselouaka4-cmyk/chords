@@ -1,3 +1,4 @@
+import {sourceKeyConflict} from './playing-harmony-facts.js';
 import {referenceVoicing,referenceFinalDominant} from './reference-voicings.js';
 // Construction de phrase, sans copier une session ni ajouter de ligne scalaire.
 import {reviewTake} from '../recorder/take-review.js';
@@ -40,6 +41,7 @@ export function arrangementFrames(take) {
 
 function qualityChoices(f){
   const q=f.chord.quality;
+  if(/dim|°/.test(q))return ['dim7'];
   if(/sus/.test(q))return ['9sus4','7sus4'];
   if(minor(q))return ['m9','m11','m7'];
   if(/^(7|9|13)/.test(q))return ['13','9','7b9','7'];
@@ -88,7 +90,12 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
   const noPassing=fixedOnly||keepBass||/sans reharmonis|garde.*accords|conserv.*accords/.test(text)||/sans (?:accords? de )?passages?|pas d['’]accords? de passage|sans mouvement/.test(text);
   // Les CC de l'utilisateur restent sa référence : pas de remplacement arbitraire.
   const hasPedal=take.events.some(e=>e.type==='control'&&e.controller===64);
-  const statedKey=extractKey(message)||extractKey(`en ${take.key||''}`);
+  const explicitKey=extractKey(message);
+  let statedKey=explicitKey||extractKey(`en ${take.key||''}`);
+  // Une étiquette de session n'est pas une contrainte demandée par le pianiste.
+  // Si les accords de tonique joués contredisent son mode, ne forcer ni leur
+  // tierce ni toute la phrase dans cette gamme. La source reste inchangée.
+  if(!explicitKey&&sourceKeyConflict(statedKey,frames.map(f=>f.chord)))statedKey=null;
   const tones=new Set(pairs.map(p=>pc(p.event.note)));
   const compatible=Array.from({length:12},(_,r)=>r).filter(r=>[...tones].every(n=>[0,2,4,5,7,9,11].some(i=>pc(r+i)===n)));
   // Une collection diatonique peut borner les notes sans inventer sa tonique.

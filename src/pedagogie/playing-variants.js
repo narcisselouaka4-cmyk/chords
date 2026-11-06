@@ -1,3 +1,4 @@
+import {personalInterpretationRequest} from './proposal-explanation.js';
 import {samePlayingSource} from './personal-source.js';
 // Intentions harmoniques et mouvements calculés sur la prise personnelle.
 import { buildPhraseVariants } from './phrase-variants.js';
@@ -22,8 +23,9 @@ export function personalVariantsAnswer({message,messages=[],context,preferences=
  const boundary=messages.findLastIndex(m=>m.role==='user'&&m.take?.events?.length);
  const relevant=messages.slice(Math.max(0,boundary));
  const previous=[...relevant].reverse().find(m=>m.role==='assistant'&&!m.toolResult?.variants?.some(v=>v.advice?.version===6)&&samePlayingSource(m.toolResult?.originalTake,take)&&(m.toolResult?.phraseHarmony||m.toolResult?.fixedHarmony||m.toolResult?.variants?.length));
- const hear=/entendre|ecout|demonstration|\bdemo\b|montre.moi|joue.moi/.test(text);
- const broad=/(?:propose|fais|faire|donne).*(?:propositions?|versions?|variantes?)|transform.*(?:accord|progression|jeu|session)|enrich|reharmonis|voicings?|developp|mouvements?|liaisons?|accords? de passage|ameliore.*(?:jeu|progression|accord)|plusieurs (?:propositions|versions|variantes)|rends.*(?:accords|jeu).*(?:beau|riche)|(?:rajoute|ajoute|ajouter).*(?:mouvements|accords)|basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text);
+ const interpretation=personalInterpretationRequest(message);
+ const hear=interpretation||/entendre|ecout|demonstration|\bdemo\b|montre.moi|joue.moi/.test(text);
+ const broad=interpretation||/(?:propose|fais|faire|donne).*(?:propositions?|versions?|variantes?)|transform.*(?:accord|progression|jeu|session)|enrich|reharmonis|voicings?|developp|mouvements?|liaisons?|accords? de passage|ameliore.*(?:jeu|progression|accord)|plusieurs (?:propositions|versions|variantes)|rends.*(?:accords|jeu).*(?:beau|riche)|(?:rajoute|ajoute|ajouter).*(?:mouvements|accords)|basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text);
  const follow=previous&&/une autre (?:version|proposition|variante)|encore|va plus loin|c'est tout|rien.*plus|ajout.*plus|autre chose|autre.*(?:couleur|accord)|(?:prefere|robot|catastroph|mieux).*(?:liaison|arpege)|(?:liaison|arpege).*(?:robot|catastroph|mieux)/.test(text);
  if(!broad&&!follow&&!(hear&&previous))return null;
  const baseRequest=follow&&previous.toolResult.harmonicRequest?continuedRequest(previous.toolResult.harmonicRequest,message):message;

@@ -9,9 +9,13 @@ export function isExplanationQuestion(message) {
   return /\bpourquoi\b|\bcomment\b|explique|explication|quel.*(?:role|raison|difference|note|accord|couleur)|a quoi sert|c'est quoi|qu['’]est.ce|^(?:plus de )?d[eé]tails[.!?\s]*$/i.test(plain(message));
 }
 
+export function personalInterpretationRequest(message) {
+  return /\b(?:toi\s*[,，]?\s*)?(?:tu|vous)\b.{0,30}\b(?:jouerais|joueriez|ferais|feriez)\b.{0,30}\bcomment\b|\bcomment\b.{0,25}\b(?:tu|vous)\b.{0,25}\b(?:jouerais|joueriez|ferais|feriez)\b/.test(plain(message));
+}
+
 export function explicitPlaybackRequest(message) {
   const t=plain(message);
-  return /(?:fais|fait|faire)[- ]moi (?:re)?(?:entendre|ecouter)|(?:re)?joue[- ]moi|(?:^|[.!?]\s*|(?:et|puis)\s+)rejoue\b|\b(?:re)?ecoute(?:r)?\b|(?:peux|pourrais)[- ]tu.*(?:jouer|entendre)|tu peux.*(?:jouer|entendre)/.test(t);
+  return personalInterpretationRequest(message)||/(?:fais|fait|faire)[- ]moi (?:re)?(?:entendre|ecouter)|(?:re)?joue[- ]moi|(?:^|[.!?]\s*|(?:et|puis)\s+)rejoue\b|\b(?:re)?ecoute(?:r)?\b|(?:peux|pourrais)[- ]tu.*(?:jouer|entendre)|tu peux.*(?:jouer|entendre)/.test(t);
 }
 
 function identity(label) {

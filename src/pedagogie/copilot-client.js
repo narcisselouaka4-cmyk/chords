@@ -1,3 +1,4 @@
+import {playingHarmonyFacts} from './playing-harmony-facts.js';
 import {sessionAdjustmentAnswer} from './session-adjustments.js';
 import {personalContext,samePlayingSource,restoreConversationPlaying} from './personal-source.js';
 import {personalDemoAnswer, isPersonalExample} from './personal-demo.js';
@@ -1406,6 +1407,8 @@ function formatContext(context, options = {}) {
     if (context.playing?.passage?.events?.length) lines.push('Pour lui faire réentendre ce passage (ou une partie : sa mélodie, une main, un moment) : play_my_playing (source « passage »).');
     lines.push('');
   }
+
+  lines.push(...playingHarmonyFacts(context?.playing?.passage||context?.playing?.session));
 
   lines.push(`Clavier MIDI virtuel : ${isVirtualKeyboardCollapsed() ? 'masqué' : 'visible'}`);
   if (options.copilotStyleId) {

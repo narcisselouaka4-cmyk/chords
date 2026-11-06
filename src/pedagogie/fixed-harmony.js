@@ -53,7 +53,7 @@ function paletteOf(review,message) {
 function ownSpecs(frame,palette,soft=false,next=null) {
   const {rootPc,quality:q}=frame.chord;
   const minor=/^m(?!aj)/.test(q), dominant=/^(7|9|13)/.test(q)||(q===''||q==='add9')&&palette!=null&&pc(rootPc-palette)===7;
-  const qualities=/sus/.test(q)?['9sus4','7sus4']:minor?(soft?['m7','m9','m11']:['m9','m11','m7']):dominant?['9','13']:soft?['maj7','6/9','maj9']:['maj9','maj7','6/9'];
+  const qualities=/dim|°/.test(q)?['dim7']:/sus/.test(q)?['9sus4','7sus4']:minor?(soft?['m7','m9','m11']:['m9','m11','m7']):dominant?['9','13']:soft?['maj7','6/9','maj9']:['maj9','maj7','6/9'];
   return qualities.map((quality,rank)=>({rootPc,quality,preserveBass:true,rank,
     chromatic: preparesChord(frame,next)}));
 }
