@@ -421,3 +421,11 @@
   flex: none;
 }
 #keyboard-panel .vk-right { margin-left: auto; }
+
+/* L'accord seul, centré verticalement : les notes sont déjà sur les touches. */
+#keyboard-panel .vk-readout { align-self: stretch; align-items: center; }
+#keyboard-panel .vk-readout strong {
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
