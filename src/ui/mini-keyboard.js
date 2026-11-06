@@ -313,19 +313,11 @@ export function keybedMarkup({
     touches += `<span class="${classesDe(midi, 'black-key')}" style="left:${round2(gauche)}%;width:${round2(largeurNoire)}%" title="${titreDe(midi)}" aria-hidden="true">${caption}</span>`;
   }
 
-  // La légende ne nomme une main que si elle joue : l'annoncer sur un voicing
-  // qui n'en a pas serait une information fausse.
-  const legende = [
-    lh.size ? '<span class="keybed-legend-item is-lh"><i></i>Main gauche</span>' : '',
-    rh.size ? '<span class="keybed-legend-item is-rh"><i></i>Main droite</span>' : '',
-    plus.size ? '<span class="keybed-legend-item is-added"><i></i>Ajoutée</span>' : '',
-  ].filter(Boolean).join('');
-
-  // [Claude] — 2026-11-06 — Plus de titre « Aperçu du voicing » ni de pied
-  // (étendue, compte de notes actives) : Narcisse les a annotés à retirer.
-  // La légende des mains reste seule, si une main joue vraiment.
+  // [Claude] — 2026-11-06 — Plus de titre, de pied (étendue, compte de notes
+  // actives) ni de légende (Main gauche/droite/Ajoutée) : Narcisse les a
+  // annotés à retirer, tour par tour. Les couleurs des touches restent le
+  // seul repère visuel des mains — sans leur explication textuelle.
   return `<div class="keybed">
-      ${legende ? `<div class="keybed-head"><span class="keybed-legend">${legende}</span></div>` : ''}
       <div class="piano-keys" role="img" aria-label="${escapeAttribute(ariaDuVoicing(actives, lh, rh, nom))}">${touches}</div>
     </div>`;
 }

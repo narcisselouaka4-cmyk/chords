@@ -752,61 +752,10 @@
   opacity: 0.65;
 }
 
-:root[data-skin] #practice-tab .keybed-head,
-:root[data-skin] #practice-tab .keybed-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 4px;
-  font-family: var(--tr-mono, "JetBrains Mono", ui-monospace, monospace);
-  font-size: 8px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #9b928a;
-}
-
-:root[data-skin] #practice-tab .keybed-head { margin-bottom: 8px; }
-:root[data-skin] #practice-tab .keybed-foot { margin-top: 6px; letter-spacing: 0.12em; }
-:root[data-skin] #practice-tab .keybed-count { color: rgba(214, 167, 94, 0.75); }
-
-:root[data-skin] #practice-tab .keybed-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:root[data-skin] #practice-tab .keybed-legend {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  flex: none;
-  font-size: 8.5px;
-  letter-spacing: 0.12em;
-}
-
-:root[data-skin] #practice-tab .keybed-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-:root[data-skin] #practice-tab .keybed-legend-item > i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex: none;
-}
-
-:root[data-skin] #practice-tab .keybed-legend-item.is-lh > i { background: #d4a45c; }
-:root[data-skin] #practice-tab .keybed-legend-item.is-rh > i { background: #c02f63; }
-:root[data-skin] #practice-tab .keybed-legend-item.is-added > i {
-  background: transparent;
-  border: 1.5px dashed #d4a45c;
-  width: 8px;
-  height: 8px;
-}
+/* [Claude] — 2026-11-06 — Plus de titre, pied ni légende (Narcisse les a
+   annotés à retirer) : .keybed-head/-foot/-title/-count/-legend* retirées
+   avec leur HTML. Les couleurs des touches (is-lh/is-rh/is-added, plus bas)
+   restent le seul repère visuel des mains. */
 
 :root[data-skin] #practice-tab .keybed .piano-keys {
   position: relative;
@@ -957,22 +906,6 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-/* Les textes du boîtier : sur crème, le gris chaud de l'original n'est plus
-   lisible. Ils prennent les jetons, comme partout ailleurs dans l'application. */
-:root[data-theme='light'] #practice-tab .keybed-head,
-:root[data-theme='light'] #practice-tab .keybed-foot {
-  color: var(--tr-secondary);
-}
-
-/* Le compte de notes ne repose PAS sur la couleur d'accent : mesurée à 3,92:1
-   sur le crème, sous le seuil AA — et surtout cette couleur est réglable par
-   l'utilisateur, donc son contraste n'est jamais garantissable. Il prend la
-   couleur de lecture et se distingue par la graisse. */
-:root[data-theme='light'] #practice-tab .keybed-count {
-  color: var(--tr-text);
-  font-weight: 600;
-}
-
 /* Le lit sous les touches : un creux discret, plus un trou noir. */
 :root[data-theme='light'] #practice-tab .keybed .piano-keys {
   background: #cfc3b1;
@@ -981,10 +914,6 @@
 
 /* Le liseré du haut s'adoucit : à pleine intensité il brille sur le crème. */
 :root[data-theme='light'] #practice-tab .keybed::before { opacity: 0.42; }
-
-@media (max-width: 1195px) {
-  :root[data-skin] #practice-tab .keybed-legend { display: none; }
-}
 
 /* ===================================================================
    Accord cible — explorateur, porté du code du candidat (05/11/2026)
