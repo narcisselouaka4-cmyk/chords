@@ -241,16 +241,29 @@
     overflow: hidden;
   }
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode #exercise-target-choice {
-    flex: 1 1 0;
     width: 100%;
     align-items: stretch;
     flex-wrap: nowrap;
+  }
+  /* [Claude] — 2026-11-06 — `flex: 1 1 0` SEULEMENT quand la liste par top
+     note a quelque chose à montrer (#exercise-topnote-browser visible) :
+     sans condition, cette règle faisait grandir #exercise-target-choice pour
+     remplir tout l'espace restant même VIDE (aucune top note choisie),
+     avalant l'espace laissé libre quand le clavier MIDI replié donne plus de
+     hauteur au panneau — l'espace mort que Narcisse a repéré. Mais le retirer
+     complètement cassait l'autre cas : avec un filtre actif, la liste
+     (jusqu'à 203 accords) a besoin de cette hauteur bornée + min-height:0
+     pour défiler au lieu de s'écraser à 0px. */
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode #exercise-target-choice:has(#exercise-topnote-browser:not([hidden])) {
+    flex: 1 1 0;
     min-height: 0;
   }
 }
 @media (max-width: 1000px) {
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode:not(.chord-explorer-3col):has(#exercise-topnote-browser:not([hidden])) .tr-exercise-brief { height: 280px; }
-  :root[data-skin] #practice-tab #practice-view-exercices #exercise-target-choice { height: 100%; align-items: stretch; flex-wrap: nowrap; }
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode #exercise-target-choice { align-items: stretch; flex-wrap: nowrap; }
+  /* Même garde qu'au-dessus : height:100% seulement si la liste a quelque chose à montrer. */
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode #exercise-target-choice:has(#exercise-topnote-browser:not([hidden])) { height: 100%; }
 }
 
 /* Les types de contenu précèdent les familles stylistiques. */
@@ -752,10 +765,46 @@
   opacity: 0.65;
 }
 
-/* [Claude] — 2026-11-06 — Plus de titre, pied ni légende (Narcisse les a
-   annotés à retirer) : .keybed-head/-foot/-title/-count/-legend* retirées
-   avec leur HTML. Les couleurs des touches (is-lh/is-rh/is-added, plus bas)
-   restent le seul repère visuel des mains. */
+/* [Claude] — 2026-11-06 — Plus de titre ni de pied (Narcisse les a annotés
+   à retirer) : .keybed-title/-foot/-count retirées avec leur HTML.
+   .keybed-head revient : c'était la bordure/bandeau du haut que Narcisse
+   voulait garder — je l'avais retiré en trop en même temps que la légende
+   « Main gauche »/« Main droite ». Seule « Ajoutée » reste dans la légende :
+   sans elle, rien n'explique le liseré pointillé d'une note ajoutée. */
+:root[data-skin] #practice-tab .keybed-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 4px;
+  margin-bottom: 8px;
+  font-family: var(--tr-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9b928a;
+}
+:root[data-skin] #practice-tab .keybed-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+}
+:root[data-skin] #practice-tab .keybed-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+:root[data-skin] #practice-tab .keybed-legend-item.is-added > i {
+  display: inline-block;
+  background: transparent;
+  border: 1.5px dashed #d4a45c;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+:root[data-theme='light'] #practice-tab .keybed-head { color: var(--tr-secondary); }
 
 :root[data-skin] #practice-tab .keybed .piano-keys {
   position: relative;
@@ -957,11 +1006,18 @@
   display: none;
 }
 
+/* [Claude] — 2026-11-06 — `justify-content: center` plutôt que flex-start
+   (hérité d'une règle plus générale, ligne 71 plus haut) : Narcisse a repéré
+   un trop grand espace entre la carte et le clavier MIDI du bas. Le centrage
+   vertical (déjà la valeur par défaut de .tr-chord-arena dans
+   astra-training.css, avant d'être écrasée) répartit l'espace au-dessus ET
+   en-dessous, au lieu de le laisser tout en bas. */
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-chord-arena {
   grid-column: 2;
   grid-row: 1;
   min-height: 0;
   padding: 0;
+  justify-content: center;
 }
 
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-exercise-progress.is-chord-side {

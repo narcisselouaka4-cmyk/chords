@@ -1576,12 +1576,17 @@ function checkLeftHandStyles() {
   check('Liste des favoris : « Close position + main gauche Posé »', listHtml.includes('Close position + main gauche Posé'));
   check('Voicing seul et voicing avec main gauche : deux favoris distincts', fav.key !== favoriteFromTarget({ ...ex.getState().target, voicing: { ...v, leftHand: [], rightHand: [62, 65, 67, 72] } }).key);
 
-  // Carte : menu, légende, cases des mains.
-  const html = renderExerciseTarget(ex.getState().target, { leftHandStyle: 'gospel', layout: 'chord' });
-  check('Carte (Accord cible compris) : menu « Main gauche » avec Gospel choisi', /data-exercise-left-hand[\s\S]*value="gospel" selected/.test(html)
+  // Carte : menu, légende, cases des mains (Parcours harmonique : layout autre que 'chord').
+  const html = renderExerciseTarget(ex.getState().target, { leftHandStyle: 'gospel', layout: 'movement' });
+  check('Carte (Parcours harmonique) : menu « Main gauche » avec Gospel choisi', /data-exercise-left-hand[\s\S]*value="gospel" selected/.test(html)
     && html.includes('Main droite seule') && html.includes('+ main gauche Arpégé') && html.includes('+ main gauche Rythmé'));
   check('Carte : légende de la main gauche du style', html.includes('Main gauche Posé : basse D2 · A2, C4 doublé à la main droite'));
   check('Carte : main gauche du style dans les cases des mains', /Main gauche<\/span>\s*<span class="exercise-hand-notes">D2 · A2/.test(html));
+  // [Claude] — 2026-11-06 — Accord cible (layout: 'chord') : Narcisse, « + main
+  // gauche »/« + main gauche Arpégé »/« + main gauche Rythmé » « ça ne veut rien
+  // dire » — le menu entier n'y est plus rendu (compact, comme la doublure).
+  const htmlChord = renderExerciseTarget(ex.getState().target, { leftHandStyle: 'gospel', layout: 'chord' });
+  check('Carte (Accord cible) : plus de menu « Main gauche »', !htmlChord.includes('data-exercise-left-hand'));
 
   // Rootless : « Voicing seul », main droite remontée au-dessus de la basse.
   ex.setTechnique('rootless');

@@ -3119,7 +3119,13 @@ export function renderExerciseTarget(target, options = {}) {
       </div>
       <div class="exercise-target-actions">
       ${compact ? '' : renderDoublingSelect(options.doubling)}
-      ${renderLeftHandSelect(options.leftHandStyle ?? voicing?.leftHandStyle ?? 'none', baseHasLeftHand(voicing))}
+      <!-- [Claude] — 2026-11-06 — « + main gauche », « + main gauche Arpégé »,
+           « + main gauche Rythmé » : Narcisse, en Accord cible, « ça ne veut rien
+           dire » — retiré ici comme la doublure juste au-dessus (compact), avec le
+           même garde-fou. Parcours harmonique garde le menu intact : la main
+           gauche de style y sert à jouer une démo d'accompagnement réaliste,
+           pas à explorer un voicing isolé. -->
+      ${compact ? '' : renderLeftHandSelect(options.leftHandStyle ?? voicing?.leftHandStyle ?? 'none', baseHasLeftHand(voicing))}
       ${options.topNote ? renderTopNoteSelect(options.topNote) : ''}
       <button class="exercise-listen-btn" type="button" data-action="listen-exercise" aria-label="Écouter le voicing">
         <svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>

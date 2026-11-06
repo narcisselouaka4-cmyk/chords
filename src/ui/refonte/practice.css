@@ -3442,13 +3442,21 @@
     min-height: 0;
     max-height: none;
   }
-  :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
-  :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {
+  /* [Claude] — 2026-11-06 — `:not(.chord-explorer-3col)` : ce bloc date d'avant
+     l'explorateur Accord cible (05/11) et positionnait .exercise-chord-side en
+     absolu pour l'ancienne mise en page une colonne. Dans la grille à 3 colonnes,
+     .exercise-chord-side suit le flux normal (flex) — sans l'exclusion,
+     `position: absolute` restait appliqué (ma règle dans exercise-workspace.css
+     ne touche pas `position`, donc rien ne la recouvrait), et `overflow-y: auto`
+     sans `overflow-x` promeut ce dernier à `auto` par la spec CSS : d'où la
+     scrollbar horizontale sur le panneau Voicing que Narcisse a repérée. */
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage:not(.chord-explorer-3col) .tr-exercise-progress.is-chord-side,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage:not(.chord-explorer-3col) .tr-exercise-progress.is-chord-side {
     padding: 0;
     overflow: visible;
   }
-  :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side > .exercise-chord-side,
-  :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side > .exercise-chord-side {
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage:not(.chord-explorer-3col) .tr-exercise-progress.is-chord-side > .exercise-chord-side,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage:not(.chord-explorer-3col) .tr-exercise-progress.is-chord-side > .exercise-chord-side {
     position: absolute;
     inset: 20px 22px;
     overflow-y: auto;
