@@ -1,7 +1,7 @@
 import {isPersonalExample} from './personal-demo.js';
 import {samePlayingSource} from './personal-source.js';
 import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
-import {renderProposalChordGrid} from './proposal-chord-grid.js';
+import {renderProposalChordGrid,refreshProposalChordGrids} from './proposal-chord-grid.js';
 import {mountMemoryPanel} from './memory-panel.js';
 import {conversationSourceForTurn} from './copilot-memory.js';
 // [Claude] — 2026-09-09 — Copilot IA : contrôleur du sous-onglet.
@@ -1035,6 +1035,7 @@ function refreshExampleCards() {
     button.appendChild(el('span', { text: playing ? 'Arrêter' : card.dataset.playLabel || 'Écouter l\'exemple' }));
   });
   refreshExampleTransport();
+  refreshProposalChordGrids(els.messages,playingExampleId,exampleProgress);
 }
 
 const ICON_HEADPHONES = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg>';
@@ -1317,8 +1318,8 @@ function renderOneMessage(msg, { last = false } = {}) {
   if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || msg.toolResult.example.source?.kind === 'passage vidéo')) {
     if (msg.toolResult.originalTake) content.append(createTakePlayer(msg.toolResult.originalTake, { id: `${exampleIdOf(msg)}-original`, title: 'Ton jeu original' }));
     for(const variant of variantMessages(msg)) content.appendChild(renderExampleCard(variant));
-    const grid=renderProposalChordGrid(msg.toolResult,{notation:document.getElementById('notation-select')?.value || 'english',id:exampleIdOf(msg)});
-    if(grid)content.appendChild(grid);
+    const grid=renderProposalChordGrid(msg.toolResult,{notation:document.getElementById('notation-select')?.value || 'english',id:exampleIdOf(msg),originalId:`${exampleIdOf(msg)}-original`,variantIds:variantMessages(msg).map(exampleIdOf)});
+    if(grid){content.appendChild(grid);refreshProposalChordGrids(content,playingExampleId,exampleProgress);}
   } else if (msg.toolResult?.played?.length) {
     // Anciennes conversations : notes jouées à l'époque, pour mémoire.
     const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
@@ -2088,10 +2089,12 @@ export async function initCopilotTab() {
     examplePaused = Boolean(paused);
     refreshTakePlayers(els.root?.ownerDocument, playingExampleId, exampleProgress, examplePaused);
     refreshExampleTransport();
+    refreshProposalChordGrids(els.messages,playingExampleId,exampleProgress);
   });
   document.addEventListener('copilot-example-frame', (e) => {
     if (e.detail?.id !== playingExampleId) return;
     refreshTakeCursor(els.root?.ownerDocument, e.detail.id, e.detail.position);
+    refreshProposalChordGrids(els.messages,playingExampleId,{...exampleProgress,position:e.detail.position});
   });
 
   document.addEventListener('copilot-send-message', async (e) => {

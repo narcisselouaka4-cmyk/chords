@@ -217,7 +217,7 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
   const title=voicingMode==='linked'?'Voix intérieures liées':'Une progression reconstruite';
   const description=voicingMode==='linked'?'Une autre disposition des accords sous ta mélodie, avec des tensions vers les arrivées.':count?'L’accompagnement est reconstruit sous ta mélodie, avec des tensions vers les arrivées.'
     :'Des accords enrichis sur la phrase, en gardant tes notes mélodiques.';
-  const changes=segments.map(s=>({at:s.at,end:s.end,chord:s.label,notes:s.notes,goal:s.kind==='original'?'preserved':['enrich','arp-support'].includes(s.kind)?'enrich':'passing',kind:s.kind,targetAt:s.targetAt}));
+  const changes=segments.map(s=>({at:s.at,end:s.end,chord:s.label,notes:s.notes,goal:s.kind==='original'?'preserved':['enrich','arp-support'].includes(s.kind)?'enrich':'passing',kind:s.kind,targetAt:s.targetAt,source:s.frame.chord.name,technique:s.technique,topMidi:s.frame.topMidi}));
   const advice={version:8,id:`phrase:${id}`,goal:'develop',take,edit,changes,text:description};
   return {id,title,description,advice,harmony:changes,example:{...example,title,subtitle:description}};
 }

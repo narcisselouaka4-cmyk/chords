@@ -25,7 +25,7 @@ export function buildConversationMemory(messages = [], {take = null,conversation
     const variants=(r.variants || (r.playingAdvice ? [{title:r.example?.title,advice:r.playingAdvice}] : []))
       .filter(v=>v.advice?.version!==6).map(v=>({id:v.id || v.advice?.id,title:excerpt(v.title || v.example?.title || 'Proposition',100),
         harmony:(v.harmony || v.advice?.changes || []).filter(c=>c.chord&&Number.isFinite(c.at)).map(c=>({
-          at:c.at,end:c.end,chord:excerpt(c.chord,100),notes:(c.notes || []).filter(Number.isInteger),kind:c.kind,goal:c.goal,targetAt:c.targetAt,
+          at:c.at,end:c.end,chord:excerpt(c.chord,100),notes:(c.notes || []).filter(Number.isInteger),kind:c.kind,goal:c.goal,targetAt:c.targetAt,source:c.source,technique:c.technique,topMidi:c.topMidi,
         }))})).filter(v=>v.harmony.length);
     return variants.length?[{messageIndex:Math.max(0,boundary)+index,request:excerpt(r.harmonicRequest),variants}]:[];
   }).slice(-3);

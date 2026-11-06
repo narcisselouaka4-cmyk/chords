@@ -1,3 +1,5 @@
+import {TEACHING_GUIDANCE,readableTeachingText} from './teaching-language.js';
+import {personalStyleCapabilityAnswer} from './style-capabilities.js';
 import {playingHarmonyFacts} from './playing-harmony-facts.js';
 import {sessionAdjustmentAnswer} from './session-adjustments.js';
 import {personalContext,samePlayingSource,restoreConversationPlaying} from './personal-source.js';
@@ -77,7 +79,11 @@ import { takeExample } from './take-attachment.js';
 // va pas »). Les outils audio préparent un exemple à écouter sous la réponse ;
 // les notes des accords et des progressions sont choisies par l'application
 // (voicings de l'Exercice), plus par le modèle.
-const COPILOT_SYSTEM_PROMPT = `Tu es l'assistant musical intégré à l'application Piano Jazz Chords : un pianiste qui maîtrise son instrument dans tous les styles (variété, pop, gospel, jazz, classique…) et un pédagogue, qui s'adresse aussi bien aux débutants qu'aux pianistes confirmés. Tu aides le pianiste à comprendre les harmonies, à explorer de nouvelles sonorités et, quand il te confie une session enregistrée, à progresser dans son jeu. Reste factuel et précis ; tes explications sont claires et concises.
+const COPILOT_SYSTEM_PROMPT = `Tu es l'assistant musical intégré à l'application Piano Jazz Chords : un assistant de piano et de pédagogie musicale, qui s'adresse aussi bien aux débutants qu'aux pianistes confirmés. Tu aides le pianiste à comprendre les harmonies, à explorer de nouvelles sonorités et, quand il te confie une session enregistrée, à progresser dans son jeu. Reste factuel et précis ; tes explications sont claires et concises.
+
+${TEACHING_GUIDANCE}
+
+Capacités : une couleur harmonique jazz ou gospel ne prouve pas que le rythme du style est réalisé. Ne promets pas de convertir un jeu personnel dans un genre si aucun arrangeur dédié ne le réalise. Une limite de cette application n’est pas une impossibilité musicale.
 
 Contexte fourni :
 - s'il s'agit d'un tutoriel vidéo : la transcription de ce que dit le professeur (ou sa traduction en français), la grille d'accords relevée par l'application sur la même vidéo, la tonalité détectée si elle est connue ;
@@ -88,7 +94,7 @@ Règles :
 1. Réponds toujours en français, de façon claire et pédagogique.
 2. N'invente aucun accord, aucune note, aucun concept que les données de l'application ne soutiennent pas (grille, notes, tonalité, constats d'analyse).
 3. Un exemple à écouter seulement si le pianiste le demande (« joue-moi », « fais-moi entendre », « montre-moi », « un exemple », « rejoue »). Une question d'explication (« c'est quoi… », « pourquoi… », « quelle est la progression ? ») reçoit une explication, SANS outil audio : l'application lui propose ensuite « Fais-le-moi entendre » d'un clic. Les outils audio (play_progression, play_voicing, play_lick, play_note) ne jouent RIEN pendant que tu réponds : ils ajoutent SOUS ta réponse un exemple qui démarre après elle. Quand il a demandé à entendre : rédige ton explication (courte : règle 4), appelle l'outil, et termine par une phrase qui renvoie à l'exemple (« Écoute l'exemple ci-dessous : … »). N'écris jamais « je te joue… » ou « voici la démonstration » en tête de réponse.
-4. Réponds pour être compris par un pianiste débutant : une idée principale, une action concrète et son effet à écouter. Par défaut, trois à cinq phrases courtes, en deux petits paragraphes, environ 60 mots. Une seule suggestion utile ; aucune si elle n'est pas justifiée. Pas de bilan imposé, de compliment automatique ni d'exercice non demandé. Des étapes numérotées seulement pour une vraie procédure. Les détails viennent sur demande (« Plus de détails »). Ne montre pas les mesures internes : vélocité, millisecondes, pourcentages, scores, séries de numéros ou longues suites de symboles. Traduis-les en gestes (« joue l'accompagnement plus doucement »), uniquement si les données et le but du pianiste le justifient. Garde les notes et noms d'accords indispensables, en français ; explique tout terme technique utile. Un chiffre reste possible s'il aide réellement à agir (tempo demandé, moment à réécouter).
+4. Applique le cadre pédagogique ci-dessus à toutes les réponses, y compris les détails : raison simple, effet audible et vocabulaire accessible. Le tempo en BPM et un moment à réécouter sont autorisés ; les chiffres d'analyse interne ne le sont pas. Les modes Posé, Arpégé, Rythmé et Plaqué décrivent un placement des notes, pas une conversion de genre musical.
 5. Quand un exemple est demandé, l'application le joue comme un pianiste : voicings réels enchaînés d'un accord à l'autre, à deux mains, dans le style choisi (Posé, Arpégé, Rythmé, Plaqué). Tu n'as donc PAS à choisir les notes d'un accord ni d'une progression :
    - un accord, un voicing, une position → play_voicing (l'accord, et la technique si le pianiste la précise : close, drop2, drop3, rootless, quartal, spread, upper_structure) ;
    - une progression, un enchaînement, une cadence, un turnaround (« ii-V-I », « 2-5-1 », « Dm7 G7 Cmaj7 ») → play_progression avec la liste des accords (focus « 7-to-3 » ou « guide-tones-only » pour faire entendre la conduite des voix, « full » sinon) ;
@@ -1829,10 +1835,18 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
  * @param {string} [params.copilotStyleId='auto']
  * @returns {Promise<{ok: true, content: string, toolResult: {played: object[], ignored: number}} | {ok: false, error: string}>}
  */
-export async function sendCopilotMessage({ message, messages = [], context, conversationId = null, copilotStyleId = 'auto', review = false }) {
+export async function sendCopilotMessage(params) {
+  const reply=await sendCopilotMessageRaw(params);
+  return reply.ok && !reply.toolResult?.memoryCommand ? {...reply,content:readableTeachingText(reply.content)} : reply;
+}
+
+async function sendCopilotMessageRaw({ message, messages = [], context, conversationId = null, copilotStyleId = 'auto', review = false }) {
   context = personalContext(restoreConversationPlaying(context,messages));
   const memory=buildConversationMemory(messages,{take:context?.playing?.passage,conversationId});
   const command=await memoryCommandAnswer(message,{memory});if(command)return command;
+  const capability=personalStyleCapabilityAnswer({message,context});if(capability)return capability;
+  const style = playingStyleAnswer({ message, messages, context });
+  if (style) return style;
   const explanation=isExplanationQuestion(message)&&!explicitPlaybackRequest(message);
   const explained=proposalExplanationAnswer({message,memory});if(explained)return explained;
   const remembered=await loadPersonalMemories();
@@ -1857,8 +1871,6 @@ export async function sendCopilotMessage({ message, messages = [], context, conv
   if(adjustment)return adjustment;
   const demo = personalDemoAnswer({message, messages, context, preferences});
   if (demo) return demo;
-  const style = playingStyleAnswer({ message, messages, context });
-  if (style) return style;
   const variants = personalVariantsAnswer({ message, messages, context, preferences });
   if (variants) return variants;
   const personal = personalPlayingAnswer({ message, messages, context, review });
