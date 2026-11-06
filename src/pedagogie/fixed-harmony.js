@@ -1,5 +1,7 @@
 // Harmonisation verticale : dessus exact, basse choisie, puis voix intérieures.
 // Les voicings d'Exercices sont consultés sans modifier son moteur partagé.
+import {phrasePedal} from './proposal-pedal.js';
+import {handDistribution,voicedQuality} from './piano-voicing.js';
 import { reviewTake } from '../recorder/take-review.js';
 import { parseChordName } from './note-roles.js';
 import { notePairs, applyTakeEdit } from './take-edit.js';
@@ -80,8 +82,7 @@ export function harmonyVoicings(frame,spec,{palette=null}={}) {
     // Les deux mains peuvent porter des voix intérieures : ne pas assimiler
     // toute note sauf la basse à la main droite. Une répartition jouable est
     // nécessaire, sans prétendre reconnaître les mains du pianiste.
-    if(!Array.from({length:Math.min(3,notes.length-1)},(_,i)=>i+1)
-      .some(split=>notes[split-1]-notes[0]<=12&&topMidi-notes[split]<=12))return;
+    if(!handDistribution(notes)||voicedQuality(notes,root,quality)!==quality)return;
     const key=notes.join(',');if(seen.has(key))return;seen.add(key);
     const bassLabel=pc(notes[0])!==root?` / ${NAMES[pc(notes[0])]}`:'';
     const outside=palette!=null&&spec.chromatic?notes.filter(n=>!MAJOR.some(d=>pc(palette+d)===pc(n))).length:0;
@@ -193,7 +194,11 @@ export function buildFixedHarmonyVariants(take,{message='',functional=true}={}) 
       const [from,to]=profile.require, leading=pc(chain[to].rootPc-1);
       if(chain[from].notes.filter(n=>pc(n)===leading).some(n=>!chain[to].notes.includes(n+1)))continue;
     }
-    const edit={type:'fixed-harmony',frames:selected.map(({frame,v})=>frameEdit(frame,v))};
+    const keepPedal=/garde.*pedale|conserv.*pedale/.test(text);
+    const noPedal=/sans pedale|sans sustain|sec\b/.test(text);
+    const pedalSegments=frames.map((f,i)=>({at:f.at,end:Math.min(Math.max(...f.source.map(p=>p.end)),frames[i+1]?frames[i+1].at-.045:take.duration),notes:chain[i].notes}));
+    const edit={type:'fixed-harmony',frames:selected.map(({frame,v})=>frameEdit(frame,v)),replacePedal:!keepPedal,
+      pedal:keepPedal||noPedal?[]:phrasePedal(pedalSegments,notePairs(take.events),take.duration)};
     const changed=applyTakeEdit(take,edit);if(!changed)continue;
     const example=comparedTakeExample(take,changed), signature=JSON.stringify(example?.events);
     if(!example||seen.has(signature))continue;seen.add(signature);

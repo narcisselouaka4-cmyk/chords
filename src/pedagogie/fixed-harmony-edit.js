@@ -1,5 +1,7 @@
 // Édition de voicings fixes : basse et voix intérieures sous un dessus inchangé.
 // Aucun nouvel instant musical ; le dessus garde son occurrence MIDI exacte.
+import {applyProposalPedal} from './proposal-pedal.js';
+import {playableTimeline} from './piano-voicing.js';
 import { realizesHarmony } from './harmonic-identity.js';
 import { respectsLowIntervalLimits } from '../voicing-engine/textbook-voicings.js';
 const pc = n => (n % 12 + 12) % 12;
@@ -30,7 +32,7 @@ export function applyFixedHarmony(take, edit, pairs) {
     if (last-first > .4 || source.some(p => p.end < last+.08)) return null;
     // Une réharmonisation n'efface pas les notes que la pédale garde du bloc précédent.
     const pedal = take.events.filter(e => e.type==='control' && e.controller===64 && e.time<=first).at(-1);
-    if (!frame.preserveBass && pedal?.value>=64 && pairs.some(p => !frame.source.includes(p.on) && p.end<=first)) return null;
+    if (!edit.replacePedal && !frame.preserveBass && pedal?.value>=64 && pairs.some(p => !frame.source.includes(p.on) && p.end<=first)) return null;
     const assignments = [{ pair: top, note: top.event.note }, { pair: bass, note: sorted[0] }];
     const free = byPitch.slice(1,-1);
     for (const note of sorted.slice(1,-1)) {
@@ -55,7 +57,7 @@ export function applyFixedHarmony(take, edit, pairs) {
     if (pairs.some(p => !frame.source.includes(p.on) && p.event.time<Math.max(...source.map(q=>q.end))
       && p.end>first && sorted.includes(p.event.note))) return null;
   }
-  const result = events.filter((_,i)=>!removed.has(i)).concat(added).sort((a,b)=>a.time-b.time);
+  let result = events.filter((_,i)=>!removed.has(i)).concat(added).sort((a,b)=>a.time-b.time);
   const active = new Map();
   for (const e of result) {
     const key = `${e.channel||0}:${e.note}`;
@@ -65,5 +67,8 @@ export function applyFixedHarmony(take, edit, pairs) {
       active.set(key,e);
     } else if (e.type==='note_off'||e.type==='note_on'&&e.velocity===0) active.delete(key);
   }
+  result=applyProposalPedal(result,edit,Math.max(take.duration||0,...take.events.map(e=>e.time)));if(!result)return null;
+  result.sort((a,b)=>a.time-b.time);
+  if(!playableTimeline(result,e=>changedAttacks.has(e)))return null;
   return { ...take, events: result };
 }

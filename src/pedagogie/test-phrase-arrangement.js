@@ -29,7 +29,8 @@ for(let shift=1;shift<12;shift++){
 console.log('✓ Les douze tonalités produisent un plan rejouable, sans référence à des instants ou hauteurs codés pour Session_017');
 const noPedal=buildPhraseArrangement(t,{message:'Améliore sans pédale'});assert(noPedal);assert.equal(noPedal.advice.edit.pedal.length,0);
 const sustain={...t,events:[{type:'control',controller:64,value:127,time:0},...t.events,{type:'control',controller:64,value:0,time:t.duration}]};
-const kept=buildPhraseArrangement(sustain);assert(kept);assert.equal(kept.advice.edit.pedal.length,0);assert(!kept.harmony.some(h=>h.kind==='dominant'));
+const kept=buildPhraseArrangement(sustain);assert(kept);assert(kept.advice.edit.replacePedal);assert(kept.advice.edit.pedal.length>0);
+const preserved=buildPhraseArrangement(sustain,{message:'Garde ma pédale'});assert(preserved);assert.equal(preserved.advice.edit.replacePedal,false);assert.equal(preserved.advice.edit.pedal.length,0);assert(!kept.harmony.some(h=>h.kind==='dominant'));
 const bass=buildPhraseArrangement(t,{message:'Garde ma basse'});if(bass)assert(!bass.harmony.some(h=>h.goal==='passing'));assert(buildPhraseVariants(t,{message:'Améliore mon jeu, garde ma basse'}).length);assert.equal(buildPhraseArrangement(t,{latin:true}),null);
 const fixed=buildPhraseArrangement(t,{message:'uniquement des accords fixes'});assert(fixed);assert(fixed.harmony.every(h=>['enrich','original'].includes(h.kind)));
 assert.equal(buildPhraseArrangement(t,{message:'Basses : Do Fa Ré Sol'}),null);

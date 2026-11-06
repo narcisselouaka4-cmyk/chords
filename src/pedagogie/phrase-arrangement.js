@@ -1,3 +1,5 @@
+import {handDistribution,voicedQuality} from './piano-voicing.js';
+import {phrasePedal} from './proposal-pedal.js';
 import {sourceKeyConflict} from './playing-harmony-facts.js';
 import {referenceVoicing,referenceFinalDominant} from './reference-voicings.js';
 // Construction de phrase, sans copier une session ni ajouter de ligne scalaire.
@@ -54,7 +56,16 @@ function choose(f,rootPc,qualities,previous,melody,start,end,{preserveBass=false
   const tops=checkpoints.map(t=>sounding.filter(p=>p.event.time<=t+.00001&&p.end>t+.00001)
     .map(p=>p.event.note).filter(n=>n>f.bassMidi+5)).filter(ns=>ns.length).map(ns=>Math.max(...ns));
   const ceiling=Math.min(f.topMidi,...tops);
-  const preferred=reference&&referenceVoicing(f,rootPc,qualities,ceiling,target);
+  const playable=notes=>checkpoints.every(t=>handDistribution([...notes,...sounding.filter(p=>p.event.time<=t+.00001&&p.end>t+.00001).map(p=>p.event.note)]));
+  let preferred=reference&&referenceVoicing(f,rootPc,qualities,ceiling,target);
+  if(preferred){
+    // Une basse isolée trop grave ne doit pas imposer six notes à l'autre main.
+    const original=preferred.notes;
+    const options=[original,[...new Set([original[0]+12,...original.slice(1)])].sort((a,b)=>a-b)];
+    const notes=options.find(ns=>ns.at(-1)<=ceiling&&playable(ns));
+    const quality=notes&&voicedQuality([...notes,f.topMidi],rootPc,preferred.quality);
+    preferred=quality===preferred.quality?{...preferred,notes}:null;
+  }
   if(preferred&&(!preserveBass||pc(preferred.notes[0])===pc(f.bassMidi))
     &&(palette==null||preferred.notes.every(n=>[0,2,4,5,7,9,11].some(i=>pc(palette+i)===pc(n))))) {
     const fun=target?{kind:'dominant',targetRootPc:target.rootPc}:null;
@@ -65,6 +76,7 @@ function choose(f,rootPc,qualities,previous,melody,start,end,{preserveBass=false
   for(let topMidi=ceiling;topMidi>=Math.max(48,ceiling-12);topMidi--){
     for(const quality of qualities){
       for(const v of harmonyVoicings({...f,topMidi},{rootPc,quality,preserveBass,chromatic:palette==null},{palette})){
+        if(!playable(v.notes)||voicedQuality(v.notes,rootPc,v.quality)!==v.quality)continue;
         const fun=target?{kind:'dominant',targetRootPc:target.rootPc}:null;
         if(target&&!resolvingVoices({...v,function:fun},target))continue;
         candidates.push({...v,function:fun,cost:voiceLeadingCost(previous||f.notes,v.notes)
@@ -128,7 +140,7 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
     }
     segments.push({at:f.at,end,frame:f,...v,kind:'enrich'});
     if(arp&&!fixedOnly){
-      const bass=Math.min(...v.notes), shell=[bass,bass+10,bass+14];
+      const bass=Math.min(...v.notes), shell=v.notes.filter(n=>pc(n-bass)!==7);
       if(minor(v.quality)&&shell.every(n=>n<f.topMidi))segments.push({at:arp.event.time-.06,end:Math.min(oldEnd-.12,arp.end+1.6),frame:f,rootPc:v.rootPc,quality:v.quality,notes:shell,label:v.label,kind:'arp-support'});
     }
     previous=v;
@@ -201,16 +213,10 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
       if(s.end-cursor>=.12)notes.push({note:n,time:cursor,end:s.end,velocity:v*(n===s.notes[0] ? .85 : 1)});
     }
   }
-  const pedal=[];
   const noPedal=/sans pedale|sans sustain|sec\b/.test(text);
-  if(!hasPedal&&!noPedal){
-    for(let i=0;i<segments.length;i++){
-      const s=segments[i],next=segments[i+1]?.at??take.duration+.32;
-      const on=s.at+.035,off=i===segments.length-1?take.duration+.32:Math.min(next-.045,take.duration+.32);
-      if(off-on>=.12)pedal.push({time:on,value:127},{time:off,value:0});
-    }
-  }
-  const edit={type:'arrangement',remove:[...remove],keep:melody.map(p=>p.on),notes,pedal};
+  const keepPedal=/garde.*pedale|conserv.*pedale/.test(text);
+  const pedal=noPedal||keepPedal?[]:phrasePedal(segments,melody,take.duration);
+  const edit={type:'arrangement',remove:[...remove],keep:melody.map(p=>p.on),notes,pedal,replacePedal:!keepPedal};
   const changed=applyTakeEdit(take,edit);if(!changed)return null;
   const example=comparedTakeExample(take,changed);if(!example)return null;
   const id=voicingMode==='linked'?'arrangement-linked':'arrangement';
