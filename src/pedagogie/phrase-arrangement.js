@@ -88,8 +88,11 @@ function choose(f,rootPc,qualities,previous,melody,start,end,{preserveBass=false
   return candidates.sort((a,b)=>a.cost-b.cost)[0]||null;
 }
 
-/** Une version construite sur la phrase ; les autres cartes restent disponibles. */
-export function buildPhraseArrangement(take,{message='',latin=false,voicingMode='open'}={}){
+/** Une version construite sur la phrase ; les autres cartes restent disponibles.
+ * useReferenceVoicings=false isole la grammaire de référence pour l'évaluation.
+ * Le parcours habituel (y compris la variante liée historique) reste inchangé. */
+export function buildPhraseArrangement(take,{message='',latin=false,voicingMode='open',useReferenceVoicings=true}={}){
+  const reference=useReferenceVoicings;
   const text=plain(message);
   if(latin||/basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text))return null;
   const fixedOnly=/sans (?:aucun )?(?:mouvement|passage|ajout rythmique)|(?:uniquement|seulement).*accords? (?:fixes|enrichis)|pas de mouvements?/.test(text);
@@ -130,7 +133,7 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
     const oldEnd=end;
     if(arp)end=Math.min(end,arp.event.time-.11);
     else if(later.some(p=>p.event.note===f.topMidi))end=Math.min(end,f.top.end-.06);
-    const v=choose(f,f.chord.rootPc,((palette!=null&&pc(f.chord.rootPc-palette)===7&&!minor(f.chord.quality))?['13','9','7']:qualityChoices(f)),previous?.notes,melody,f.at,end,{preserveBass:keepBass,palette,reference:voicingMode!=='linked'});
+    const v=choose(f,f.chord.rootPc,((palette!=null&&pc(f.chord.rootPc-palette)===7&&!minor(f.chord.quality))?['13','9','7']:qualityChoices(f)),previous?.notes,melody,f.at,end,{preserveBass:keepBass,palette,reference:reference&&voicingMode!=='linked'});
     if(!v||(keepBass&&v.notes[0]!==f.bassMidi)){
       // Une position non résolue ne fait pas disparaître toute la phrase :
       // garder exactement cet accord et travailler les autres destinations.
@@ -163,12 +166,12 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
     const length=beat?(tritone?2:relativeMinor?1.5:1.25)*beat:Math.min(.88,span*.36);
     const end=f.at-.045,start=f.at-Math.min(length,span*.48);
     if(start-base.at<.6)continue;
-    const dominant=choose(base.frame,pc(f.chord.rootPc+(tritone?1:7)),tritone?['13#11','9','7b9']:['7b9','7#5','9','13','7'],base.notes,melody,start,end,{target});
+    const dominant=choose(base.frame,pc(f.chord.rootPc+(tritone?1:7)),tritone?['13#11','9','7b9']:['7b9','7#5','9','13','7'],base.notes,melody,start,end,{target,reference});
     if(!dominant)continue;
     let lead=null;
     if(relativeMinor&&span>=2.1){
       const leadStart=start-(beat?beat*.9:Math.min(.55,span*.22)),leadEnd=start-.045;
-      if(leadStart-base.at>=.45)lead=choose(base.frame,pc(f.chord.rootPc+2),['m7b5'],base.notes,melody,leadStart,leadEnd);
+      if(leadStart-base.at>=.45)lead=choose(base.frame,pc(f.chord.rootPc+2),['m7b5'],base.notes,melody,leadStart,leadEnd,{reference});
       if(lead){segments.push({...lead,at:leadStart,end:leadEnd,frame:base.frame,kind:'iiø'});base.end=Math.min(base.end,leadStart-.035);}
     }
     base.end=Math.min(base.end,start-.035);
@@ -181,8 +184,8 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
     const finalTop=melody.filter(p=>p.event.time>=last.at&&p.end>=take.duration-.12).sort((a,b)=>b.event.note-a.event.note)[0];
     if(finalTop&&take.duration-last.at>=1.7){
       const arrival=last.at+(take.duration-last.at)*.55;
-      const tonic=choose({...last.frame,topMidi:finalTop.event.note},key.rootPc,['maj9','6/9','maj7'],last.notes,melody,arrival,take.duration);
-      const dom=tonic&&(referenceFinalDominant(tonic,Math.min(last.frame.topMidi,...melody.filter(p=>p.event.time<arrival&&p.end>last.at).map(p=>p.event.note)))||choose(last.frame,pc(key.rootPc+7),['7b9','7#5','9'],last.notes,melody,last.at,arrival-.045,{target:tonic}));
+      const tonic=choose({...last.frame,topMidi:finalTop.event.note},key.rootPc,['maj9','6/9','maj7'],last.notes,melody,arrival,take.duration,{reference});
+      const dom=tonic&&((reference&&referenceFinalDominant(tonic,Math.min(last.frame.topMidi,...melody.filter(p=>p.event.time<arrival&&p.end>last.at).map(p=>p.event.note))))||choose(last.frame,pc(key.rootPc+7),['7b9','7#5','9'],last.notes,melody,last.at,arrival-.045,{target:tonic,reference}));
       if(dom){Object.assign(last,dom,{end:arrival-.045,kind:'dominant',targetAt:arrival});segments.push({...tonic,at:arrival,end:take.duration,frame:last.frame,kind:'tonic'});count++;}
     }
   }

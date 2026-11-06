@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Écoutes Copilot</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#252825;background:#f4f6f3;accent-color:#268b59;color-scheme:light}*{box-sizing:border-box}body{max-width:940px;margin:0 auto;padding:36px 22px 60px}h1{font-size:30px;letter-spacing:-.9px;margin:0 0 10px}p{line-height:1.55}.intro{color:#59635c;max-width:750px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin:26px 0 18px}button,select{font:inherit;border:1px solid #d5ddd6;border-radius:9px;background:#fff;color:inherit;padding:9px 14px;cursor:pointer}button:hover{background:#edf3ed}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #268b59;outline-offset:3px}button:disabled{opacity:.45;cursor:default}.primary{background:#267b50;color:white;border-color:#267b50}.primary:hover{background:#1c6340}.case{background:#fff;border:1px solid #e0e7e0;border-radius:14px;padding:22px;margin-bottom:18px}h2{font-size:19px;margin:0 0 16px}.versions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}.versions [aria-pressed=true]{background:#e3f2e6;color:#175b36;border-color:#70aa85}.versions button:first-child{margin-right:10px}audio{width:100%;display:block;margin:7px 0 12px}.rate{display:flex;align-items:center;gap:8px;justify-content:flex-end;font-size:13px;color:#59635c}.rate select{padding:5px 8px}.question{border:0;padding:0;margin:20px 0 12px}.question legend{font-weight:600;margin-bottom:10px}.choices{display:flex;flex-wrap:wrap;gap:9px}.choice{border:1px solid #d9e0d9;border-radius:8px;display:flex;gap:7px;padding:9px 12px;align-items:center;cursor:pointer}.choice:has(input:checked){background:#e8f3ea;border-color:#7cab87}label.note{display:block;font-size:14px;color:#59635c;margin:15px 0 7px}textarea{width:100%;min-height:78px;resize:vertical;border:1px solid #d9e0d9;border-radius:8px;padding:10px;font:inherit}.muted{font-size:13px;color:#69746b}.save{min-height:20px;font-size:13px;color:#47634e}.error{color:#a43326}.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}#progress{font-size:14px;color:#59635c}@media(max-width:600px){body{padding:24px 14px}.case{padding:17px}.top{align-items:flex-start;flex-direction:column}h1{font-size:26px}.choices{gap:6px}.choice{font-size:14px;padding:8px}}
+</style>
+<h1>Écoutes Copilot</h1>
+<p class="intro">Compare les versions A et B sans connaître leur méthode. Tu peux réécouter ton jeu et passer d’une version à l’autre au même endroit. Choisis ce qui te paraît le plus musical ; « aucune » et « pas d’avis » sont aussi des réponses utiles.</p>
+<div class="top"><span id="progress">Chargement…</span><button class="primary" id="export" disabled>Exporter mes avis</button></div>
+<main id="cases"></main>
+<p class="save" id="save" role="status"></p>
+<p class="muted">Ces prises ont déjà servi au développement. Cette écoute établit le point de départ ; elle ne démontre pas encore la qualité sur de nouvelles musiques. Aucun appel à une IA.</p>
+<!--LISTENING_DATA-->
+<script type="module">
+const root=document.querySelector('#cases'),status=document.querySelector('#save'),progress=document.querySelector('#progress');
+const make=(tag,attrs={},text='')=>{const el=document.createElement(tag);Object.assign(el,attrs);el.textContent=text;return el;};
+try{
+ const embedded=document.querySelector('#listening-data');
+ let pack;
+ if(embedded)pack=JSON.parse(embedded.textContent);
+ else{const response=await fetch('./listening.json');if(!response.ok)throw Error('Les écoutes ne sont pas disponibles.');pack=await response.json();}
+ const storageKey='pjc.copilot.listening.'+pack.packId;
+ let saved={};try{saved=JSON.parse(localStorage.getItem(storageKey)||'{}');}catch{}
+ const opinions=saved.packId===pack.packId&&saved.opinions&&typeof saved.opinions==='object'?saved.opinions:{};
+ const pairs=pack.cases.filter(c=>c.paired),radios=['A','B','equivalent','neither','undecided'];
+ const answerLabels=['Version A','Version B','Équivalentes','Aucune','Pas d’avis'];
+ function update(){
+  const answered=pairs.filter(c=>radios.includes(opinions[c.id]?.preference)).length;
+  progress.textContent=answered+' / '+pairs.length+' prises commentées';
+  try{localStorage.setItem(storageKey,JSON.stringify({schema:1,packId:pack.packId,opinions}));status.textContent='Tes avis sont conservés dans ce navigateur. Exporte-les pour me les transmettre.';}
+  catch{status.textContent='La sauvegarde du navigateur est indisponible. Utilise « Exporter mes avis » pour conserver tes réponses.';}
+ }
+ for(const c of pack.cases){
+  if(!c.paired)continue;
+  const card=make('section',{className:'case'});card.append(make('h2',{},c.title));
+  const versions=make('div',{className:'versions'}),audio=make('audio',{controls:true,preload:'metadata'});
+  audio.setAttribute('aria-label','Écouter '+c.title);
+  const tracks=[{label:'Ton jeu',audio:c.original,available:true},...c.candidates];
+  let selected=null,seekTarget=0,pendingPlay=false;
+  audio.addEventListener('play',()=>{for(const other of document.querySelectorAll('audio'))if(other!==audio)other.pause();});
+  const buttons=tracks.map(track=>{
+   const button=make('button',{type:'button',disabled:!track.available},track.label==='Ton jeu'?'Ton jeu':'Version '+track.label);
+   button.setAttribute('aria-pressed','false');
+   if(!track.available)button.title='Le moteur n’a pas produit de version dans cette condition.';
+   button.addEventListener('click',()=>select(track,button));versions.append(button);return button;
+  });
+  const select=(track,button)=>{
+   if(selected===track)return;
+   const resume=audio.readyState>0?!audio.paused:pendingPlay;
+   if(audio.readyState>0&&Number.isFinite(audio.currentTime))seekTarget=audio.currentTime;
+   pendingPlay=resume;
+   audio.pause();selected=track;
+   for(const b of buttons)b.setAttribute('aria-pressed',String(b===button));
+   audio.src=new URL(track.audio,location.href).href;
+   audio.onloadedmetadata=()=>{
+    audio.currentTime=Math.min(seekTarget,Math.max(0,audio.duration-.03));audio.playbackRate=Number(speed.value);
+    if(resume)audio.play().catch(()=>{});
+   };audio.load();
+  };
+  const rate=make('label',{className:'rate'},'Vitesse'),speed=make('select',{'ariaLabel':'Vitesse pour '+c.title});
+  for(const [value,label] of [[1,'Normale'],[.75,'0,75×'],[.5,'0,5×']])speed.append(make('option',{value},label));
+  speed.onchange=()=>{audio.playbackRate=Number(speed.value);};rate.append(speed);
+  card.append(versions,audio,rate);
+  const question=make('fieldset',{className:'question'});question.append(make('legend',{},'Quelle version préfères-tu ?'));
+  const choices=make('div',{className:'choices'}),opinion=opinions[c.id]||{};
+  radios.forEach((value,i)=>{
+   const label=make('label',{className:'choice'}),input=make('input',{type:'radio',name:c.id,value,checked:opinion.preference===value});
+   input.onchange=()=>{opinions[c.id]={...opinions[c.id],preference:value};update();};
+   label.append(input,document.createTextNode(answerLabels[i]));choices.append(label);
+  });question.append(choices);
+  const noteLabel=make('label',{className:'note',htmlFor:'note-'+c.id},'Ce qui te plaît ou te gêne — tu peux préciser un moment'),note=make('textarea',{id:'note-'+c.id,value:opinion.comment||'',placeholder:'Par exemple : à 0:08, l’arrivée est plus naturelle…'});
+  note.oninput=()=>{opinions[c.id]={...opinions[c.id],comment:note.value};update();};
+  card.append(question,noteLabel,note);root.append(card);
+  select(tracks.find(t=>t.label==='A'&&t.available)||tracks[0],buttons[c.candidates[0]?.available?1:0]);
+ }
+ document.querySelector('#export').disabled=false;
+ document.querySelector('#export').onclick=()=>{
+  const payload={schema:1,packId:pack.packId,exportedAt:new Date().toISOString(),opinions};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+  const link=make('a',{href:url,download:'avis-copilot-'+pack.packId.slice(0,8)+'.json'});link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ };
+ update();
+}catch(error){status.classList.add('error');status.textContent=error.message;progress.textContent='Écoutes indisponibles';}
+</script>
+</html>
