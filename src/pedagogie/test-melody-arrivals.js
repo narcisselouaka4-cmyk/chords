@@ -29,7 +29,8 @@ function check(take,v,{rate=1,shift=0}={}){
   const attacks=added.filter(n=>n.time>=h.at&&n.time<=h.at+.015);assert(attacks.length>=1&&attacks.length<=3);
   assert(attacks.every(n=>n.note<h.topMidi&&h.notes.includes(n.note)));
   assert.equal(voicedQuality(h.notes,h.rootPc,h.quality),h.quality);
-  if(h.kind==='arrival')assert.equal(pc(h.notes[0]),h.rootPc);
+  assert(h.notes.at(-1)-h.notes[0]<=24,'Registre compact, avec renversements possibles');
+  assert(h.notes.every((n,i)=>!i||n-h.notes[i-1]<=12),'Aucun trou supérieur à une octave');
   if(h.technique==='drop2'){
    const tones=chordToneIntervals(h.quality);assert.equal(tones.size,4);
    const close=[...tones].map(t=>{let n=h.topMidi;while(pc(n-h.rootPc)!==t)n--;return n;}).sort((a,b)=>a-b);

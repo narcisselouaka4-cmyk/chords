@@ -68,7 +68,7 @@ export function melodyArrivalPlan(pairs,request,key,message){
    }
    if(found<0)return {anchors:[],line,variant,explicit};
    const p=line[found];anchors.push({...spec(hint.degree),at:p.event.time,sourceOn:p.on,melody:p.event.note,index:found,
-    closure:true,offbeat:/contre[- ]?temps/.test(part)});from=found+1;
+    closure:true,offbeat:/contre[- ]?temps|avant (?:la note|le .+?) suivant/.test(part),anticipation:/avant (?:la note|le .+?) suivant/.test(part)});from=found+1;
   }
   return {anchors,line,variant,explicit};
  }
@@ -77,21 +77,25 @@ export function melodyArrivalPlan(pairs,request,key,message){
  return {anchors,line,variant,explicit};
 }
 
-function positions(w,spec,pairs){
+function positions(w,spec,pairs,register){
  const top=w.source.event.note,tones=chordToneIntervals(spec.quality);if(!tones.has(pc(top-spec.rootPc)))return [];
  const result=[],seen=new Set();
  const sounding=pairs.filter(p=>p.event.time<w.end&&p.end>w.at);
  const checks=[w.at,...sounding.flatMap(p=>[p.event.time,p.end]).filter(t=>t>w.at&&t<w.end)];
  const accept=(input,technique)=>{
   let notes=[...new Set(input)].sort((a,b)=>a-b);
-  if(notes.length>(w.kind==='dominant'?6:4)||notes.at(-1)!==top||notes[0]<36||notes[0]>=top)return;
-  if(w.kind==='arrival'&&pc(notes[0])!==spec.rootPc)return;
+  if(notes.length>(w.kind==='dominant'?6:4)||notes.at(-1)!==top||notes[0]>=top)return;
+  // Deux octaves au maximum. Le registre se déduit de la mélodie et de sa
+  // tonique, indépendamment du numéro d'octave affiché par le piano utilisé.
+  if(top-notes[0]>24||notes[0]<register.floor-5)return;
+  if(notes[0]<register.floor&&![7,9,11].includes(pc(notes[0]-register.tonic)))return;
   // La mélodie joue elle-même le sommet. Une cinquième déjà tenue au doigt
   // peut être omise de l'accompagnement ; jamais réattaquée après son relâchement.
   const collision=notes.filter(n=>n!==top&&sounding.some(p=>p.event.note===n));
   if(collision.some(n=>pc(n-spec.rootPc)!==7))return;
   if(collision.length){notes=notes.filter(n=>!collision.includes(n));if(technique==='drop2')technique='drop2-shell';}
   if(notes.length<3||voicedQuality(notes,spec.rootPc,spec.quality)!==spec.quality)return;
+  if(notes.some((n,i)=>i&&n-notes[i-1]>12))return;
   const accompaniment=notes.filter(n=>n!==top);
   // La position reste sous la mélodie durant toute la tenue, pas seulement à
   // l'attaque. Un passage descendant ne doit ni couper ni doubler une voix tenue.
@@ -105,32 +109,40 @@ function positions(w,spec,pairs){
   const label=`${names[spec.rootPc]}${spec.quality==='m'?' mineur':spec.quality==='m7'?' mineur 7':spec.quality==='maj7'?' majeur 7':spec.quality==='dim7'?' diminué 7':' '+spec.quality}${bass}`;
   const low=notes.filter((n,i)=>i&&n-notes[i-1]<=2&&n<60).length;
   const close=notes.filter(n=>[1,13].includes(top-n)).length;
-  result.push({...spec,notes,technique,label,cost:(spec.rank||0)*(w.kind==='dominant'?10:4)+low*3+close*4+Math.abs(notes[0]-Math.min(57,top-12))*.15+(notes.length===3?.6:0)});
+  result.push({...spec,notes,technique,label,cost:(spec.rank||0)*(w.kind==='dominant'?10:4)+low*3+close*4+(top-notes[0])*.2
+   +(notes[0]<register.floor?6:0)+(pc(notes[0])===spec.rootPc?0:1)+(notes.length===3?.6:0)});
  };
  // Le drop 2 est construit à partir d'un accord serré de quatre sons réel.
  if(tones.size===4){const close=[...tones].map(t=>{let n=top;while(pc(n-spec.rootPc)!==t)n--;return n;}).sort((a,b)=>a-b);
   accept([close[0],close[1],close[2]-12,close[3]],'drop2');}
  const third=minor(spec.quality)||spec.quality==='dim7'?3:4,guide=spec.quality==='m'?7:/dim7|^6$/.test(spec.quality)?9:/maj/.test(spec.quality)?11:10;
- const essential=[third,guide,...(/13/.test(spec.quality)?[/b13/.test(spec.quality)?8:9]:[]),...(/b9/.test(spec.quality)?[1]:[])];
+ const essential=[0,third,guide,...(/13/.test(spec.quality)?[/b13/.test(spec.quality)?8:9]:[]),...(/9/.test(spec.quality)?[/b9/.test(spec.quality)?1:2]:[])];
  // Coquilles de trois/quatre voix : basse, guides et sommet mélodique. Les
  // octaves sont recherchées, pas imposées loin des deux mains.
- for(let bass=36;bass<=Math.min(60,top-3);bass++)if(pc(bass)===spec.rootPc){
-  const missing=[...new Set(essential)].filter(t=>pc(top-spec.rootPc)!==t);
-  const expand=(i,notes)=>{if(i===missing.length){accept([bass,...notes,top],'guide-tone-shell');return;}
-   for(let n=bass+3;n<top;n++)if(pc(n-spec.rootPc)===missing[i])expand(i+1,[...notes,n]);};
-  if(missing.length<=(w.kind==='dominant'?4:2))expand(0,[]);
- }
+ const missing=[...new Set(essential)].filter(t=>pc(top-spec.rootPc)!==t);
+ const expand=(i,notes)=>{if(i===missing.length){
+   accept([...notes,top],'guide-tone-shell');
+   // Une quinte ou le redoublement intérieur du sommet peut combler un trou
+   // de registre. Le sommet source, lui, n'est jamais rejoué ou déplacé.
+   if(notes.length+1<(w.kind==='dominant'?6:4))
+    for(let inner=Math.max(register.floor-5,top-24);inner<top;inner++)
+     if((tones.has(7)&&pc(inner-spec.rootPc)===7||pc(inner)===pc(top))&&!notes.includes(inner))accept([...notes,inner,top],'guide-tone-shell');
+   return;}
+  for(let n=Math.max(register.floor-5,top-24);n<top;n++)if(pc(n-spec.rootPc)===missing[i])expand(i+1,[...notes,n]);};
+ if(missing.length<=(w.kind==='dominant'?5:3))expand(0,[]);
  return result.sort((a,b)=>a.cost-b.cost).slice(0,16);
 }
 
 function chooseSegments(windows,pairs,key){
+ const lowest=Math.min(...windows.map(w=>w.source.event.note));
+ const register={tonic:key.rootPc,floor:lowest-pc(lowest-key.rootPc)-12};
  const pools=windows.map(w=>{
   const a=w.anchor;
-  const qualities=w.kind==='dominant'?(minor(w.target.quality)?['7b9b13','13','7b9','7']:['13','7b9b13','7']):
-   !key.minor&&[1,4].includes(a.degree)?['6','maj7']:a.degree===5&&!key.minor?['13','7']:a.quality==='m7'?['m7','m']:[a.quality];
+  const qualities=w.kind==='dominant'?(minor(w.target.quality)?['7b9b13','13','7b9','7']:['13','7b9b13','7']):a.color?[a.color]:
+   !key.minor&&[1,4].includes(a.degree)?['6','maj7','maj9']:a.degree===5&&!key.minor?['13','9','7']:a.quality==='m7'?['m7','m']:[a.quality];
   const rootPc=w.kind==='dominant'?pc(w.target.rootPc+7):a.rootPc;
   return qualities.flatMap((quality,rank)=>positions(w,{rootPc,quality,rank,
-   ...(w.kind==='dominant'?{function:{kind:'dominant',targetRootPc:w.target.rootPc}}:{})},pairs)).sort((a,b)=>a.cost-b.cost).slice(0,32);
+   ...(w.kind==='dominant'?{function:{kind:'dominant',targetRootPc:w.target.rootPc}}:{})},pairs,register)).sort((a,b)=>a.cost-b.cost).slice(0,32);
  });
  if(pools.some(p=>!p.length))return null;
  let beam=[{chosen:[],cost:0}];
@@ -146,9 +158,21 @@ function chooseSegments(windows,pairs,key){
 
 export function buildArrivalAccompaniment(take,{pairs,key,map,request,message}){
  const plan=melodyArrivalPlan(pairs,request,key,message),{anchors,line}=plan;if(anchors.length<3)return null;
+ // Couleurs exprimées par fonction : transposables, sans horaire ni session
+ // inscrits dans le moteur. Une couleur impossible n'est pas annoncée à tort.
+ const colors=/couleurs\s*:\s*([^\n.]+)/i.exec(text(message))?.[1]||'';
+ for(const m of colors.matchAll(/([1-7])\s+(avant la variante|de finale)\s*=\s*(maj9|maj7|m7|7b9b13|7b9|13|9|7|6)\b/g)){
+  const variantAt=anchors.findIndex(a=>a.variant),degree=Number(m[1]);
+  const a=m[2]==='de finale'?anchors.find(a=>a.closure&&a.degree===degree):anchors.slice(0,Math.max(0,variantAt)).filter(a=>a.degree===degree).at(-1);
+  if(a)a.color=m[3];
+ }
  for(const a of anchors)if(a.offbeat){
   const source=pairs.find(p=>p.on===a.sourceOn),point=map.points.find(p=>Math.abs(p.time-a.at)<.001);if(!point)return null;
-  a.melodyAt=a.at;a.beat=point.beat+.5;a.at=map.at(a.beat);if(source.end<a.at+.12)return null;
+  a.melodyAt=a.at;a.beat=point.beat+.5;
+  if(a.anticipation){const next=line.find(p=>p.event.time>a.at+.075&&p.event.note===a.melody);if(!next)return null;
+   const nextPoint=map.points.find(p=>Math.abs(p.time-next.event.time)<.001);if(!nextPoint)return null;
+   a.nextMelodyAt=next.event.time;a.beat=nextPoint.beat-.5;}
+  a.at=map.at(a.beat);if(a.at<=a.melodyAt||source.end<a.at+.08)return null;
  }
  let windows=anchors.map((a,i)=>({source:pairs.find(p=>p.on===a.sourceOn),anchor:a,kind:'arrival',at:a.at,
   end:anchors[i+1]?.at??take.duration,beat:a.beat??map.points.find(p=>Math.abs(p.time-a.at)<.001)?.beat}));
@@ -178,8 +202,8 @@ export function buildArrivalAccompaniment(take,{pairs,key,map,request,message}){
  const changed=applyTakeEdit(take,edit);if(!changed)return null;
  const harmony=segments.map(s=>({at:s.at,end:s.end,chord:s.label,notes:s.notes,rootPc:s.rootPc,quality:s.quality,technique:s.technique,beat:s.beat,
   degree:s.kind==='arrival'?s.anchor.degree:undefined,kind:s.kind,goal:s.kind==='arrival'?'accompany':'passing',topMidi:s.source.event.note,sourceOn:s.source.on,
-  offbeat:s.anchor.offbeat&&s.kind==='arrival',melodyAt:s.anchor.melodyAt,function:s.function,targetAt:s.kind==='dominant'?s.target.at:undefined}));
- const description='Les accords soutiennent tes notes principales.'+(anchors.some(a=>a.offbeat)?' Le dernier accord arrive en contretemps.':'')
+  offbeat:s.anchor.offbeat&&s.kind==='arrival',anticipation:s.anchor.anticipation&&s.kind==='arrival',melodyAt:s.anchor.melodyAt,nextMelodyAt:s.anchor.nextMelodyAt,function:s.function,targetAt:s.kind==='dominant'?s.target.at:undefined}));
+ const description='Des voicings resserrés soutiennent tes notes principales.'+(anchors.some(a=>a.anticipation)?' Le dernier accord se place entre les deux notes répétées.':anchors.some(a=>a.offbeat)?' Le dernier accord arrive en contretemps.':'')
   +(harmony.some(h=>h.kind==='dominant')?' Quelques accords de passage préparent les arrivées.':'')+(ornaments.length?' Une courte appoggiature colore une arrivée.':'');
  const advice={version:8,id:'melody-progression',goal:'accompany',take,edit,changes:harmony,text:description};
  const example=comparedTakeExample(take,changed);if(!example)return null;

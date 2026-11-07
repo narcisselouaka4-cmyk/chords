@@ -10,7 +10,7 @@ export function melodyTouchNotes(segments,pairs,pulse){
  const main=segments.filter(s=>s.kind==='arrival');
  const levels=new Map(main.map(s=>{
   const nearby=pairs.filter(p=>Math.abs(p.event.time-s.at)<=pulse*2);
-  return [s,Math.max(.42,Math.min(.58,(median(nearby.map(vel))||vel(s.source))*.76))];
+  return [s,Math.max(.42,Math.min(.54,(median(nearby.map(vel))||vel(s.source))*.72))];
  }));
  const levelAt=s=>{
   if(levels.has(s))return levels.get(s);
@@ -22,7 +22,7 @@ export function melodyTouchNotes(segments,pairs,pulse){
   const pitches=s.notes.filter(n=>n!==s.source.event.note),density=Math.min(1,Math.pow(3/pitches.length,.4));
   const spread=Math.min(.014,pulse*.027);
   return pitches.map((note,i)=>({note,time:s.at+(pitches.length>1?i/(pitches.length-1)*spread:0),end:s.end,
-   velocity:levelAt(s)*density*(i===0?.92:1)}));
+   velocity:levelAt(s)*density*(i===0?.88:i===pitches.length-1?1:.94)}));
  });
 }
 
@@ -31,8 +31,10 @@ export function melodyTouchNotes(segments,pairs,pulse){
 export function melodyAppoggiatura(take,segments,pairs,notes,pulse){
  for(let i=1;i<segments.length;i++){
   const s=segments[i],previous=segments[i-1];if(s.kind!=='arrival'||previous.kind!=='dominant')continue;
-  for(const n of notes.filter(n=>n.time>=s.at&&n.time<s.at+.02&&n.note!==s.notes[0]&&[3,4,7].includes(pc(n.note-s.rootPc)))){
-   const length=Math.max(.085,Math.min(.14,pulse*.22)),resolveAt=n.time+length;if(n.end-resolveAt<.2)continue;
+  // La voix la plus haute disponible porte l'ornement : le placer par défaut
+  // dans le grave le masquait derrière les accords et la mélodie.
+  for(const n of notes.filter(n=>n.time>=s.at&&n.time<s.at+.02&&n.note!==s.notes[0]&&s.source.event.note-n.note<=16&&[3,4,7].includes(pc(n.note-s.rootPc))).sort((a,b)=>b.note-a.note)){
+   const length=Math.max(.15,Math.min(.22,pulse*.38)),resolveAt=n.time+length;if(n.end-resolveAt<.2)continue;
    for(const delta of [1,-1]){
     const approach=n.note+delta;
     if(approach>=s.source.event.note||!previous.notes.some(p=>pc(p)===pc(approach)))continue;

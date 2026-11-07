@@ -6,7 +6,7 @@ const pc=n=>(n%12+12)%12;
 const names=['Do','Ré♭','Ré','Mi♭','Mi','Fa','Fa♯','Sol','La♭','La','Si♭','Si'];
 
 export function isExplanationQuestion(message) {
-  return /\bpourquoi\b|\bcomment\b|explique|explication|quel.*(?:role|raison|difference|note|accord|couleur|technique|voicing|morceau)|a quoi sert|c'est quoi|qu['’]est.ce|^(?:plus de )?d[eé]tails[.!?\s]*$/i.test(plain(message));
+  return /\bpourquoi\b|\bcomment\b|explique|explication|\bquel(?:le|s|les)?\b.*(?:role|raison|difference|note|accord|couleur|technique|voicing|morceau)|a quoi sert|c'est quoi|qu['’]est.ce|^(?:plus de )?d[eé]tails[.!?\s]*$/i.test(plain(message));
 }
 
 export function personalInterpretationRequest(message) {

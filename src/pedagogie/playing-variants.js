@@ -18,6 +18,7 @@ function continuedRequest(previous, message) {
  if(/(?:arriv[eé]es|rep[eè]res)\s*:/i.test(message))inherited=inherited.replace(/(?:arriv[eé]es|rep[eè]res)\s*:[^\n.]+/gi,'');
  if(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+/i.test(message))inherited=inherited.replace(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+[\s:]+[^\n.]+/gi,'');
  if(/(?:finale|fin)\s*:/i.test(message))inherited=inherited.replace(/(?:finale|fin)\s*:[^\n.]+/gi,'');
+ if(/couleurs\s*:/i.test(message))inherited=inherited.replace(/couleurs\s*:[^\n.]+/gi,'');
  if(requestedDegreeProgression(message))inherited=inherited.replace(/\b\d+(?:\s*[-–—→]\s*\d+){1,7}\b/g,'');
  return `${inherited}\n${message}`;
 }

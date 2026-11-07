@@ -1,2 +1,2 @@
 // Révision du comportement musical ; distincte du format d'édition sauvegardé.
-export const PROPOSAL_POLICY = 15;
+export const PROPOSAL_POLICY = 16;
