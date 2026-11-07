@@ -5,13 +5,15 @@ import {handDistribution,voicedQuality} from './piano-voicing.js';
 import {notePairs,applyTakeEdit} from './take-edit.js';
 import {phrasePedal} from './proposal-pedal.js';
 import {comparedTakeExample} from './playing-diff.js';
+import {resolvingVoices} from './harmonic-intentions.js';
+import {melodyTouchNotes,melodyAppoggiatura} from './melody-touch.js';
 const pc=n=>(n%12+12)%12;
 const text=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const names=['Do','Ré♭','Ré','Mi♭','Mi','Fa','Fa♯','Sol','La♭','La','Si♭','Si'];
 const velocity=p=>p.event.velocity>1?p.event.velocity/127:p.event.velocity;
 const minor=q=>/^m(?!aj)/.test(q);
 function notePc(token){
- const match=/^(sol|do|re|mi|fa|la|si|[a-g])\s*([#♯b♭]?)/i.exec(text(token));
+ const match=/^(sol|do|re|mi|fa|la|si|[a-g])\s*([#♯b♭]?)$/i.exec(text(token).trim());
  if(!match)return null;
  const roots={do:0,re:2,mi:4,fa:5,sol:7,la:9,si:11,c:0,d:2,e:4,f:5,g:7,a:9,b:11};
  return pc(roots[match[1]]+(/[#♯]/.test(match[2])?1:/[b♭]/.test(match[2])?-1:0));
@@ -50,6 +52,26 @@ export function melodyArrivalPlan(pairs,request,key,message){
  }
  // Le premier retour à la fondamentale après la dernière arrivée marque la
  // fermeture, sans attendre sa répétition finale ni réattaquer chaque répétition.
+ const ending=/(?:finale|fin)\s*:\s*([^\n.]+)/i.exec(text(message))?.[1];
+ if(ending){
+  if(!anchors.length)return {anchors:[],line,variant,explicit};
+  let from=anchors.at(-1).index+1;
+  for(const part of ending.split(';')){
+   const hint=mapping(part)[0];if(!hint)return {anchors:[],line,variant,explicit};
+   const pattern=/apres\s+([a-z#♯b♭]+(?:[-–→][a-z#♯b♭]+)+)/i.exec(part)?.[1]?.split(/[-–→]/).map(notePc);
+   if(pattern?.some(p=>p==null))return {anchors:[],line,variant,explicit};
+   let found=-1;
+   for(let i=from;i<line.length;i++){
+    if(pc(line[i].event.note)!==hint.pc)continue;
+    if(pattern&&!pattern.every((p,j)=>i-pattern.length+1+j>=from&&pc(line[i-pattern.length+1+j].event.note)===p))continue;
+    found=i;break;
+   }
+   if(found<0)return {anchors:[],line,variant,explicit};
+   const p=line[found];anchors.push({...spec(hint.degree),at:p.event.time,sourceOn:p.on,melody:p.event.note,index:found,
+    closure:true,offbeat:/contre[- ]?temps/.test(part)});from=found+1;
+  }
+  return {anchors,line,variant,explicit};
+ }
  const last=anchors.at(-1),final=last&&line.find(p=>p.event.time>last.at+.4&&pc(p.event.note)===last.rootPc);
  if(final)anchors.push({...last,at:final.event.time,sourceOn:final.on,melody:final.event.note,index:line.indexOf(final),variant:false,closure:true});
  return {anchors,line,variant,explicit};
@@ -62,7 +84,7 @@ function positions(w,spec,pairs){
  const checks=[w.at,...sounding.flatMap(p=>[p.event.time,p.end]).filter(t=>t>w.at&&t<w.end)];
  const accept=(input,technique)=>{
   let notes=[...new Set(input)].sort((a,b)=>a-b);
-  if(notes.length>4||notes.at(-1)!==top||notes[0]<36||notes[0]>=top)return;
+  if(notes.length>(w.kind==='dominant'?6:4)||notes.at(-1)!==top||notes[0]<36||notes[0]>=top)return;
   if(w.kind==='arrival'&&pc(notes[0])!==spec.rootPc)return;
   // La mélodie joue elle-même le sommet. Une cinquième déjà tenue au doigt
   // peut être omise de l'accompagnement ; jamais réattaquée après son relâchement.
@@ -83,60 +105,84 @@ function positions(w,spec,pairs){
   const label=`${names[spec.rootPc]}${spec.quality==='m'?' mineur':spec.quality==='m7'?' mineur 7':spec.quality==='maj7'?' majeur 7':spec.quality==='dim7'?' diminué 7':' '+spec.quality}${bass}`;
   const low=notes.filter((n,i)=>i&&n-notes[i-1]<=2&&n<60).length;
   const close=notes.filter(n=>[1,13].includes(top-n)).length;
-  result.push({...spec,notes,technique,label,cost:(spec.rank||0)*2+low*3+close*4+Math.abs(notes[0]-Math.min(57,top-12))*.15+(notes.length===3?.6:0)});
+  result.push({...spec,notes,technique,label,cost:(spec.rank||0)*(w.kind==='dominant'?10:4)+low*3+close*4+Math.abs(notes[0]-Math.min(57,top-12))*.15+(notes.length===3?.6:0)});
  };
  // Le drop 2 est construit à partir d'un accord serré de quatre sons réel.
  if(tones.size===4){const close=[...tones].map(t=>{let n=top;while(pc(n-spec.rootPc)!==t)n--;return n;}).sort((a,b)=>a-b);
   accept([close[0],close[1],close[2]-12,close[3]],'drop2');}
  const third=minor(spec.quality)||spec.quality==='dim7'?3:4,guide=spec.quality==='m'?7:/dim7|^6$/.test(spec.quality)?9:/maj/.test(spec.quality)?11:10;
- const essential=[third,guide,...(/13/.test(spec.quality)?[9]:[]),...(/b9/.test(spec.quality)?[1]:[])];
+ const essential=[third,guide,...(/13/.test(spec.quality)?[/b13/.test(spec.quality)?8:9]:[]),...(/b9/.test(spec.quality)?[1]:[])];
  // Coquilles de trois/quatre voix : basse, guides et sommet mélodique. Les
  // octaves sont recherchées, pas imposées loin des deux mains.
  for(let bass=36;bass<=Math.min(60,top-3);bass++)if(pc(bass)===spec.rootPc){
   const missing=[...new Set(essential)].filter(t=>pc(top-spec.rootPc)!==t);
   const expand=(i,notes)=>{if(i===missing.length){accept([bass,...notes,top],'guide-tone-shell');return;}
    for(let n=bass+3;n<top;n++)if(pc(n-spec.rootPc)===missing[i])expand(i+1,[...notes,n]);};
-  if(missing.length<=2)expand(0,[]);
+  if(missing.length<=(w.kind==='dominant'?4:2))expand(0,[]);
  }
  return result.sort((a,b)=>a.cost-b.cost).slice(0,16);
 }
 
-export function buildArrivalAccompaniment(take,{pairs,key,map,request,message}){
- const plan=melodyArrivalPlan(pairs,request,key,message),{anchors}=plan;if(anchors.length<3)return null;
- // Une position par arrivée principale. Les notes entre deux arrivées sont
- // laissées à la mélodie ; toutes les voix ajoutées restent tenues jusqu'au relais.
- const windows=anchors.map((a,i)=>({source:pairs.find(p=>p.on===a.sourceOn),anchor:a,kind:'arrival',at:a.at,
-  end:anchors[i+1]?.at??take.duration,beat:map.points.find(p=>Math.abs(p.time-a.at)<.001)?.beat}));
+function chooseSegments(windows,pairs,key){
  const pools=windows.map(w=>{
-  const a=w.anchor,qualities=a.degree===4&&!key.minor?['6','maj7']:a.degree===5&&!key.minor?['13','7']:a.quality==='m7'?['m7','m']: [a.quality];
-  const specs=qualities.map((quality,rank)=>({rootPc:a.rootPc,quality,rank}));
-  const pool=specs.flatMap(s=>positions(w,s,pairs));
-  return pool.sort((a,b)=>a.cost-b.cost).slice(0,28);
+  const a=w.anchor;
+  const qualities=w.kind==='dominant'?(minor(w.target.quality)?['7b9b13','13','7b9','7']:['13','7b9b13','7']):
+   !key.minor&&[1,4].includes(a.degree)?['6','maj7']:a.degree===5&&!key.minor?['13','7']:a.quality==='m7'?['m7','m']:[a.quality];
+  const rootPc=w.kind==='dominant'?pc(w.target.rootPc+7):a.rootPc;
+  return qualities.flatMap((quality,rank)=>positions(w,{rootPc,quality,rank,
+   ...(w.kind==='dominant'?{function:{kind:'dominant',targetRootPc:w.target.rootPc}}:{})},pairs)).sort((a,b)=>a.cost-b.cost).slice(0,32);
  });
  if(pools.some(p=>!p.length))return null;
  let beam=[{chosen:[],cost:0}];
  for(let i=0;i<pools.length;i++){
   const next=[];for(const path of beam)for(const v of pools[i]){
-   const before=path.chosen.at(-1);
-   const cost=path.cost+v.cost+(before?voiceLeadingCost(before.notes,v.notes)*.7+Math.abs(before.notes[0]-v.notes[0])*.15:0);
-   next.push({chosen:[...path.chosen,v],cost});
+   const before=path.chosen.at(-1);if(before?.function&&!resolvingVoices(before,v))continue;
+   next.push({chosen:[...path.chosen,v],cost:path.cost+v.cost+(before?voiceLeadingCost(before.notes,v.notes)*.7+Math.abs(before.notes[0]-v.notes[0])*.15:0)});
   }
-  beam=next.sort((a,b)=>a.cost-b.cost).slice(0,24);
-  if(!beam.length)return null;
+  beam=next.sort((a,b)=>a.cost-b.cost).slice(0,24);if(!beam.length)return null;
  }
- const segments=beam[0].chosen.map((v,i)=>({...windows[i],...v})),notes=[];
- for(const s of segments){
-  const level=Math.min(.65,velocity(s.source)*.82);
-  for(const note of s.notes.filter(n=>n!==s.source.event.note))notes.push({note,time:s.at,end:s.end,velocity:level*(note===s.notes[0]?1:.94)});
+ return beam[0].chosen.map((v,i)=>({...windows[i],...v}));
+}
+
+export function buildArrivalAccompaniment(take,{pairs,key,map,request,message}){
+ const plan=melodyArrivalPlan(pairs,request,key,message),{anchors,line}=plan;if(anchors.length<3)return null;
+ for(const a of anchors)if(a.offbeat){
+  const source=pairs.find(p=>p.on===a.sourceOn),point=map.points.find(p=>Math.abs(p.time-a.at)<.001);if(!point)return null;
+  a.melodyAt=a.at;a.beat=point.beat+.5;a.at=map.at(a.beat);if(source.end<a.at+.12)return null;
  }
- const keepPedal=/garde.*pedale|conserv.*pedale/.test(text(message)),dry=/sans pedale|sans sustain/.test(text(message));
- const edit={type:'arrangement',remove:[],keep:pairs.map(p=>p.on),notes,replacePedal:!keepPedal,pedal:keepPedal||dry?[]:phrasePedal(segments,pairs,take.duration)};
+ let windows=anchors.map((a,i)=>({source:pairs.find(p=>p.on===a.sourceOn),anchor:a,kind:'arrival',at:a.at,
+  end:anchors[i+1]?.at??take.duration,beat:a.beat??map.points.find(p=>Math.abs(p.time-a.at)<.001)?.beat}));
+ let segments=chooseSegments(windows,pairs,key);if(!segments)return null;
+ const t=text(message),lastIndex=re=>[...t.matchAll(re)].at(-1)?.index??-1;
+ const passages=lastIndex(/(?:avec|ajout\w*|remet\w*|reintrodu\w*|quelques).*?accords? de passage/g)>lastIndex(/sans (?:accords? de )?passage|sans mouvement|accords? fixes/g);
+ if(passages){
+  const options=anchors.slice(1).map((target,i)=>({target,base:anchors[i]})).filter(({target,base})=>!target.variant&&[5,6].includes(target.degree)&&target.at-base.at>map.pulse*2)
+   .sort((a,b)=>Number(b.target.degree===6)-Number(a.target.degree===6)||b.target.at-a.target.at);
+  let count=0;
+  for(const {target,base} of options){
+   if(count>=4)break;
+   const source=line.filter(p=>p.event.time>=base.at+map.pulse*1.5&&p.event.time<target.at-.18).at(-1);if(!source)continue;
+   const index=windows.findIndex(w=>w.kind==='arrival'&&w.at===base.at);if(index<0)continue;
+   const trial=[...windows];trial.splice(index,1,{...windows[index],end:source.event.time},
+    {source,anchor:base,target,kind:'dominant',at:source.event.time,end:target.at,beat:map.points.find(p=>Math.abs(p.time-source.event.time)<.001)?.beat});
+   const chosen=chooseSegments(trial,pairs,key);if(!chosen)continue;windows=trial;segments=chosen;count++;
+  }
+ }
+ let notes=melodyTouchNotes(segments,pairs,map.pulse),ornaments=[];
+ if(lastIndex(/(?:avec|ajout\w*|une).*?appoggiature/g)>lastIndex(/sans appoggiature|sans ornement|sans.*grace note/g))
+  ({notes,ornaments}=melodyAppoggiatura(take,segments,pairs,notes,map.pulse));
+ const keepPedal=/garde.*pedale|conserv.*pedale/.test(t),dry=/sans pedale|sans sustain/.test(t);
+ const ornamentPairs=ornaments.map(o=>({event:{note:o.note,time:o.at},end:o.end}));
+ const edit={type:'arrangement',remove:[],keep:pairs.map(p=>p.on),notes,replacePedal:!keepPedal,
+  pedal:keepPedal||dry?[]:phrasePedal(segments,[...pairs,...ornamentPairs],take.duration,{clearMelodyReleases:true})};
  const changed=applyTakeEdit(take,edit);if(!changed)return null;
  const harmony=segments.map(s=>({at:s.at,end:s.end,chord:s.label,notes:s.notes,rootPc:s.rootPc,quality:s.quality,technique:s.technique,beat:s.beat,
-  degree:s.anchor.degree,kind:'arrival',goal:'accompany',topMidi:s.source.event.note,sourceOn:s.source.on}));
- const description='Un voicing sur chaque note principale, tenu jusqu’à la suivante. Les notes intermédiaires de ta mélodie restent libres.';
+  degree:s.kind==='arrival'?s.anchor.degree:undefined,kind:s.kind,goal:s.kind==='arrival'?'accompany':'passing',topMidi:s.source.event.note,sourceOn:s.source.on,
+  offbeat:s.anchor.offbeat&&s.kind==='arrival',melodyAt:s.anchor.melodyAt,function:s.function,targetAt:s.kind==='dominant'?s.target.at:undefined}));
+ const description='Les accords soutiennent tes notes principales.'+(anchors.some(a=>a.offbeat)?' Le dernier accord arrive en contretemps.':'')
+  +(harmony.some(h=>h.kind==='dominant')?' Quelques accords de passage préparent les arrivées.':'')+(ornaments.length?' Une courte appoggiature colore une arrivée.':'');
  const advice={version:8,id:'melody-progression',goal:'accompany',take,edit,changes:harmony,text:description};
  const example=comparedTakeExample(take,changed);if(!example)return null;
- return {id:'melody-progression',title:'Des accords tenus sous ta mélodie',description,advice,harmony,ornaments:[],arrivals:anchors,
-  rhythm:{placement:'melody-arrivals',accompaniment:'held',points:map.points},progression:{degrees:request.degrees,key,variant:plan.variant?.degrees||null,alignment:'melody-arrivals'},example:{...example,title:'Des accords tenus sous ta mélodie',subtitle:description}};
+ return {id:'melody-progression',title:'Ta mélodie accompagnée',description,advice,harmony,ornaments,arrivals:anchors,
+  rhythm:{placement:'melody-arrivals',accompaniment:'held',touch:'gentle',points:map.points},progression:{degrees:request.degrees,key,variant:plan.variant?.degrees||null,alignment:'melody-arrivals'},example:{...example,title:'Ta mélodie accompagnée',subtitle:description}};
 }

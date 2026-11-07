@@ -18,7 +18,7 @@ function check(take,v,{rate=1,shift=0}={}){
  const changed=applyTakeEdit(take,v.advice.edit);assert(changed);
  assert.equal(v.rhythm.placement,'melody-arrivals');assert.equal(v.rhythm.accompaniment,'held');
  assert.equal(v.harmony.length,12);assert(v.harmony.every(h=>h.kind==='arrival'));assert.equal(v.ornaments.length,0);
- assert(addedOnsets(v).every(t=>v.arrivals.some(a=>a.at===t)),'Aucune attaque ajoutée sur les notes intermédiaires');
+ assert(addedOnsets(v).every(t=>v.arrivals.some(a=>t>=a.at&&t<=a.at+.015)),'Aucune attaque ajoutée sur les notes intermédiaires');
  assert.deepEqual(v.arrivals.map(a=>[+a.at.toFixed(5),a.degree,a.melody]),expected.map(([t,d,n])=>[+(t*rate).toFixed(5),d,n+shift]));
  const pairs=notePairs(take.events),edit=v.advice.edit,added=edit.notes;
  assert.equal(edit.remove.length,0);assert.equal(edit.keep.length,pairs.length);
@@ -26,7 +26,7 @@ function check(take,v,{rate=1,shift=0}={}){
  for(const h of v.harmony){
   const melody=pairs.find(p=>p.on===h.sourceOn);assert.equal(h.at,melody.event.time);
   assert.equal(h.notes.at(-1),melody.event.note);assert(h.notes.length>=3&&h.notes.length<=4);
-  const attacks=added.filter(n=>n.time===h.at);assert(attacks.length>=1&&attacks.length<=3);
+  const attacks=added.filter(n=>n.time>=h.at&&n.time<=h.at+.015);assert(attacks.length>=1&&attacks.length<=3);
   assert(attacks.every(n=>n.note<h.topMidi&&h.notes.includes(n.note)));
   assert.equal(voicedQuality(h.notes,h.rootPc,h.quality),h.quality);
   if(h.kind==='arrival')assert.equal(pc(h.notes[0]),h.rootPc);
@@ -39,7 +39,7 @@ function check(take,v,{rate=1,shift=0}={}){
  }
  for(const [i,h] of v.harmony.entries()){
   const end=v.harmony[i+1]?.at??take.duration;assert.equal(h.end,end);
-  const held=added.filter(n=>n.time===h.at);assert(held.every(n=>n.end===end),'Les voix restent tenues jusqu’au prochain voicing');
+  const held=added.filter(n=>n.time>=h.at&&n.time<=h.at+.015);assert(held.every(n=>n.end===end),'Les voix restent tenues jusqu’au prochain voicing');
  }
  assert(!added.some(n=>Math.abs(n.time-33.529*rate)<.00001),'Pas de réattaque tardive du La final');
  const changedPairs=notePairs(changed.events);

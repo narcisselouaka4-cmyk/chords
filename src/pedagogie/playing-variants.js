@@ -17,6 +17,7 @@ function continuedRequest(previous, message) {
   .replace(/basses?\s*:[^.!?\n]+/gi,'').replace(/(?:des\s+)?basses?\s+par\s+quartes/gi,'');
  if(/(?:arriv[eé]es|rep[eè]res)\s*:/i.test(message))inherited=inherited.replace(/(?:arriv[eé]es|rep[eè]res)\s*:[^\n.]+/gi,'');
  if(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+/i.test(message))inherited=inherited.replace(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+[\s:]+[^\n.]+/gi,'');
+ if(/(?:finale|fin)\s*:/i.test(message))inherited=inherited.replace(/(?:finale|fin)\s*:[^\n.]+/gi,'');
  if(requestedDegreeProgression(message))inherited=inherited.replace(/\b\d+(?:\s*[-–—→]\s*\d+){1,7}\b/g,'');
  return `${inherited}\n${message}`;
 }
@@ -38,7 +39,7 @@ export function personalVariantsAnswer({message,messages=[],context,preferences=
   &&!requestedDegreeProgression(message)&&!/oublie.*progression|sans progression|harmonie libre/.test(text);
  const baseRequest=(follow||inheritedDegrees)&&previous?.toolResult.harmonicRequest?continuedRequest(previous.toolResult.harmonicRequest,message):message;
  // Une consigne actuelle sur le même sujet remplace la préférence ancienne.
- const subjects=[/basse/i,/p[eé]dale|sustain/i,/mouvements?|passages?|accords? fixes/i,/tonalit[eé]/i];
+ const subjects=[/basse/i,/p[eé]dale|sustain/i,/mouvements?|passages?|accords? fixes/i,/tonalit[eé]/i,/appoggiatures?|grace notes?|ornements?/i];
  const activePreferences=preferences.filter(p=>!subjects.some(subject=>subject.test(message)&&subject.test(p)));
  const request=baseRequest
   +(activePreferences.length?`\nPréférences retenues :\n${activePreferences.join('\n')}`:'');

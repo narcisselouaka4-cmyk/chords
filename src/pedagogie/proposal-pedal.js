@@ -1,14 +1,14 @@
 const pc=n=>(n%12+12)%12;
 /** Pédale de la proposition : pas de pont à travers un silence d'accompagnement,
  * et nettoyage après les petites notes étrangères à l'accord. */
-export function phrasePedal(segments,melody,duration){
+export function phrasePedal(segments,melody,duration,{clearMelodyReleases=false}={}){
   const windows=[];
   for(let i=0;i<segments.length;i++){
     const s=segments[i],next=segments[i+1]?.at??duration;
     const start=s.at+.035,end=Math.min(s.end+.015,next-.025,duration);
     if(end-start<.12)continue;
     const harmony=new Set(s.notes.map(pc));
-    const releases=[...new Set(melody.filter(p=>p.end-p.event.time<.22&&!harmony.has(pc(p.event.note))
+    const releases=[...new Set(melody.filter(p=>(clearMelodyReleases||p.end-p.event.time<.22)&&!harmony.has(pc(p.event.note))
       &&p.end>start&&p.end<end).map(p=>p.end))].sort((a,b)=>a-b);
     let on=start;
     for(const off of releases){

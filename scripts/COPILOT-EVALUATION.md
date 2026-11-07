@@ -191,3 +191,31 @@ Un relâchement à l'instant d'une nouvelle attaque de la même touche doit êtr
 trié avant celle-ci dans le MIDI. Le test des tenues vérifie aussi les paires
 attaque/relâchement, pas seulement la présence des événements dans le JSON.
 Le mode explicitement demandé « une mesure par accord » reste distinct.
+
+## Politique 15 : fin explicite, toucher et préparations choisies
+
+Les notes de fin ont des fonctions différentes : la hauteur de La n'implique pas
+forcément le VI. Une fin peut désormais être fournie après la variante :
+
+```text
+Finale : 4 sur La ; 5 sur Ré ; 1 sur Do après Do-Si-Do en contretemps.
+Avec quelques accords de passage et une appoggiature intérieure. Toucher doux.
+```
+
+Le motif est cherché dans les attaques de la session, puis le contretemps placé
+une demi-pulsation locale après sa dernière note. Aucun horaire de cette prise
+dans le moteur. Les autres notes originales, y compris les Do répétés, restent
+intactes. L'absence de ces repères ne prouve pas la reconnaissance de la forme.
+
+Passages seulement sur demande explicite : au plus quatre dominantes préparant
+V/VI, construites sous la mélodie avec les vraies 13 ou altérations annoncées,
+position et résolution vérifiées. L'accompagnement est tenu jusqu'au relais ;
+on n'harmonise pas toute la descente. Une seule appoggiature intérieure facultative
+provient d'une note de la préparation précédente et résout dans l'arrivée.
+
+Le toucher utilise des nuances MIDI locales, un léger étagement des voix intérieures
+et une compensation de densité pour les accords plus fournis. La basse reste sur
+l'appui et la mélodie originale est intacte. Cela ne modifie pas l'ADSR du son ;
+la douceur et l'audibilité des ajouts restent à valider à l'écoute. Le moteur interne,
+le piano de rendu FluidR3 et un VST peuvent répondre différemment. « En contretemps »
+est un placement, pas un faux style musical indisponible.
