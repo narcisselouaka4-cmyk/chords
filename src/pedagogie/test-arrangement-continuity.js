@@ -66,12 +66,12 @@ for(const shift of [0,1,5,7,11]){
   assert(!tones(suspension).has((7+shift+4)%12),'Pas de tierce majeure contre la suspension');
   assert(tones(tension).has((7+shift+1)%12),'Neuvième bémol réellement jouée');
   const omitted=source.find(c=>/m7$/.test(c.name)&&c.at>10&&c.at<12);
-  assert(omitted);assert(!arrangementFrames(take).some(f=>Math.abs(f.at-omitted.at)<.1));
+  assert(omitted);assert(arrangementFrames(take).some(f=>Math.abs(f.at-omitted.at)<.1&&f.rolledSource),
+    'L’accord arpeggié est reconnu grâce aux voix intérieures retardées');
   assert(!plan.harmony.some(h=>h.goal==='passing'&&h.at<omitted.end&&h.end>omitted.at),
     'Un accord source hors frames ne doit pas recevoir une dominante superposée');
-  for(const p of notePairs(take.events).filter(p=>p.event.time>=omitted.at&&p.end<=omitted.end)){
-    assert(changed.events.some(e=>JSON.stringify(e)===JSON.stringify(p.event)));
-  }
+  const originalTop=notePairs(take.events).find(p=>Math.abs(p.event.time-omitted.at)<.01);
+  assert(changed.events.some(e=>JSON.stringify(e)===JSON.stringify(originalTop.event)),'La mélodie de l’accord roulé reste exacte');
   for(const at of new Set(changed.events.filter(e=>e.note!=null).map(e=>e.time+.00001))){
     const pitches=active(changed,at).map(p=>p.event.note);
     assert(!pitches.length||handDistribution(pitches),'Positions tenues et chevauchements jouables');
@@ -87,7 +87,7 @@ const old={role:'assistant',content:'Ancienne proposition',toolResult:{originalT
 assert(answerActions(old,{last:true}).some(a=>a.label==='Écouter les nouvelles propositions'));
 const saved=JSON.stringify(old);
 const reply=await sendCopilotMessage({message:'Fais-moi entendre un exemple',messages:[old],context:{type:'session',playing:{session:take}}});
-assert.equal(reply.toolResult.proposalPolicy,PROPOSAL_POLICY);assert.equal(PROPOSAL_POLICY,10);
+assert.equal(reply.toolResult.proposalPolicy,PROPOSAL_POLICY);assert.equal(PROPOSAL_POLICY,11);
 assert(lowSupport(applyTakeEdit(take,reply.toolResult.playingAdvice.edit),5.9,70).length>=2);
 assert.equal(JSON.stringify(old),saved);
 assert.equal(requestedPersonalStyle('Propose une autre version de mon jeu.'),null);

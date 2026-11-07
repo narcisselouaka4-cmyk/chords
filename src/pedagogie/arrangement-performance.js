@@ -28,12 +28,15 @@ export function accompanimentPerformance(segment,segments){
   const spread=Math.max(...frame.accompaniment.map(p=>p.event.time))
     -Math.min(...frame.accompaniment.map(p=>p.event.time));
   const rolled=segment.kind==='enrich'&&spread>.09;
-  const innerNotes=segment.notes.slice(1);
+  const newVoices=segment.notes.slice(1).filter(n=>!sourceInner.some(p=>p.event.note===n));
+  const slots=[...new Set([segment.at,...sourceInner.map(p=>Math.max(segment.at,p.event.time))])].sort((a,b)=>a-b);
   return new Map(segment.notes.map((note,i)=>{
-    // Reprendre les vrais instants du geste source, sans inventer un arpège
-    // régulier ni avancer toutes les voix sur une basse jouée seule.
-    const slot=sourceInner[Math.round(Math.max(0,i-1)/Math.max(1,innerNotes.length-1)*(sourceInner.length-1))];
-    const at=rolled&&i&&slot?Math.max(segment.at,slot.event.time):segment.at;
+    // Une voix conservée garde son attaque. Les nouvelles voix se répartissent
+    // sur le geste entier, basse comprise : ne pas faire attendre tout un
+    // nouvel accord jusqu'à l'unique note intérieure tardive de la source.
+    const retained=sourceInner.find(p=>p.event.note===note);
+    const slot=slots[Math.round(Math.max(0,newVoices.indexOf(note))/Math.max(1,newVoices.length-1)*(slots.length-1))];
+    const at=rolled&&i?(retained?Math.max(segment.at,retained.event.time):slot):segment.at;
     return [note,{at,velocity:i?levels.inner:levels.bass}];
   }));
 }

@@ -21,8 +21,24 @@ export function arrangementFrames(take) {
   if(!review)return [];
   for(const c of review.chords){
     const chord=parseChordName(c.name);if(!chord)continue;
-    const cluster=pairs.filter(p=>p.event.time>=c.at-.025&&p.event.time<=c.at+.36);
-    const held=cluster.filter(p=>p.end-p.event.time>=.22);
+    let cluster=pairs.filter(p=>p.event.time>=c.at-.025&&p.event.time<=Math.min(c.end,c.at+.36));
+    let held=cluster.filter(p=>p.end-p.event.time>=.22),rolledSource=false;
+    // Basse et dessus peuvent précéder les voix intérieures d'un accord roulé.
+    // Compléter seulement sous ce dessus déjà établi, dans la même harmonie,
+    // avec des notes réellement tenues ensemble ; jamais avaler la suite de
+    // la mélodie pour fabriquer artificiellement un accord à trois notes.
+    if(held.length===2&&held.every(p=>Math.abs(p.event.time-c.at)<=.09)){
+      const ceiling=Math.max(...held.map(p=>p.event.note));
+      const floor=Math.min(...held.map(p=>p.event.note));
+      const tones=new Set(c.notes.map(pc));
+      const extra=pairs.filter(p=>p.event.time>c.at+.36&&p.event.time<Math.min(c.end,c.at+.75)
+        &&p.event.note>floor&&p.event.note<ceiling&&tones.has(pc(p.event.note))
+        &&p.end-p.event.time>=.22);
+      const extended=[...held,...extra],last=Math.max(...extended.map(p=>p.event.time));
+      if(extra.length&&extended.every(p=>p.end>=last+.08)){
+        held=extended;cluster=[...cluster,...extra];rolledSource=true;
+      }
+    }
     if(held.length<3)continue;
     const top=held.reduce((a,b)=>a.event.note>b.event.note?a:b);
     const bass=held.reduce((a,b)=>a.event.note<b.event.note?a:b);
@@ -37,7 +53,7 @@ export function arrangementFrames(take) {
       &&(p.end-p.event.time>=.22||p.event.note<top.event.note-4));
     if(!accompaniment.length)continue;
     frames.push({at:start,end:c.end,chord,source:held,notes:held.map(p=>p.event.note).sort((a,b)=>a-b),
-      topMidi:top.event.note,bassMidi:bass.event.note,top,accompaniment});
+      topMidi:top.event.note,bassMidi:bass.event.note,top,accompaniment,rolledSource});
   }
   return frames;
 }
@@ -121,6 +137,15 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
   const compatible=Array.from({length:12},(_,r)=>r).filter(r=>[...tones].every(n=>[0,2,4,5,7,9,11].some(i=>pc(r+i)===n)));
   // Une collection diatonique peut borner les notes sans inventer sa tonique.
   const palette=statedKey?pc(statedKey.rootPc+(statedKey.minor?3:0)):compatible.length===1?compatible[0]:null;
+  // Une note empruntée peut empêcher toute palette strictement diatonique.
+  // Une cadence V-I réellement jouée fournit néanmoins une preuve de la
+  // dominante. Ne pas dépendre ici d'une estimation globale de tonalité, ni
+  // remplacer une septième majeure explicitement jouée par une dominante.
+  const sourceReview=reviewTake(take.events);
+  const dominantRoots=new Set((sourceReview?.cadences||[]).filter(c=>c.type==='v-i').flatMap(c=>{
+    const from=parseChordName(c.chords[0]),to=parseChordName(c.chords[1]);
+    return from&&to&&/^(7|9|13)/.test(from.quality)&&pc(from.rootPc-to.rootPc)===7?[from.rootPc]:[];
+  }));
   const segments=[];let previous=null;
   for(let i=0;i<frames.length;i++){
     const f=frames[i];
@@ -140,15 +165,15 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
         remove.add(p.on);const index=melody.indexOf(p);if(index>=0)melody.splice(index,1);
       }
     }
-    const qualities=palette!=null&&pc(f.chord.rootPc-palette)===7
-      &&!minor(f.chord.quality)&&!/sus|dim|aug|[b#](?:5|9|11|13)/.test(f.chord.quality)
+    const qualities=(palette!=null&&pc(f.chord.rootPc-palette)===7||dominantRoots.has(f.chord.rootPc))
+      &&!minor(f.chord.quality)&&!/maj|sus|dim|aug|[b#](?:5|9|11|13)/.test(f.chord.quality)
       ?['13','9','7']:qualityChoices(f);
     // Si l'attaque ne fournit même pas trois classes de hauteur, le nom dépend
     // des notes déjà tenues : garder sa basse de renversement pendant l'arpège,
     // plutôt que d'imposer une nouvelle fondamentale sur cette preuve partielle.
     const inversion=f.chord.bassPc!=null&&f.chord.bassPc!==f.chord.rootPc
       &&pc(f.bassMidi)===f.chord.bassPc&&new Set(f.source.map(p=>pc(p.event.note))).size<3;
-    const v=choose(f,f.chord.rootPc,qualities,previous?.notes,melody,f.at,end,{preserveBass:keepBass||inversion,palette,reference:reference&&voicingMode!=='linked'});
+    const v=choose(f,f.chord.rootPc,qualities,previous?.notes,melody,f.at,end,{preserveBass:keepBass||inversion||f.rolledSource,palette,reference:reference&&voicingMode!=='linked'});
     if(!v||(keepBass&&v.notes[0]!==f.bassMidi)){
       // Une position non résolue ne fait pas disparaître toute la phrase :
       // garder exactement cet accord et travailler les autres destinations.
@@ -164,7 +189,6 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
   const targets=frames.map((f,i)=>({f,i,span:i?f.at-frames[i-1].at:0}))
     .filter(x=>x.i&&x.span>=1.5&&x.span<=6&&!/sus|dim|aug/.test(x.f.chord.quality))
     .sort((a,b)=>Number(minor(b.f.chord.quality))-Number(minor(a.f.chord.quality))||b.span-a.span);
-  const sourceReview=reviewTake(take.events);
   const pulse=sourceReview?.rhythm;
   const beat=pulse?.steadiness<.18&&pulse.every>=.3&&pulse.every<=1?pulse.every:null;
   let count=0;
@@ -173,6 +197,9 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
     const base=segments.find(s=>s.frame===frames[i-1]&&s.kind==='enrich');
     const target=segments.find(s=>s.frame===f&&['enrich','original'].includes(s.kind));
     if(!base||base.unchanged||!target||base.end-base.at<.8)continue;
+    // Ces accords nouvellement reconnus restent un geste étagé, pas une case
+    // vide où couper l'arpège pour insérer une autre attaque de passage.
+    if(base.frame.rolledSource||f.rolledSource)continue;
     const tritone=!minor(f.chord.quality)&&minor(base.frame.chord.quality)&&pc(base.rootPc-f.chord.rootPc)===7;
     const relativeMinor=minor(f.chord.quality)&&statedKey&&!statedKey.minor&&pc(f.chord.rootPc-statedKey.rootPc)===9;
     const length=beat?(tritone?2:relativeMinor?1.5:1.25)*beat:Math.min(.88,span*.36);

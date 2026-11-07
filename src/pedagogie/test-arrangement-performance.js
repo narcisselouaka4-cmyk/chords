@@ -14,7 +14,7 @@ const passing={at:1,end:1.9,notes:[47,53,56,60],frame:a,kind:'dominant'};
 const plan=[main,passing,next],performed=accompanimentPerformance(main,plan);
 assert.equal(performed.get(48).at,0);assert.equal(performed.get(48).velocity,.3);
 for(const n of [52,55,59]){
-  assert.equal(performed.get(n).at,.25,'Les voix ne sont pas avancées sur la basse de l’arpège');
+  assert.equal(performed.get(n).at,n===52?0:.25,'Répartir les ajouts entre les attaques de la basse et des voix intérieures');
   assert.equal(performed.get(n).velocity,.6,'Pas de réduction de volume pour simuler une attaque douce');
 }
 for(const kind of ['dominant','iiø','tonic']){
@@ -58,8 +58,8 @@ for(const shift of [0,2,5,7,11]){
   const inner=f.accompaniment.filter(p=>p!==bass);const innerAt=Math.min(...inner.map(p=>p.event.time));
   const added=v.advice.edit.notes.filter(n=>n.time>=f.at&&n.time<h.end&&h.notes.includes(n.note));
   assert(added.some(n=>n.note===h.notes[0]&&Math.abs(n.time-f.at)<.001));
-  assert(added.filter(n=>n.note!==h.notes[0]).every(n=>n.time>=innerAt),
-    'Pas d’accord plaqué avant l’entrée intérieure réellement jouée');
+  assert(added.some(n=>n.note!==h.notes[0]&&Math.abs(n.time-f.at)<.001),
+    'Une partie du nouvel accord accompagne la basse, sans attendre toute la main intérieure');
   assert(added.some(n=>n.note!==h.notes[0]&&Math.abs(n.time-innerAt)<.001));
   assert(added.filter(n=>n.note!==h.notes[0]).every(n=>n.velocity>=.5),'L’accord ne disparaît plus sous la mélodie');
   for(const segment of v.harmony.filter(h=>h.kind==='enrich')){
@@ -73,3 +73,16 @@ for(const shift of [0,2,5,7,11]){
   }
 }
 console.log('✓ Jeu source : arpège et basse dans cinq tonalités, nuances conservées, relais pour passages/iiø/tonique, repli sans atténuation par la basse, notes mélodiques intactes, données corrompues refusées.');
+
+// Les deux entrées signalées ne doivent plus attendre une unique voix tardive.
+const session=JSON.parse(fs.readFileSync(new URL('./fixtures/copilot-session016.json',import.meta.url)));
+const sessionPlan=buildPhraseArrangement(session);assert(sessionPlan);
+for(const at of [17.763,19.510]){
+  const frame=arrangementFrames(session).find(f=>Math.abs(f.at-at)<.01);assert(frame);
+  const segment=sessionPlan.harmony.find(h=>Math.abs(h.at-frame.at)<.001);assert(segment);
+  const added=sessionPlan.advice.edit.notes.filter(n=>segment.notes.includes(n.note)&&n.time>=frame.at&&n.time<segment.end);
+  assert(added.some(n=>n.note!==segment.notes[0]&&Math.abs(n.time-frame.at)<.001),'Un soutien harmonique entre avec la basse');
+  const delayed=frame.accompaniment.find(p=>p.event.note!==frame.bassMidi);
+  assert(added.some(n=>Math.abs(n.time-delayed.event.time)<.001),'Le geste conserve aussi une entrée intérieure différée');
+}
+console.log('✓ Entrées signalées : soutien dès la basse et geste étagé conservé, sans bloc entier en retard.');
