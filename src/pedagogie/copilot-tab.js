@@ -5,6 +5,8 @@ import {PROPOSAL_POLICY} from './proposal-policy.js';
 import {renderProposalChordGrid,refreshProposalChordGrids} from './proposal-chord-grid.js';
 import {mountMemoryPanel} from './memory-panel.js';
 import {conversationSourceForTurn} from './copilot-memory.js';
+import {harmonyBriefLines} from './harmony-brief.js';
+import {melodySource} from './melody-accompaniment.js';
 // [Claude] — 2026-09-09 — Copilot IA : contrôleur du sous-onglet.
 //
 // Orchestration pure : écoute la sélection Pédagogie, charge l'historique,
@@ -1233,6 +1235,7 @@ const sameText = (a, b) => String(a || '').trim().replace(/[\s.!?…]+$/, '').to
 export function answerActions(msg, { last = false, asked = '', source = null, takeSource = null } = {}) {
   if (!msg || msg.role !== 'assistant' || msg.isTyping || msg.isError || !String(msg.content||'').trim()) return [];
   const suggested=(msg.suggestedActions||[]).filter(a=>a&&String(a.message||a.label||'').trim());
+  if(msg.toolResult?.harmonyBrief?.status==='pending')return last?suggested:[];
   const legacy=Boolean(msg.toolResult?.originalTake?.events?.length&&msg.toolResult?.variants?.length&&(msg.toolResult.proposalPolicy!==PROPOSAL_POLICY||msg.toolResult.proposalDiversity!==PROPOSAL_DIVERSITY)&&(!takeSource||samePlayingSource(msg.toolResult.originalTake,takeSource)));
   const upgrade={label:'Écouter les nouvelles propositions',message:'Fais-moi entendre de nouvelles propositions à partir de mon jeu.'};
   if(!last)return legacy?[upgrade,...suggested]:suggested;
@@ -1243,6 +1246,8 @@ export function answerActions(msg, { last = false, asked = '', source = null, ta
   const playing=source || (personal || ['session','passage'].includes(result?.example?.source) ? result?.example?.source === 'session' ? 'session' : 'passage' : null);
   if(playing)actions.push({label:playing==='session'?'Rejouer la session':'Rejouer mon jeu',message:playing==='session'?'Rejoue ma session.':'Rejoue mon jeu.'});
   if(personal&&!legacy)actions.push({label:'Réécouter la proposition',message:'Réécouter cette proposition.'});
+  if(playing&&melodySource(result?.originalTake||takeSource))actions.push({label:'Préparer l’harmonisation',message:'Reprendre le guidage de cette harmonisation.'});
+  if(result?.variants?.some(v=>v.advice?.goal==='accompany'&&v.colorProfile==='ccm'&&!v.development?.length))actions.push({label:'Développer l’accompagnement',message:'Fais-moi entendre une version développée. Développe les préparations et les voix intérieures.'});
   // Les corrections citées dans une réponse deviennent des demandes prêtes à envoyer.
   // Les moments restent ceux du paragraphe concerné, jamais ceux d'un autre conseil.
   if(playing)for(const paragraph of String(msg.content).split(/\n+/)){
@@ -1316,7 +1321,11 @@ function renderOneMessage(msg, { last = false } = {}) {
 
   // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
   // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
-  if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || msg.toolResult.example.source?.kind === 'passage vidéo')) {
+  if(msg.toolResult?.harmonyBrief?.status==='pending'){
+    if(msg.toolResult.harmonyBriefPreview&&msg.toolResult.originalTake)content.append(createTakePlayer(msg.toolResult.originalTake,{id:`${exampleIdOf(msg)}-brief`,title:'Ta prise à vérifier'}));
+    const lines=harmonyBriefLines(msg.toolResult.harmonyBrief);
+    if(lines.length){const details=renderNotesDetails(lines.join('\n'));details.querySelector('summary').textContent='Voir tous les changements d’accords';content.append(details);}
+  } else if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || msg.toolResult.example.source?.kind === 'passage vidéo')) {
     if (msg.toolResult.originalTake) content.append(createTakePlayer(msg.toolResult.originalTake, { id: `${exampleIdOf(msg)}-original`, title: 'Ton jeu original' }));
     for(const variant of variantMessages(msg)) content.appendChild(renderExampleCard(variant));
     const grid=renderProposalChordGrid(msg.toolResult,{notation:document.getElementById('notation-select')?.value || 'english',id:exampleIdOf(msg),originalId:`${exampleIdOf(msg)}-original`,variantIds:variantMessages(msg).map(exampleIdOf)});

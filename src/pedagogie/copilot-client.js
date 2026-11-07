@@ -1,4 +1,5 @@
 import {melodySource,melodyTechniqueAnswer} from './melody-accompaniment.js';
+import {harmonyBriefTurn} from './harmony-brief.js';
 import {TEACHING_GUIDANCE,readableTeachingText} from './teaching-language.js';
 import {personalStyleCapabilityAnswer} from './style-capabilities.js';
 import {playingHarmonyFacts} from './playing-harmony-facts.js';
@@ -1841,10 +1842,19 @@ export async function sendCopilotMessage(params) {
   return reply.ok && !reply.toolResult?.memoryCommand ? {...reply,content:readableTeachingText(reply.content)} : reply;
 }
 
-async function sendCopilotMessageRaw({ message, messages = [], context, conversationId = null, copilotStyleId = 'auto', review = false }) {
+async function sendCopilotMessageRaw({ message, messages = [], context, conversationId = null, copilotStyleId = 'auto', review = false, skipHarmonyBrief = false }) {
   context = personalContext(restoreConversationPlaying(context,messages));
   const memory=buildConversationMemory(messages,{take:context?.playing?.passage,conversationId});
   const command=await memoryCommandAnswer(message,{memory});if(command)return command;
+  if(!skipHarmonyBrief&&!review){
+    const guided=harmonyBriefTurn({message,messages,context});
+    if(guided?.reply)return guided.reply;
+    if(guided?.request){
+      const generated=await sendCopilotMessageRaw({message:guided.request,messages,context,conversationId,copilotStyleId,review,skipHarmonyBrief:true});
+      const brief=guided.brief.status==='ready'&&!generated.toolResult?.variants?.length?{...guided.brief,status:'pending',stage:'arrivals'}:guided.brief;
+      return {...generated,toolResult:{...generated.toolResult,harmonyBrief:brief,originalTake:context.playing.passage}};
+    }
+  }
   if((review||/qu['’]en penses|ton avis|analyse (?:ma session|mon jeu)/i.test(message))&&!/hasard|n'importe quoi|al[eé]atoire/.test(message)&&melodySource(context?.playing?.passage))return {ok:true,content:'Ta session contient surtout une mélodie, avec quelques notes qui se chevauchent. Ces chevauchements ne suffisent pas à retrouver une progression d’accords. Je peux te proposer un accompagnement sous cette mélodie en gardant tes notes et ton rythme.',toolResult:{played:[],ignored:0,suggestions:[],example:null,voicing:null,originalTake:context.playing.passage},suggestedActions:[{label:'Accompagner ma mélodie',message:'Fais-moi entendre un accompagnement sous ma mélodie.'},{label:'Rejouer mon jeu',message:'Rejoue mon jeu.'}],autoplay:false};
   const capability=personalStyleCapabilityAnswer({message,context,messages});if(capability)return capability;
   const style = playingStyleAnswer({ message, messages, context });

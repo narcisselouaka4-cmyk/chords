@@ -41,6 +41,18 @@ export function melodyArrivalPlan(pairs,request,key,message){
   return {degree,rootPc,quality,preferred,high:Boolean(own?.high)};};
  const matches=(p,a)=>pc(p.event.note)===a.pc&&(!a.high||p.event.note>=Math.min(...line.filter(q=>pc(q.event.note)===a.pc).map(q=>q.event.note))+12);
  const anchors=[];let cursor=0,step=0;
+ const confirmed=/appuis(?: valides)?\s*:\s*([^\n.]+)/i.exec(text(message))?.[1];
+ if(confirmed){
+  const entries=[...confirmed.matchAll(/([1-7])\s+a\s*(\d{1,2}):(\d{2})(?:[,.](\d+))?/g)];
+  if(entries.length<3||entries.length>64)return {anchors:[],line,variant,explicit};
+  for(const m of entries){
+   const at=Number(m[2])*60+Number(m[3])+Number('0.'+(m[4]||0));
+   const p=[...line].sort((a,b)=>Math.abs(a.event.time-at)-Math.abs(b.event.time-at))[0];
+   if(!p||Math.abs(p.event.time-at)>.025||anchors.at(-1)?.at>=p.event.time)return {anchors:[],line,variant,explicit};
+   anchors.push({...spec(Number(m[1])),at:p.event.time,sourceOn:p.on,melody:p.event.note,index:line.indexOf(p)});
+  }
+  return {anchors,line,variant,explicit};
+ }
  while(cursor<line.length&&anchors.length<64){
   const wanted=spec(request.degrees[step]),index=line.findIndex((p,i)=>i>=cursor&&matches(p,{pc:wanted.preferred,high:wanted.high}));
   let alternative=null;
@@ -99,7 +111,7 @@ function positions(w,spec,pairs,register){
   const omitted=[];
   for(const n of collision){
    const owners=sounding.filter(p=>p.event.note===n),p=owners[0];
-   if(spec.rootBass&&owners.length===1&&p.event.time<w.at&&p.end>w.at&&p.end-w.at<=.075&&w.end-p.end>=.08)
+   if((spec.rootBass||spec.preferRootBass)&&owners.length===1&&p.event.time<w.at&&p.end>w.at&&p.end-w.at<=.075&&w.end-p.end>=.08)
     relays.push({note:n,at:p.end,sourceOn:p.on});
    else if(pc(n-spec.rootPc)===7)omitted.push(n);
    else return;
@@ -122,7 +134,7 @@ function positions(w,spec,pairs,register){
   const tight=spec.warm?notes.filter((n,i)=>i&&n-notes[i-1]===1).length:0;
   const close=notes.filter(n=>[1,13].includes(top-n)).length;
   result.push({...spec,notes,relays,technique,label,cost:(spec.rank||0)*(w.kind==='dominant'?10:4)+low*3+close*4+(top-notes[0])*.2
-   +tight*6+(notes[0]<register.floor?6:0)+(pc(notes[0])===spec.rootPc?0:1)+(notes.length===3?.6:0)});
+   +tight*6+(notes[0]<register.floor?6:0)+(pc(notes[0])===spec.rootPc?0:spec.preferRootBass?8:1)+(notes.length===3?.6:0)});
  };
  // Le drop 2 est construit à partir d'un accord serré de quatre sons réel.
  if(tones.size===4){const close=[...tones].map(t=>{let n=top;while(pc(n-spec.rootPc)!==t)n--;return n;}).sort((a,b)=>a-b);
@@ -161,6 +173,7 @@ function chooseSegments(windows,pairs,key,profile){
    ...(profile==='ccm'&&w.kind==='arrival'&&a.closure&&a.degree===1&&quality==='sus2'?{rootBass:true}:{}),
    ...(profile==='ccm'&&w.kind==='arrival'&&a.closure&&a.degree===5&&quality==='add9'?{rootBass:true}:{}),
    ...(profile==='ccm'&&w.kind==='arrival'&&a.variant&&a.degree===6?{rootBass:true}:{}),
+   ...(profile==='ccm'&&w.kind==='arrival'&&a.resolvesLeadingTone?{preferRootBass:true}:{}),
    ...(w.kind==='dominant'?{function:{kind:quality==='m7'?'predominant':'dominant',targetRootPc}}:a.leadingTone?{function:{kind:'leading-tone',targetRootPc}}:{})},pairs,register)).sort((a,b)=>a.cost-b.cost).slice(0,32);
  });
  if(pools.some(p=>!p.length))return null;
@@ -181,7 +194,7 @@ export function buildArrivalAccompaniment(take,{pairs,key,map,request,message}){
  // V suivi du relatif mineur : une sensible diminuée prépare ce mineur,
  // plutôt qu'une dominante de la tonique maquillée par une neuvième bémol.
  if(profile==='ccm'&&!key.minor)for(let i=0;i<anchors.length-1;i++)
-  if(anchors[i].degree===5&&anchors[i+1].degree===6){anchors[i].leadingTone=true;anchors[i].targetRootPc=anchors[i+1].rootPc;}
+  if(anchors[i].degree===5&&anchors[i+1].degree===6){anchors[i].leadingTone=true;anchors[i].targetRootPc=anchors[i+1].rootPc;anchors[i+1].resolvesLeadingTone=true;}
  // Couleurs exprimées par fonction : transposables, sans horaire ni session
  // inscrits dans le moteur. Une couleur impossible n'est pas annoncée à tort.
  const colors=/couleurs\s*:\s*([^\n.]+)/i.exec(text(message))?.[1]||'';

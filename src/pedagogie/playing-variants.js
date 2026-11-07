@@ -17,6 +17,7 @@ function continuedRequest(previous, message) {
  if(/basses?\s*:|basses?\s+par\s+quartes/i.test(message))inherited=inherited
   .replace(/basses?\s*:[^.!?\n]+/gi,'').replace(/(?:des\s+)?basses?\s+par\s+quartes/gi,'');
  if(/(?:arriv[eé]es|rep[eè]res)\s*:/i.test(message))inherited=inherited.replace(/(?:arriv[eé]es|rep[eè]res)\s*:[^\n.]+/gi,'');
+ if(/(?:arriv[eé]es|rep[eè]res|appuis(?: valid[eé]s)?|finale|fin)\s*:|variante\s+[1-7]/i.test(message))inherited=inherited.replace(/appuis(?: valid[eé]s)?\s*:[^\n.]+/gi,'');
  if(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+/i.test(message))inherited=inherited.replace(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+[\s:]+[^\n.]+/gi,'');
  if(/(?:finale|fin)\s*:/i.test(message))inherited=inherited.replace(/(?:finale|fin)\s*:[^\n.]+/gi,'');
  if(/couleurs\s*:/i.test(message)||melodyColorProfile(message))inherited=inherited.replace(/couleurs\s*:[^\n.]+/gi,'');

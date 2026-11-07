@@ -28,7 +28,13 @@ try{
  assert(review.ok);assert.match(review.content,/surtout une mélodie/);assert.doesNotMatch(review.content,/locrien|0,52|drop|ajoute la 9/);
  const messages=[{role:'user',content:'Que penses-tu de ma session ?',take},{role:'assistant',...review}];
  for(const message of ['Fais-moi entendre une version enrichie de mon jeu.','fait comme tu veux','Fais-moi entendre un accompagnement sous ma mélodie.']){
-  const r=await sendCopilotMessage({message,messages,context:{type:'autonomous'}});
+  let r=await sendCopilotMessage({message,messages,context:{type:'autonomous'}});
+  assert.equal(r.toolResult.harmonyBrief?.status,'pending','Sans grille connue, préparer les choix plutôt que générer au hasard');
+  const preparation=[...messages,{role:'user',content:message},{role:'assistant',...r}];
+  for(const answer of ['Choisis une couleur pour moi.','Oui, toutes ces notes sont ma mélodie.','Je ne connais pas la progression, propose un parcours.','Ces appuis me conviennent, fais-moi entendre cette harmonisation.']){
+   r=await sendCopilotMessage({message:answer,messages:preparation,context:{type:'autonomous'}});
+   preparation.push({role:'user',content:answer},{role:'assistant',...r});
+  }
   assert(r.toolResult.example?.events?.length,message);assert(r.toolResult.variants[0].advice.goal==='accompany');
   assert.match(r.content,/accords proposés/);assert.doesNotMatch(r.content,/enregistre|compatible avec cette prise|pas reçu/);
   if(message!=='fait comme tu veux')assert(r.autoplay);

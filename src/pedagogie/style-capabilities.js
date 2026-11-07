@@ -22,7 +22,7 @@ export function requestedPersonalStyle(message) {
  if(!found){
    const target=cue[1].trim().replace(/\s+(?:de ma|de mon|pour|avec|sans)\b.*$/,'');
    if(/^(?:(?:de|du)\s+)?(?:mon|ma|mes|ton|ta|tes|notre|votre|ce|cet|cette|musique|jeu|accompagnement|voicing)\b/.test(target))return null;
-   if(/\b(?:enrich\w*|developp\w*|simpl\w*|douc\w*|lent\w*|ralenti\w*|rapid\w*|acceler\w*|autre\w*|different\w*|original\w*|arpeg\w*|plaqu\w*|rythm\w*|drop|accord[- ]melodie|suivant\w*|prochain\w*|contre[- ]?temps|syncope\w*|rootless|quartal|transpos\w*|tonalite|majeur|mineur)\b/.test(target)
+   if(/\b(?:enrich\w*|developp\w*|impos\w*|libre\w*|simpl\w*|douc\w*|lent\w*|ralenti\w*|rapid\w*|acceler\w*|autre\w*|different\w*|original\w*|arpeg\w*|plaqu\w*|rythm\w*|drop|accord[- ]melodie|suivant\w*|prochain\w*|contre[- ]?temps|syncope\w*|rootless|quartal|transpos\w*|tonalite|majeur|mineur)\b/.test(target)
      ||/^(?:do|re|mi|fa|sol|la|si|[a-g])(?:[#b♯♭]|$)/.test(target))return null;
    if(/^[a-z-]+(?: [a-z-]+){0,2}$/.test(target)
      &&/\b(?:joue|jouer|rejoue|fais|faire|propose|transforme|adapte|arrange|version)\b/.test(text))return target;
@@ -39,7 +39,7 @@ export function personalStyleCapabilityAnswer({message,context,messages=[]}) {
  if(!requested||!context?.playing?.passage?.events?.length)return null;
  const previous=[...messages].reverse().find(m=>m.role==='assistant'&&samePlayingSource(m.toolResult?.originalTake,context.playing.passage)&&m.toolResult?.harmonicRequest)?.toolResult.harmonicRequest;
  const progression=requestedDegreeProgression(message)||requestedDegreeProgression(previous);
- if(requested==='CCM'&&melodyColorProfile(message)&&melodySource(context.playing.passage)
+ if((requested==='CCM'&&melodyColorProfile(message)==='ccm'||requested==='jazz'&&melodyColorProfile(message)==='jazz')&&melodySource(context.playing.passage)
    &&progression?.valid&&!/une mesure par accord|quatre temps par accord|4 temps par accord/i.test((previous||'')+' '+message))return null;
  return {ok:true,
   content:`Je ne peux pas encore transformer ta prise en une vraie version ${requested}. Cela demande aussi un rythme et un accompagnement propres à ce style.\n\nJe peux enrichir tes accords en gardant ton rythme, ou t’expliquer une façon de travailler ce style.`,
