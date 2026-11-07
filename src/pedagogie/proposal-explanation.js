@@ -63,7 +63,10 @@ export function proposalExplanationAnswer({message,memory}) {
         if(h.function?.kind==='leading-tone'&&chord&&next&&resolvingVoices(h,after)){
           content=`${heading}le ${chosen} prépare le ${destination}. Sa tension rend l’arrivée sur l’accord mineur plus nette, en gardant ta mélodie.`;
           const move=(h.notes||[]).flatMap(n=>(after.notes||[]).filter(m=>[next.rootPc,pc(next.rootPc+3)].includes(pc(m))&&Math.abs(m-n)>=1&&Math.abs(m-n)<=2).map(m=>[n,m]))[0];
-          if(move)content+=` Le ${names[pc(move[0])]} rejoint le ${names[pc(move[1])]} : écoute ce petit mouvement à l’intérieur.`;
+          if(move){
+            const departure=pc(move[0])===chord.rootPc?chosen.replace(/dim7.*$/,''):names[pc(move[0])];
+            content+=` Le ${departure} rejoint le ${names[pc(move[1])]} : écoute ce petit mouvement à l’intérieur.`;
+          }
         }else if(h.goal==='passing'&&chord&&next){
           content=`${heading}le ${chosen} prépare le ${destination} qui suit.`;
           const bass=h.notes?.length?Math.min(...h.notes):null,target=after.notes?.length?Math.min(...after.notes):null;

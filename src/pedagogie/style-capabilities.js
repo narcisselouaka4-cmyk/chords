@@ -22,7 +22,7 @@ export function requestedPersonalStyle(message) {
  if(!found){
    const target=cue[1].trim().replace(/\s+(?:de ma|de mon|pour|avec|sans)\b.*$/,'');
    if(/^(?:(?:de|du)\s+)?(?:mon|ma|mes|ton|ta|tes|notre|votre|ce|cet|cette|musique|jeu|accompagnement|voicing)\b/.test(target))return null;
-   if(/\b(?:enrich\w*|simpl\w*|douc\w*|lent\w*|ralenti\w*|rapid\w*|acceler\w*|autre\w*|different\w*|original\w*|arpeg\w*|plaqu\w*|rythm\w*|drop|accord[- ]melodie|suivant\w*|prochain\w*|contre[- ]?temps|syncope\w*|rootless|quartal|transpos\w*|tonalite|majeur|mineur)\b/.test(target)
+   if(/\b(?:enrich\w*|developp\w*|simpl\w*|douc\w*|lent\w*|ralenti\w*|rapid\w*|acceler\w*|autre\w*|different\w*|original\w*|arpeg\w*|plaqu\w*|rythm\w*|drop|accord[- ]melodie|suivant\w*|prochain\w*|contre[- ]?temps|syncope\w*|rootless|quartal|transpos\w*|tonalite|majeur|mineur)\b/.test(target)
      ||/^(?:do|re|mi|fa|sol|la|si|[a-g])(?:[#b♯♭]|$)/.test(target))return null;
    if(/^[a-z-]+(?: [a-z-]+){0,2}$/.test(target)
      &&/\b(?:joue|jouer|rejoue|fais|faire|propose|transforme|adapte|arrange|version)\b/.test(text))return target;

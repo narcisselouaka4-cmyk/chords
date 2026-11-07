@@ -18,12 +18,19 @@ export function melodyTouchNotes(segments,pairs,pulse){
   const fraction=after===before?0:(s.at-before.at)/(after.at-before.at);
   return levels.get(before)+(levels.get(after)-levels.get(before))*fraction;
  };
- return segments.flatMap(s=>{
+ const held=new Map(),result=[];
+ for(const s of segments){
   const pitches=s.notes.filter(n=>n!==s.source.event.note),density=Math.min(1,Math.pow(3/pitches.length,.4));
   const spread=Math.min(.014,pulse*.027);
-  return pitches.map((note,i)=>({note,time:s.at+(pitches.length>1?i/(pitches.length-1)*spread:0),end:s.end,
-   velocity:levelAt(s)*density*(i===0?.88:i===pitches.length-1?1:.94)}));
- });
+  pitches.forEach((note,i)=>{
+   const previous=s.holdGroup!=null?held.get(s.holdGroup+':'+note):null;
+   if(previous&&Math.abs(previous.end-s.at)<1e-8){previous.end=s.end;return;}
+   const n={note,time:Math.max(s.at+(pitches.length>1?i/(pitches.length-1)*spread:0),s.relays?.find(r=>r.note===note)?.at??0),end:s.end,
+    velocity:levelAt(s)*density*(i===0?.88:i===pitches.length-1?1:.94)};
+   result.push(n);if(s.holdGroup!=null)held.set(s.holdGroup+':'+note,n);
+  });
+ }
+ return result;
 }
 
 /** Une seule appoggiature intérieure, prise dans la dominante précédente et

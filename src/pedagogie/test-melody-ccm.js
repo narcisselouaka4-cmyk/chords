@@ -57,7 +57,7 @@ let calls=0;const fetch=globalThis.fetch;globalThis.fetch=async()=>{calls++;thro
 try{
  const response=await sendCopilotMessage({message:request(),context:{type:'session',playing:{session:source}}});check(source,response.toolResult.variants[0]);assert.match(response.content,/couleurs CCM/);
  const current=[{role:'user',content:request(),take:source},{role:'assistant',...response}];
- const reason=await sendCopilotMessage({message:'Pourquoi le G#dim7 ?',messages:current,context:{type:'autonomous'}});assert.match(reason.content,/prépare.*La(?:m| mineur)/i);assert.match(reason.content,/Ré.*Do/);
+ const reason=await sendCopilotMessage({message:'Pourquoi le G#dim7 ?',messages:current,context:{type:'autonomous'}});assert.match(reason.content,/prépare.*La(?:m| mineur)/i);assert.match(reason.content,/Sol♯ rejoint le La/);
  const suspended=await sendCopilotMessage({message:'Pourquoi le Csus2 ?',messages:current,context:{type:'autonomous'}});assert.match(suspended.content,/seconde.*tierce/);
  const oldRequest=request().replace('en couleurs CCM','').replace('4 de finale = maj7 ; 1 de finale = sus2','5 avant la variante = 7b9 ; 4 de finale = maj9');
  const before=await sendCopilotMessage({message:oldRequest,context:{type:'session',playing:{session:source}}});assert(before.toolResult.variants.length);
