@@ -143,3 +143,27 @@ mains et pédale contrôlées. Ces contrôles ne garantissent pas un résultat m
 pas une validation sur une prise inconnue. Les anciens avis, séries et référence
 approuvée ne sont pas remplacés. Aucun identifiant de session ou passage de référence
 n'est codé dans le générateur musical.
+
+## Politique 13 : arrivées mélodiques et accord-mélodie
+
+Le retour sur « test 4 » rejette le placement fixe de la politique 12. Par défaut,
+les degrés suivent désormais des arrivées de la mélodie, sur leurs attaques exactes.
+Le placement ancien reste disponible seulement avec « une mesure par accord ».
+Les repères donnés par le pianiste priment sur les heuristiques :
+
+```text
+Fais-moi entendre ma mélodie harmonisée sur 4-5-3-6 en accord-mélodie.
+Arrivées : 4 sur Fa, 5 sur Si, 3 sur Mi, 6 sur Do.
+Variante 4-5-6 : 6 sur Mi aigu. Voicings légers en drop 2.
+```
+
+Ce sont des contraintes de notes/degrés, pas des horodatages de référence codés
+dans le moteur. Sans repères, la recherche utilise des hypothèses de fondamentale
+ou de tierce ; elle ne démontre pas une reconnaissance autonome de la forme.
+Les liaisons proposent trois/quatre voix **mélodie comprise**, drop 2 réels de
+quatre sons ou coquilles légères distinctement nommées. Le legato original peut
+faire chevaucher brièvement d'autres notes ; les mains sont vérifiées sur ces
+chevauchements aussi. Pas de nouvelle appoggiature ni de 7–3 forcé dans ce lot.
+La page d'écoute distingue le placement sur notes d'arrivée du mode par mesures.
+Le contrôle de propreté du générateur cible les sources musicales, pour préserver
+les changements UI concurrents sans les confondre avec une édition musicale cachée.

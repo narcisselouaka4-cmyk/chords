@@ -1,5 +1,6 @@
 // Une progression demandée devient un accompagnement de la vraie mélodie,
 // et non un exemple indépendant joué à un tempo arbitraire.
+import {buildArrivalAccompaniment} from './melody-arrivals.js';
 import {reviewTake} from '../recorder/take-review.js';
 import {extractKey} from './intent-classifier.js';
 import {harmonyVoicings} from './fixed-harmony.js';
@@ -15,7 +16,8 @@ const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toL
 const normalVelocity=p=>p.event.velocity>1?p.event.velocity/127:p.event.velocity;
 
 export function requestedDegreeProgression(message){
- const match=/\b\d+(?:\s*[-–—→]\s*\d+){1,7}\b/.exec(message||'');
+ const match=[...String(message||'').matchAll(/\b\d+(?:\s*[-–—→]\s*\d+){1,7}\b/g)]
+  .find(m=>!/variante\s*$/i.test(String(message).slice(0,m.index)));
  if(!match||/^\s*(?:secondes?|sec|s)\b/i.test(String(message).slice(match.index+match[0].length)))return null;
  const degrees=match[0].split(/\s*[-–—→]\s*/).map(Number);
  if(degrees.length<3&&!/progression|grille|degr[eé]|harmonis/i.test(message))return null;
@@ -107,6 +109,8 @@ export function buildDegreeAccompaniment(take,{message='',request=requestedDegre
  const review=reviewTake(take.events),key=extractKey(message)||extractKey(`en ${take.key||''}`)
   ||(review?.key?.confidence>=.7?{rootPc:review.key.pc,minor:review.key.mode==='minor'}:null);
  if(!key)return null;
+ if(!/une mesure par accord|quatre temps par accord|4 temps par accord/.test(plain(message)))
+  return buildArrivalAccompaniment(take,{pairs,key,map,request,message});
  const scale=key.minor?[0,2,3,5,7,8,10]:[0,2,4,5,7,9,11];
  const qualities=key.minor?['m9','m7b5','maj9','m9','m9','maj9','13']:['maj9','m9','m7','maj9','13','m9','m7b5'];
  const duration=take.duration||Math.max(...pairs.map(p=>p.end));

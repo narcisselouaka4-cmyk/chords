@@ -6,7 +6,7 @@
 </style>
 <main>
 <p class="tag">Écoute de travail · Copilot</p><h1 id="title">Ta mélodie harmonisée</h1>
-<p id="description"></p><p class="muted">La première note est prise comme départ de mesure. Quatre temps par accord ; l’accompagnement suit les appuis de ta prise. Ce placement reste à juger à l’écoute.</p>
+<p id="description"></p><p class="muted" id="placement"></p>
 <section class="card" aria-label="Comparaison audio">
 <div class="tracks"><button id="original" type="button" aria-pressed="false">Ta mélodie</button><button id="proposal" type="button" aria-pressed="true">Proposition Copilot</button></div>
 <audio id="audio" controls preload="metadata"></audio>
@@ -21,6 +21,7 @@
 <script>
 const data=JSON.parse(document.querySelector('#listening-data').textContent),audio=document.querySelector('#audio');
 document.querySelector('#title').textContent=data.name+' — harmonisation';document.querySelector('#description').textContent=data.description;
+document.querySelector('#placement').textContent=data.placement==='melody-arrivals'?'Les accords principaux tombent sur tes notes d’arrivée.'+(data.arrivals?.some(a=>a.variant)?' La variante finale passe directement du V au VI.':'')+' La mélodie originale reste intacte.':'Une mesure par accord, à partir de la première note. Ce placement reste à juger à l’écoute.';
 const clock=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
 const buttons=data.harmony.map(h=>{const b=document.createElement('button');b.type='button';b.className='chord';const time=document.createElement('small');time.textContent=clock(h.at);b.append(time,document.createTextNode(h.chord));b.onclick=()=>{audio.currentTime=h.at;};document.querySelector('#grid').append(b);return b;});
 document.querySelector('#ornaments').textContent=data.ornaments.length?'Appoggiatures intérieures vers '+data.ornaments.map(o=>clock(o.at)).join(' et ')+'.':'';

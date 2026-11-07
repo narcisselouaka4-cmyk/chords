@@ -15,6 +15,8 @@ function continuedRequest(previous, message) {
  if([...message.matchAll(key)].length)inherited=inherited.replace(key,'');
  if(/basses?\s*:|basses?\s+par\s+quartes/i.test(message))inherited=inherited
   .replace(/basses?\s*:[^.!?\n]+/gi,'').replace(/(?:des\s+)?basses?\s+par\s+quartes/gi,'');
+ if(/(?:arriv[eé]es|rep[eè]res)\s*:/i.test(message))inherited=inherited.replace(/(?:arriv[eé]es|rep[eè]res)\s*:[^\n.]+/gi,'');
+ if(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+/i.test(message))inherited=inherited.replace(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+[\s:]+[^\n.]+/gi,'');
  if(requestedDegreeProgression(message))inherited=inherited.replace(/\b\d+(?:\s*[-–—→]\s*\d+){1,7}\b/g,'');
  return `${inherited}\n${message}`;
 }
@@ -22,7 +24,8 @@ function continuedRequest(previous, message) {
 export function personalVariantsAnswer({message,messages=[],context,preferences=[]}) {
  const text=plain(message),take=context?.playing?.passage;if(!take?.events?.length)return null;
  if(/hasard|n'importe quoi|aleatoire|sans intention|test des touches/.test(text))return null;
- if(/rejoue ma|re.e?coute ma|explique|quel.*style|drop\s*2|upper.?structure|alle?g|supprim/.test(text))return null;
+ if(/rejoue ma|re.e?coute ma|explique|quel.*style|upper.?structure|alle?g|supprim/.test(text)
+  ||/drop\s*2/.test(text)&&!requestedDegreeProgression(message)&&!/accord.melodie|arrivees?/.test(text))return null;
  const boundary=messages.findLastIndex(m=>m.role==='user'&&m.take?.events?.length);
  const relevant=messages.slice(Math.max(0,boundary));
  const previous=[...relevant].reverse().find(m=>m.role==='assistant'&&!m.toolResult?.variants?.some(v=>v.advice?.version===6)&&samePlayingSource(m.toolResult?.originalTake,take)&&(m.toolResult?.phraseHarmony||m.toolResult?.fixedHarmony||m.toolResult?.variants?.length));

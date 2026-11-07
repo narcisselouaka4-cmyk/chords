@@ -40,6 +40,7 @@ function dropTwoCandidates(rootPc,quality,ceiling){
 
 export function melodyTechniqueAnswer({message,context}){
  const take=context?.playing?.passage;
+ if(requestedDegreeProgression(message)||/accord.melodie|arrivees?/.test(plain(message)))return null;
  if(!take||!melodySource(take)||!/(?:ecout|entendre|joue|demonstration)/.test(plain(message))||!/drop\s*2/.test(plain(message)))return null;
  const token=/\b([A-G][#b]?(?:add9|maj9|maj7|m11|m9|m7|9|7))\b/i.exec(message)?.[1];
  const target=token&&parseChordName(token[0].toUpperCase()+token.slice(1));

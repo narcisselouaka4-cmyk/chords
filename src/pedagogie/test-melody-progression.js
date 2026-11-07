@@ -9,7 +9,7 @@ import {proposalChordGrid,activeChordColumn} from './proposal-chord-grid.js';
 const original=JSON.parse(fs.readFileSync(new URL('./fixtures/copilot-session010.json',import.meta.url)));
 // La vraie session n'a pas de tonalité renseignée : pas d'aide cachée de la fixture.
 const source={...original,key:''},snapshot=JSON.stringify(source);
-const message='Fais-moi entendre ma mélodie harmonisée sur la progression 4-5-3-6, avec des accords de passage et des appoggiatures.';
+const message='Fais-moi entendre ma mélodie harmonisée sur la progression 4-5-3-6, avec des accords de passage et des appoggiatures, une mesure par accord.';
 assert.deepEqual(requestedDegreeProgression('4–5–3–6'),{degrees:[4,5,3,6],valid:true});
 assert.equal(requestedDegreeProgression('2-9-1').valid,false);
 assert.equal(requestedDegreeProgression('Enrichis mon jeu'),null);
@@ -61,7 +61,7 @@ for(const rate of [.85,1.15]){
  const v=check(stretched,buildDegreeAccompaniment(stretched,{message}));
  assert(Math.abs(v.harmony[0].at-variant.harmony[0].at*rate)<.0001);
 }
-const fixed=check(source,buildDegreeAccompaniment(source,{message:'Harmonise sur 4-5-3-6 sans accords de passage'}));
+const fixed=check(source,buildDegreeAccompaniment(source,{message:'Harmonise sur 4-5-3-6 sans accords de passage, une mesure par accord'}));
 assert.equal(fixed.harmony.length,16);assert.equal(fixed.ornaments.length,0);
 const dry=buildDegreeAccompaniment(source,{message:message+' sans pédale'});assert(dry);assert.equal(dry.advice.edit.pedal.length,0);
 const noOrnaments=buildDegreeAccompaniment(source,{message:message+' sans appoggiatures'});assert(noOrnaments);assert.equal(noOrnaments.ornaments.length,0);
