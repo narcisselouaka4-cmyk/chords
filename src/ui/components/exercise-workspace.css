@@ -68,10 +68,13 @@
   line-height: 1.6;
 }
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .tr-exercise-brief { display: none; }
-/* [Claude] — 2026-11-06 — « À VOUS DE JOUER » masqué en Accord cible (Narcisse
-   l'a annoté à retirer) ; gardé tel quel en Parcours harmonique, où ce même
-   span affiche aussi la tonalité et le numéro d'accord en cours (main.js). */
-:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode #exercise-arena-eyebrow { display: none; }
+/* [Claude] — 2026-11-06 — « À VOUS DE JOUER » masqué partout désormais (pas
+   seulement en Accord cible) : Narcisse a demandé de remplacer ce texte par
+   les accords du parcours en Parcours harmonique. #exercise-arena-eyebrow
+   reste dans le DOM (main.js y écrit toujours sa tonalité/numéro d'accord,
+   inoffensif) mais ne s'affiche plus : la frise .tr-progression-path,
+   déplacée ici depuis le bandeau de gauche, prend sa place visuellement. */
+:root[data-skin] #practice-tab #practice-view-exercices #exercise-arena-eyebrow { display: none; }
 :root[data-skin] #practice-tab #practice-view-exercices .tr-chord-arena {
   grid-column: 2;
   grid-row: 1;
@@ -88,6 +91,87 @@
   min-height: 16px;
   font-size: 9px;
   letter-spacing: .09em;
+}
+/* [Claude] — 2026-11-06 — La frise des accords du parcours, déplacée en tête
+   de la scène : horizontale (Narcisse — « les accords défilent de la gauche
+   vers la droite, pas du haut vers le bas »), au lieu de la colonne du
+   bandeau de gauche. Chaque étape devient une pastille compacte ; le reste
+   de la scène (nom de l'accord, clavier, mains) suit naturellement plus bas
+   dans le flux, sans rien avoir à décaler explicitement. */
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .exercise-chords-eyebrow {
+  align-self: flex-start;
+  margin-bottom: 6px;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-self: stretch;
+  width: 100%;
+  max-width: 640px;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path > button {
+  flex: none;
+  width: auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 11px;
+  background: var(--tr-surface);
+  white-space: nowrap;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path > button > div {
+  align-items: center;
+  text-align: center;
+}
+/* [Claude] — 2026-11-06 — Les couleurs héritées (--tr-muted sur le numéro et
+   le sous-texte, --tr-accent sur le numéro actif) venaient du bandeau de
+   gauche, un fond différent : mesurées 3,55 à 4,6:1 sur le fond de pastille
+   (var(--tr-surface)) ici, sous ou à peine au-dessus du seuil AA. Reprises
+   avec --tr-secondary/--tr-text, déjà vérifiées lisibles sur ce fond
+   ailleurs dans ce panneau — jamais --tr-accent pour du texte (réglable par
+   l'utilisateur, déjà le piège rencontré plusieurs fois le même jour). */
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path > button > span {
+  color: var(--tr-secondary);
+  border-color: var(--tr-border);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path strong {
+  color: var(--tr-text);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path small {
+  color: var(--tr-secondary);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path > button.is-active {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+}
+/* [Claude] — 2026-11-06 — astra-bridge.css pose un aplat --tr-accent avec
+   --tr-button-text sur le numéro actif : mesuré 4,03:1 avec l'accent actuel
+   de Narcisse (orange moyen), sous le seuil — --tr-button-text choisit blanc
+   ici, mais un texte sombre ferait mieux sur CETTE teinte précise (calculé
+   ~5:1 en noir). Plutôt que de corriger le seuil de accent-theme.js (global,
+   risqué, change tous les boutons de l'appli), même traitement que partout
+   ailleurs ce jour-là pour un état actif : fond TEINTÉ (pas un aplat) +
+   texte sombre de lecture — sûr quelle que soit la teinte choisie. */
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path > button.is-active > span {
+  background: var(--tr-accent-soft);
+  color: var(--tr-text);
+  border-color: var(--tr-accent);
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path > .exercise-passing-chord {
+  opacity: .78;
+  border-style: dashed;
+}
+:root[data-skin] #practice-tab #practice-view-exercices .tr-target-chord > .tr-progression-path > .exercise-passing-chord.is-active {
+  opacity: 1;
+  border-color: var(--tr-accent);
+  border-style: solid;
+  background: var(--tr-accent-soft);
 }
 :root[data-skin] #practice-tab #practice-view-exercices #exercise-target { margin: 0; padding: 10px 0 0; width: 100%; border: 0; background: transparent; box-shadow: none; }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-card {

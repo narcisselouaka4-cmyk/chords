@@ -473,8 +473,6 @@
                 </div>
                 <div class="exercise-study-info" id="exercise-study-info" hidden></div>
                 <div class="exercise-key-strip" id="exercise-key-strip" role="group" aria-label="Tonalités du tour" hidden></div>
-                <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
-                <div class="tr-progression-path" id="exercise-progress-path"></div>
                 <p class="tr-progress-quiet" id="exercise-progress-quiet">Lancez un exercice : l'avancement s'affiche ici.</p>
               </div>
             </div>
@@ -483,7 +481,16 @@
               <div class="tr-arena-ellipse" aria-hidden="true"></div>
               <div class="tr-arena-ellipse tr-ellipse-outer" aria-hidden="true"></div>
               <div class="tr-target-chord">
+                <!-- [Claude] — 2026-11-06 — Les accords du parcours remplacent le texte
+                     « À VOUS DE JOUER · tonalité · ACCORD n/total » (Narcisse) : la frise
+                     ACCORDS/tr-progression-path, déplacée ici depuis le bandeau de gauche,
+                     passe à l'horizontale (defiler gauche→droite pendant l'étude, pas
+                     haut→bas) — voir exercise-workspace.css. #exercise-arena-eyebrow reste
+                     dans le DOM (main.js y écrit encore pour Accord cible, déjà masqué) mais
+                     ne s'affiche plus ici : les accords ont pris sa place. -->
                 <span class="tr-eyebrow" id="exercise-arena-eyebrow">À VOUS DE JOUER</span>
+                <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
+                <div class="tr-progression-path" id="exercise-progress-path"></div>
                 <!-- [Claude] — 2026-11-06 — Plus d'affichage dupliqué du nom de l'accord
                      au-dessus de la carte (Narcisse : « il est écrit deux fois ») : la
                      carte exercise-target porte déjà le nom, les pastilles disposition/
