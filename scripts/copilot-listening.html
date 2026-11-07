@@ -21,6 +21,8 @@ try{
  let pack;
  if(embedded)pack=JSON.parse(embedded.textContent);
  else{const response=await fetch('./listening.json');if(!response.ok)throw Error('Les écoutes ne sont pas disponibles.');pack=await response.json();}
+ if(pack.title){document.querySelector('h1').textContent=pack.title;document.title=pack.title;}
+ if(pack.introduction)document.querySelector('.intro').textContent=pack.introduction;
  const storageKey='pjc.copilot.listening.'+pack.packId;
  let saved={};try{saved=JSON.parse(localStorage.getItem(storageKey)||'{}');}catch{}
  const opinions=saved.packId===pack.packId&&saved.opinions&&typeof saved.opinions==='object'?saved.opinions:{};
@@ -35,6 +37,7 @@ try{
  for(const c of pack.cases){
   if(!c.paired)continue;
   const card=make('section',{className:'case'});card.append(make('h2',{},c.title));
+  if(c.note)card.append(make('p',{className:'muted'},c.note));
   const versions=make('div',{className:'versions'}),audio=make('audio',{controls:true,preload:'metadata'});
   audio.setAttribute('aria-label','Écouter '+c.title);
   const tracks=[{label:'Ton jeu',audio:c.original,available:true},...c.candidates];

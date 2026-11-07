@@ -17,7 +17,7 @@ export function requestedPersonalStyle(message) {
  const found=STYLES.find(([,re])=>re.test(cue[1]));
  if(!found){
    const target=cue[1].trim().replace(/\s+(?:de ma|de mon|pour|avec|sans)\b.*$/,'');
-   if(/^(?:musique|jeu|accompagnement|voicing)\b/.test(target))return null;
+   if(/^(?:(?:de|du)\s+)?(?:mon|ma|mes|ton|ta|tes|notre|votre|ce|cet|cette|musique|jeu|accompagnement|voicing)\b/.test(target))return null;
    if(/\b(?:enrich\w*|simpl\w*|douc\w*|lent\w*|ralenti\w*|rapid\w*|acceler\w*|autre\w*|different\w*|original\w*|arpeg\w*|plaqu\w*|rythm\w*|drop|rootless|quartal|transpos\w*|tonalite|majeur|mineur)\b/.test(target)
      ||/^(?:do|re|mi|fa|sol|la|si|[a-g])(?:[#b♯♭]|$)/.test(target))return null;
    if(/^[a-z-]+(?: [a-z-]+){0,2}$/.test(target)

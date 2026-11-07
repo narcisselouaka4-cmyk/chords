@@ -4,6 +4,7 @@ import {buildConversationMemory,conversationMemoryContext,loadPersonalMemories,u
 import {saveHistory,loadHistory,listAllConversations} from './copilot-history.js';
 import {buildPhraseVariants} from './phrase-variants.js';
 import {sendCopilotMessage,wantsToHear,asksForExample,looksLikeDemoRequest} from './copilot-client.js';
+import {PROPOSAL_POLICY} from './proposal-policy.js';
 
 const store=new Map(),requests=[];
 global.window={electronAPI:{files:{homeDir:async()=>'/fixture',ensureDir:async()=>true,
@@ -20,11 +21,13 @@ await saveHistory('conv_session_only','__copilot_autonomous__',sessionOnly);
 const sessionReload=await loadHistory('conv_session_only');
 const replaySession=await sendCopilotMessage({message:'Rejoue ma session.',messages:sessionReload.messages,context:null});
 assert(replaySession.toolResult.example?.events.length);
-const variants=buildPhraseVariants(take),result={originalTake:take,variants,example:variants[0].example,playingAdvice:variants[0].advice,proposalPolicy:8,proposalDiversity:1,phraseHarmony:true};
+const variants=buildPhraseVariants(take),result={originalTake:take,variants,example:variants[0].example,playingAdvice:variants[0].advice,proposalPolicy:PROPOSAL_POLICY,proposalDiversity:1,phraseHarmony:true};
 const question='pourquoi après le Dm9 tu joue un A♭13#11 ? (très belle couleur au passage';
 const messages=[{role:'user',content:'Fais-moi des propositions.'},{role:'assistant',content:'Voici une proposition.',toolResult:result},{role:'user',content:'Garde ma mélodie et cette couleur.'}];
 const before=JSON.stringify(messages),memory=buildConversationMemory(messages,{conversationId:'conv_fixture'});
-assert.equal(memory.source.eventCount,take.events.length);assert.equal(memory.proposals[0].variants[0].harmony.length,16);
+assert.equal(memory.source.eventCount,take.events.length);
+const progression=items=>items.map(h=>[h.at,h.chord,h.notes]);
+assert.deepEqual(progression(memory.proposals[0].variants[0].harmony),progression(variants[0].harmony));
 assert(memory.decisions.includes('Garde ma mélodie et cette couleur.'));
 assert(conversationMemoryContext(memory).includes('13#11'));
 assert.equal(JSON.stringify(messages),before);
@@ -57,7 +60,7 @@ await updatePersonalMemory({text:'Je préfère les explications courtes.'});asse
 const id=(await loadPersonalMemories()).entries[0].id;
 await updatePersonalMemory({id,text:'Je préfère garder ma basse, sauf demande contraire.'});assert.match((await loadPersonalMemories()).entries[0].text,/sauf/);
 await memoryCommandAnswer('Retiens cette proposition comme référence.',{memory});
-const reference=(await loadPersonalMemories()).entries.at(-1);assert.equal(reference.reference.conversationId,'conv_fixture');assert.equal(reference.reference.variants[0].harmony.length,16);
+const reference=(await loadPersonalMemories()).entries.at(-1);assert.equal(reference.reference.conversationId,'conv_fixture');assert.deepEqual(progression(reference.reference.variants[0].harmony),progression(variants[0].harmony));
 const personalised=await sendCopilotMessage({message:'Fais-moi des propositions',messages:[],context:{type:'session',playing:{session:take}}});
 assert(personalised.toolResult.variants?.length);assert(personalised.toolResult.variants.every(v=>v.harmony.every(h=>h.goal!=='passing')),'La préférence de basse est transmise au générateur local');
 assert(!personalised.toolResult.harmonicRequest.includes('Préférences retenues'));

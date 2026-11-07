@@ -1,6 +1,7 @@
 import {isPersonalExample} from './personal-demo.js';
 import {samePlayingSource} from './personal-source.js';
 import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
+import {PROPOSAL_POLICY} from './proposal-policy.js';
 import {renderProposalChordGrid,refreshProposalChordGrids} from './proposal-chord-grid.js';
 import {mountMemoryPanel} from './memory-panel.js';
 import {conversationSourceForTurn} from './copilot-memory.js';
@@ -1232,7 +1233,7 @@ const sameText = (a, b) => String(a || '').trim().replace(/[\s.!?…]+$/, '').to
 export function answerActions(msg, { last = false, asked = '', source = null, takeSource = null } = {}) {
   if (!msg || msg.role !== 'assistant' || msg.isTyping || msg.isError || !String(msg.content||'').trim()) return [];
   const suggested=(msg.suggestedActions||[]).filter(a=>a&&String(a.message||a.label||'').trim());
-  const legacy=Boolean(msg.toolResult?.originalTake?.events?.length&&msg.toolResult?.variants?.length&&(msg.toolResult.proposalPolicy!==8||msg.toolResult.proposalDiversity!==PROPOSAL_DIVERSITY)&&(!takeSource||samePlayingSource(msg.toolResult.originalTake,takeSource)));
+  const legacy=Boolean(msg.toolResult?.originalTake?.events?.length&&msg.toolResult?.variants?.length&&(msg.toolResult.proposalPolicy!==PROPOSAL_POLICY||msg.toolResult.proposalDiversity!==PROPOSAL_DIVERSITY)&&(!takeSource||samePlayingSource(msg.toolResult.originalTake,takeSource)));
   const upgrade={label:'Écouter les nouvelles propositions',message:'Fais-moi entendre de nouvelles propositions à partir de mon jeu.'};
   if(!last)return legacy?[upgrade,...suggested]:suggested;
   const actions=legacy?[upgrade]:[];

@@ -2,21 +2,25 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {buildPhraseArrangement} from './phrase-arrangement.js';
 import {applyTakeEdit} from './take-edit.js';
+import {PROPOSAL_POLICY} from './proposal-policy.js';
 const read=name=>JSON.parse(fs.readFileSync(new URL('./fixtures/'+name,import.meta.url)));
 const source=read('copilot-session017.json'),approved=read('copilot-approved-reference.json');
 const v=buildPhraseArrangement(source);assert(v);
 const changed=applyTakeEdit(source,v.advice.edit);assert(changed);
-assert.equal(v.harmony.length,approved.plan.length);
+// Le soutien d'arpège autrefois réattaqué devient une tenue continue. Les
+// destinations et la majorité des positions de l'oracle restent les repères.
+assert.equal(v.harmony.length,approved.plan.length-1,'Une tenue continue remplace la réattaque du soutien d’arpège');
 assert.equal(approved.melody.length,58);
 for(const e of approved.melody)assert(changed.events.some(x=>JSON.stringify(x)===JSON.stringify(e)));
 let retained=0;
-for(let i=0;i<approved.plan.length;i++){
- if(JSON.stringify(v.harmony[i].notes)===JSON.stringify(approved.plan[i].notes))retained++;
- assert(Math.abs(v.harmony[i].at-approved.plan[i].at)<.035,`placement ${i}`);
+for(const h of v.harmony){
+ const old=approved.plan.find(p=>Math.abs(h.at-p.at)<.035);
+ assert(old,`destination ${h.at}`);
+ if(JSON.stringify(h.notes)===JSON.stringify(old.notes))retained++;
 }
 assert(retained>=Math.ceil(approved.plan.length*.7),'La correction de jouabilité garde la majorité de la référence');
 assert.equal(v.harmony.filter(h=>h.kind==='iiø').length,1);
-assert.equal(v.harmony.filter(h=>h.kind==='arp-support').length,1);
+assert.equal(v.harmony.filter(h=>h.kind==='arp-support').length,0);
 console.log('✓ Oracle écouté archivé : majorité des positions conservée, corrections de jouabilité/couleurs autorisées, 58 événements mélodiques exacts');
 const keys=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'],pc=n=>(n%12+12)%12;
 for(let shift=1;shift<12;shift++){
@@ -43,11 +47,11 @@ for(const message of ['Fais-moi entendre une proposition à partir de mon jeu.',
  const persisted=JSON.parse(JSON.stringify(response.toolResult));assert(refreshPlayingResult(persisted));
  assert.equal(variantMessages({role:'assistant',toolResult:persisted}).length,variants.length);
 }
-console.log('✓ Nouvelle conversation via le client normal : 16 positions de la grammaire corrigée présentes, une version retenue, au moins 80 % des positions transformées, top notes conservées et cartes persistées');
+console.log('✓ Nouvelle conversation via le client normal : destinations conservées, soutien continu, une version retenue, au moins 80 % des positions transformées, top notes conservées et cartes persistées');
 const strong=await sendCopilotMessage({message:'Enrichis mon jeu',messages:[],context:{type:'session',playing:{session:source}}});
 const old={...strong.toolResult,proposalPolicy:undefined};
 const follow=await sendCopilotMessage({message:'Fais-moi entendre un exemple',messages:[{role:'assistant',toolResult:old}],context:{type:'session',playing:{session:source}}});
-assert.equal(follow.toolResult.proposalPolicy,8);
+assert.equal(follow.toolResult.proposalPolicy,PROPOSAL_POLICY);
 console.log('✓ Une ancienne réponse sans la nouvelle politique est recalculée, pas recyclée silencieusement');
 
 for(const file of ['copilot-development-take.json','copilot-approved-links.json','copilot-arpeggiated-take.json']){

@@ -23,6 +23,10 @@ try{
  answers({packId:'pack-test',opinions:{p02:{preference:'B'}}});assert.throws(()=>score(temporary,answersFile),/indisponible/);
  answers({packId:'pack-test',opinions:{p01:{preference:'C'}}});assert.throws(()=>score(temporary,answersFile),/inconnue/);
  answers({packId:'pack-test',opinions:{p99:{preference:'A'}}});assert.throws(()=>score(temporary,answersFile),/inconnue/);
+ key.key[0].candidates[0].mode='continuity-v9';
+ fs.writeFileSync(path.join(temporary,'comparison-private.json'),JSON.stringify(key));
+ answers({packId:'pack-test',opinions:{p01:{preference:'A'}}});
+ assert.equal(score(temporary,answersFile).counts['continuity-v9'],1,'Un nouveau correctif a son propre compteur, sans vote perdu');
  assert.equal(digest({a:1}),digest({a:1}));assert.notEqual(digest({a:1}),digest({a:2}));
  console.log('✓ Dépouillement : série vérifiée, anonymat A/B indépendant de la méthode, absences non comptées comme des votes, réponses invalides refusées.');
 }finally{fs.rmSync(temporary,{recursive:true,force:true});}

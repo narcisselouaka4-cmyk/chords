@@ -78,5 +78,22 @@ une future série, restent consignés.
 
 Réserver de nouvelles prises indépendantes sans les utiliser pour régler le moteur.
 Les transpositions ne remplacent pas des musiques nouvelles. Conserver séparément :
-préférences de Narcisse, avis d'autres pianistes et vérifications techniques. Le prochain
-changement concerne la compréhension des demandes, après cette mesure initiale.
+préférences de Narcisse, avis d'autres pianistes et vérifications techniques. La suite
+dépend du verdict d'écoute : corriger les défauts communs avant de comparer de nouveaux planificateurs.
+
+## Réécouter un correctif sans écraser le point de départ
+
+Les premiers avis du 07/11 signalent surtout des coupures d'accompagnement et une
+cadence source dénaturée. Après commit du correctif, préparer une **autre** série :
+
+```bash
+node scripts/copilot-repair-evaluation.mjs /chemin/baseline /chemin/nouvelle-ecoute
+python3 scripts/copilot-render.py /chemin/nouvelle-ecoute
+node scripts/copilot-evaluation.mjs score /chemin/nouvelle-ecoute /chemin/avis.json
+```
+
+Cette commande conserve la première baseline et compare ses sorties enregistrées
+aux cartes sélectionnées par le moteur actuel, sur les mêmes entrées contrôlées
+par empreintes. Deux paires ciblent la continuité (prise 2) et la résolution (prise 5).
+Le format de sauvegarde des éditions reste 8 ; la politique de génération passe à 9
+pour proposer de recalculer les anciennes cartes sur demande, sans les réécrire.

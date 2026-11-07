@@ -119,7 +119,8 @@ export function score(directory, answersFile) {
   const manifest=read(path.join(directory,'comparison-private.json')),answers=read(answersFile);
   if(answers.packId!==manifest.packId)throw Error('Ces avis concernent une autre série d’écoutes.');
   const valid=['A','B','equivalent','neither','undecided'];
-  const counts={'baseline-reference':0,'without-reference':0,equivalent:0,neither:0,undecided:0,unanswered:0};
+  const modes=[...new Set(manifest.key.flatMap(c=>c.candidates.map(v=>v.mode)).filter(Boolean))];
+  const counts=Object.fromEntries([...modes,'equivalent','neither','undecided','unanswered'].map(name=>[name,0]));
   const rows=[];
   if(!answers.opinions || Array.isArray(answers.opinions) || typeof answers.opinions!=='object')throw Error('Avis invalides.');
   for(const id of Object.keys(answers.opinions))if(!manifest.key.some(c=>c.id===id))throw Error('Prise inconnue : '+id);
@@ -132,7 +133,7 @@ export function score(directory, answersFile) {
     rows.push({id:item.id,fixture:item.fixture,result,comment:String(opinion.comment||'')});
   }
   return {schema:1,packId:manifest.packId,counts,rows,
-    limitation:'Préférences sur des prises de développement déjà utilisées ; aucune validation générale ni conclusion avant écoute.'};
+    limitation:'Préférences sur des prises de développement déjà utilisées ; ces comptages ne démontrent pas une qualité générale.'};
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
