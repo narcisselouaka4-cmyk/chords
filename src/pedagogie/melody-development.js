@@ -9,7 +9,7 @@ const pc=n=>(n%12+12)%12;
 export function developMelodySegments(base,pairs,map,candidates){
  let segments=[...base];const development=[];
  const returns=segments.filter(s=>s.kind==='arrival'&&s.anchor.degree===4&&!s.anchor.closure&&['sus2','add9','maj7'].includes(s.quality));
- const repeated=returns[1];
+ const repeated=returns[1]&&segments.indexOf(returns[1])<segments.length-1?returns[1]:null;
  if(repeated){
   const index=segments.indexOf(repeated),before=segments[index-1],after=segments[index+1];
   const pool=candidates(repeated,{rootPc:pc(repeated.rootPc-3),quality:'m7',rootBass:true,warm:true});

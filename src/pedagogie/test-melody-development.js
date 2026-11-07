@@ -12,6 +12,14 @@ const request=(key='',names=['Fa','Si','Mi','Do','La','Ré'])=>{
  return `Fais-moi entendre ma mélodie harmonisée sur 4-5-3-6 ${key} en couleurs CCM. Arrivées : 4 sur ${a}, 5 sur ${b}, 3 sur ${c}, 6 sur ${d}. Variante 4-5-6 : 6 sur ${c} aigu. Finale : 4 sur ${e} ; 5 sur ${f} ; 1 sur ${d} après ${d}-${b}-${d} avant le ${d} suivant. Couleurs : 4 de finale = maj7 ; 1 de finale = sus2. Avec quelques accords de passage. Sans appoggiature. Toucher doux.`;
 };
 const instruction=' Développe les préparations et les voix intérieures.';
+// Une prise peut finir sur son deuxième IV : aucun accord suivant ne peut
+// alors servir à évaluer une substitution, mais la prise reste accompagnable.
+const short={...fixture,duration:9.7,events:fixture.events.filter(e=>e.time<=9.7)};
+const shortRequest='Harmonise sur 4-5-3-6 en Do majeur en couleurs CCM. Arrivées : 4 sur Fa, 5 sur Si, 3 sur Mi, 6 sur Do. Avec quelques accords de passage. Sans appoggiature.';
+const shortBase=buildDegreeAccompaniment(short,{message:shortRequest});
+const shortVersion=buildDegreeAccompaniment(short,{message:shortRequest+instruction});
+assert(shortBase);assert(shortVersion);assert(!shortVersion.development.some(d=>d.kind==='diatonic-color'));
+assert.equal(shortVersion.harmony.at(-1).chord,shortBase.harmony.at(-1).chord);
 function verify(take,base,version,rate=1,shift=0){
  assert(base);assert(version);assert.equal(base.ornaments.length,0);assert.equal(version.ornaments.length,0);
  assert.equal(base.harmony.length,18);assert.equal(version.harmony.length,21);
