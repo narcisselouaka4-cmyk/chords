@@ -34,7 +34,7 @@ export function melodyAppoggiatura(take,segments,pairs,notes,pulse){
   // La voix la plus haute disponible porte l'ornement : le placer par défaut
   // dans le grave le masquait derrière les accords et la mélodie.
   for(const n of notes.filter(n=>n.time>=s.at&&n.time<s.at+.02&&n.note!==s.notes[0]&&s.source.event.note-n.note<=16&&[3,4,7].includes(pc(n.note-s.rootPc))).sort((a,b)=>b.note-a.note)){
-   const length=Math.max(.15,Math.min(.22,pulse*.38)),resolveAt=n.time+length;if(n.end-resolveAt<.2)continue;
+   const length=Math.max(.085,Math.min(.095,pulse*.17)),resolveAt=n.time+length;if(n.end-resolveAt<.2)continue;
    for(const delta of [1,-1]){
     const approach=n.note+delta;
     if(approach>=s.source.event.note||!previous.notes.some(p=>pc(p)===pc(approach)))continue;

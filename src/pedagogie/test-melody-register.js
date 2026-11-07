@@ -36,8 +36,8 @@ function check(take,v,shift=0,rate=1){
  assert(v.ornaments.length===1);const o=v.ornaments[0];
  const arrival=v.harmony.find(h=>o.at>=h.at&&o.at<h.at+.02);
  assert(arrival.topMidi-o.target<=16,'Appoggiature intérieure dans le registre audible');
- assert(o.end-o.at>=.15-1e-8&&o.end-o.at<=.22+1e-8);
- assert(v.advice.edit.pedal.some(e=>e.value===0&&Math.abs(e.time-o.end)<.000001));
+ assert(o.end-o.at>=.085-1e-8&&o.end-o.at<=.095+1e-8);
+ assert((v.advice.edit.pedal.filter(e=>e.time<=o.end+1e-8).at(-1)?.value??0)===0);
  return v;
 }
 const v=check(source,buildDegreeAccompaniment(source,{message:request()}));

@@ -13,8 +13,9 @@ export function preparesChord(frame, next) {
 /** Une résolution doit exister dans les voix réellement choisies, pas le texte. */
 export function resolvingVoices(from, to) {
   if (!from.function || to.rootPc !== from.function.targetRootPc) return 0;
-  const arrivals = [to.rootPc, pc(to.rootPc + (minor(to.quality) ? 3 : 4))];
-  return from.notes.filter(n => [4, 10].includes(pc(n - from.rootPc))
+  const arrivals = [to.rootPc, pc(to.rootPc + (minor(to.quality)||to.quality==='dim7' ? 3 : 4))];
+  const guides=from.function.kind==='leading-tone'?[0,6,9]:from.function.kind==='predominant'?[3,10]:[4,10];
+  return from.notes.filter(n => guides.includes(pc(n - from.rootPc))
     && to.notes.some(m => arrivals.includes(pc(m)) && Math.abs(m - n) >= 1 && Math.abs(m - n) <= 2)).length;
 }
 

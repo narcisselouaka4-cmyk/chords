@@ -34,7 +34,7 @@ function check(take,v,rate=1){
  const ornament=v.ornaments[0];assert.equal(Math.abs(ornament.note-ornament.target),1);
  assert(added.some(n=>n.note===ornament.note&&n.time===ornament.at&&n.end===ornament.resolveAt));
  assert(added.some(n=>n.note===ornament.target&&n.time===ornament.resolveAt));
- assert(v.advice.edit.pedal.some(e=>e.value===0&&Math.abs(e.time-ornament.end)<.000001));
+ assert((v.advice.edit.pedal.filter(e=>e.time<=ornament.end+1e-8).at(-1)?.value??0)===0);
  assert(added.every(n=>n.velocity>=.25&&n.velocity<=.58),'Accompagnement doux mais pas effacé');
  for(const t of new Set(changed.events.map(e=>e.time+.000001))){
   const active=actual.filter(p=>p.event.time<=t&&p.end>t);assert(!active.length||handDistribution(active.map(p=>p.event.note)));

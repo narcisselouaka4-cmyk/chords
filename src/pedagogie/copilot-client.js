@@ -1846,7 +1846,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   const memory=buildConversationMemory(messages,{take:context?.playing?.passage,conversationId});
   const command=await memoryCommandAnswer(message,{memory});if(command)return command;
   if((review||/qu['’]en penses|ton avis|analyse (?:ma session|mon jeu)/i.test(message))&&!/hasard|n'importe quoi|al[eé]atoire/.test(message)&&melodySource(context?.playing?.passage))return {ok:true,content:'Ta session contient surtout une mélodie, avec quelques notes qui se chevauchent. Ces chevauchements ne suffisent pas à retrouver une progression d’accords. Je peux te proposer un accompagnement sous cette mélodie en gardant tes notes et ton rythme.',toolResult:{played:[],ignored:0,suggestions:[],example:null,voicing:null,originalTake:context.playing.passage},suggestedActions:[{label:'Accompagner ma mélodie',message:'Fais-moi entendre un accompagnement sous ma mélodie.'},{label:'Rejouer mon jeu',message:'Rejoue mon jeu.'}],autoplay:false};
-  const capability=personalStyleCapabilityAnswer({message,context});if(capability)return capability;
+  const capability=personalStyleCapabilityAnswer({message,context,messages});if(capability)return capability;
   const style = playingStyleAnswer({ message, messages, context });
   if (style) return style;
   const explanation=isExplanationQuestion(message)&&!explicitPlaybackRequest(message);

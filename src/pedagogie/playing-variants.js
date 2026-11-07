@@ -5,6 +5,7 @@ import { buildPhraseVariants } from './phrase-variants.js';
 import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
 import {PROPOSAL_POLICY} from './proposal-policy.js';
 import {requestedDegreeProgression} from './melody-progression.js';
+import {melodyColorProfile} from './melody-color-profile.js';
 const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'").toLowerCase();
 
 export const buildPlayingVariants = buildPhraseVariants;
@@ -18,7 +19,7 @@ function continuedRequest(previous, message) {
  if(/(?:arriv[eé]es|rep[eè]res)\s*:/i.test(message))inherited=inherited.replace(/(?:arriv[eé]es|rep[eè]res)\s*:[^\n.]+/gi,'');
  if(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+/i.test(message))inherited=inherited.replace(/variante\s+[1-7](?:\s*[-–→]\s*[1-7])+[\s:]+[^\n.]+/gi,'');
  if(/(?:finale|fin)\s*:/i.test(message))inherited=inherited.replace(/(?:finale|fin)\s*:[^\n.]+/gi,'');
- if(/couleurs\s*:/i.test(message))inherited=inherited.replace(/couleurs\s*:[^\n.]+/gi,'');
+ if(/couleurs\s*:/i.test(message)||melodyColorProfile(message))inherited=inherited.replace(/couleurs\s*:[^\n.]+/gi,'');
  if(requestedDegreeProgression(message))inherited=inherited.replace(/\b\d+(?:\s*[-–—→]\s*\d+){1,7}\b/g,'');
  return `${inherited}\n${message}`;
 }
@@ -48,7 +49,7 @@ export function personalVariantsAnswer({message,messages=[],context,preferences=
  const variants=!broad&&!follow&&previous?.toolResult.proposalPolicy===PROPOSAL_POLICY&&previous.toolResult.proposalDiversity===PROPOSAL_DIVERSITY&&previous.toolResult.phraseHarmony&&previous.toolResult.variants?.length?previous.toolResult.variants:buildPhraseVariants(take,{message:request,exclude});
  if(!variants.length)return {ok:true,content:follow?'Je n’ai pas trouvé d’autre version assez différente avec ces contraintes. Tu peux préciser la couleur ou l’arrivée que tu souhaites travailler.':'Je n’ai pas trouvé de proposition compatible avec cette prise. Précise les accords ou les basses que tu souhaites garder.',toolResult:{played:[],ignored:0,suggestions:[],voicing:null,proposalPolicy:PROPOSAL_POLICY,phraseHarmony:true,harmonicRequest:baseRequest,originalTake:take},suggestedActions:[]};
  const first=variants[0];
- const content=first.advice.goal==='accompany'?'J’ai ajouté un accompagnement sous ta mélodie, en gardant tes notes et ton rythme. Ce sont des accords proposés pour cette version, pas une grille que tu avais déjà jouée.':variants.length>1?`Voici ${variants.length} propositions différentes. Sous chaque lecteur, je t’indique ce qui change. Ta mélodie reste en place.`
+ const content=first.advice.goal==='accompany'?(first.colorProfile==='ccm'?'Je te propose des couleurs CCM sous ta mélodie : des suspendus et des tensions qui préparent leur arrivée. Je garde tes notes et ton rythme. Cette palette reste à juger à l’écoute ; ce n’est pas encore une conversion complète de style.':'J’ai ajouté un accompagnement sous ta mélodie, en gardant tes notes et ton rythme. Ce sont des accords proposés pour cette version, pas une grille que tu avais déjà jouée.'):variants.length>1?`Voici ${variants.length} propositions différentes. Sous chaque lecteur, je t’indique ce qui change. Ta mélodie reste en place.`
   :'Je te propose une seule version pour éviter des variantes trop proches. Sous le lecteur, je t’indique ce qui change. Ta mélodie reste en place.';
  return {ok:true,content,
   toolResult:{played:[],ignored:0,suggestions:[],voicing:null,proposalPolicy:PROPOSAL_POLICY,proposalDiversity:PROPOSAL_DIVERSITY,phraseHarmony:true,harmonicRequest:baseRequest,

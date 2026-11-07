@@ -1,7 +1,11 @@
 // Reconnaître un motif et convertir un arrangement dans un genre sont deux capacités.
 // Aucun arrangeur de genre n'est actuellement validé sur une prise personnelle.
+import {melodyColorProfile} from './melody-color-profile.js';
+import {requestedDegreeProgression} from './melody-progression.js';
+import {melodySource} from './melody-accompaniment.js';
+import {samePlayingSource} from './personal-source.js';
 const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'").toLowerCase();
-const STYLES=[['bossa nova',/\bbossa(?: nova)?\b/],['salsa',/\bsalsa\b/],['montuno',/\bmontuno\b/],
+const STYLES=[['CCM',/\bccm\b|(?:christian contemporary|contemporary christian) music/],['bossa nova',/\bbossa(?: nova)?\b/],['salsa',/\bsalsa\b/],['montuno',/\bmontuno\b/],
  ['merengue',/\bmerengue\b/],['gospel',/\bgospel\b/],['worship',/\bworship\b/],['jazz',/\bjazz\b/],
  ['néo-soul',/\bneo[- ]?soul\b/],['R&B',/\br\s*(?:&|and|n)\s*b\b/],['funk',/\bfunk\b/],
  ['blues',/\bblues\b/],['swing',/\bswing\b/],['classique',/\bclassique\b/],['pop',/\bpop\b/],
@@ -30,9 +34,13 @@ export function requestedPersonalStyle(message) {
  return found[0];
 }
 
-export function personalStyleCapabilityAnswer({message,context}) {
+export function personalStyleCapabilityAnswer({message,context,messages=[]}) {
  const requested=requestedPersonalStyle(message);
  if(!requested||!context?.playing?.passage?.events?.length)return null;
+ const previous=[...messages].reverse().find(m=>m.role==='assistant'&&samePlayingSource(m.toolResult?.originalTake,context.playing.passage)&&m.toolResult?.harmonicRequest)?.toolResult.harmonicRequest;
+ const progression=requestedDegreeProgression(message)||requestedDegreeProgression(previous);
+ if(requested==='CCM'&&melodyColorProfile(message)&&melodySource(context.playing.passage)
+   &&progression?.valid&&!/une mesure par accord|quatre temps par accord|4 temps par accord/i.test((previous||'')+' '+message))return null;
  return {ok:true,
   content:`Je ne peux pas encore transformer ta prise en une vraie version ${requested}. Cela demande aussi un rythme et un accompagnement propres à ce style.\n\nJe peux enrichir tes accords en gardant ton rythme, ou t’expliquer une façon de travailler ce style.`,
   toolResult:{played:[],ignored:0,suggestions:[],example:null,voicing:null,
