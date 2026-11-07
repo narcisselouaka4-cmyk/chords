@@ -61,12 +61,8 @@
   line-height: 1.2;
   letter-spacing: -.025em;
 }
-:root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-brief > .tr-exercise-brief-head > p {
-  max-width: none;
-  margin: 6px 0 0;
-  font-size: 12px;
-  line-height: 1.6;
-}
+/* [Claude] — 2026-11-07 — #exercise-brief-text retiré avec son HTML : plus
+   de règle pour .tr-exercise-brief-head > p (le titre reste seul). */
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.is-chord-mode .tr-exercise-brief { display: none; }
 /* [Claude] — 2026-11-06 — « À VOUS DE JOUER » masqué partout désormais (pas
    seulement en Accord cible) : Narcisse a demandé de remplacer ce texte par
@@ -315,7 +311,6 @@
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-brief-head,
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-brief-body { padding: 10px 20px; }
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-brief h2 { font-size: 18px; }
-  :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-brief > p { font-size: 11px; line-height: 1.4; }
   :root[data-skin] #practice-tab #practice-view-exercices .tr-chord-arena { min-height: 0; padding: 12px 24px; overflow: auto; }
   :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-card { min-height: 280px; gap: 6px; }
   :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-header { min-height: 54px; }
@@ -424,10 +419,8 @@
 .exercise-demo-drums:focus-visible { outline: 2px solid var(--tr-accent, var(--accent)); outline-offset: 2px; }
 .exercise-study-chords { font-family: var(--font-mono, monospace); }
 .exercise-study-archive { font-size: 11px; opacity: .65; }
-.exercise-study-info { margin: 2px 0 16px; padding: 12px 0; border-top: 1px solid var(--tr-border, rgba(128,128,128,.2)); border-bottom: 1px solid var(--tr-border, rgba(128,128,128,.2)); font-size: 12px; line-height: 1.6; }
-.exercise-study-info strong { font-size: 11px; font-weight: 650; }
-.exercise-study-info p { margin: 7px 0; opacity: .82; }
-.exercise-study-info small { display: block; font-size: 10px; opacity: .66; }
+/* [Claude] — 2026-11-07 — .exercise-study-info retiré avec son HTML (route,
+   dessus, repères, tempo de l'étude écrite — retiré sur annotation de Narcisse). */
 
 
 /* --------------------------------------------------- Bibliothèque : une PAGE

@@ -1542,11 +1542,12 @@ const DEMO_STOP_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24
 const DEMO_PAUSE_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
 
 /** Panneau de gauche : ce qu'on travaille, et les réglages du tour en Mouvement. */
+// [Claude] — 2026-11-07 — #exercise-brief-text (la phrase de contexte sous le
+// titre du mouvement) retiré sur annotation de Narcisse : le titre seul reste.
 function renderExerciseBrief(exState) {
   const category = document.getElementById('exercise-brief-category');
   const title = document.getElementById('exercise-brief-title');
-  const text = document.getElementById('exercise-brief-text');
-  if (!category || !title || !text) return;
+  if (!category || !title) return;
 
   const target = exState.target;
   const isMovement = exState.mode === 'movement' && Boolean(target?.movementName);
@@ -1556,23 +1557,24 @@ function renderExerciseBrief(exState) {
     const entry = exState.progression?.movement;
     category.textContent = EXERCISE_KIND_LABELS[entry?.kind] || target.movementCategory || 'PARCOURS HARMONIQUE';
     title.textContent = target.movementName;
-    text.textContent = entry?.context || target.movementDescription || '';
     return;
   }
 
   category.textContent = 'ACCORD CIBLE';
   title.textContent = 'Un accord, puis le suivant.';
-  text.textContent = '';
 }
 
 /** Panneau de droite : tonalité en cours, frise des tonalités, accords (cliquables). */
+// [Claude] — 2026-11-07 — #exercise-progress-quiet (l'indice « Cliquez une
+// tonalité... ») retiré sur annotation de Narcisse : simple guard désormais
+// (`quiet` peut être absent sans empêcher le reste du panneau de se rendre).
 function renderExerciseProgressPanel(exState) {
   const eyebrow = document.getElementById('exercise-progress-eyebrow');
   const counter = document.getElementById('exercise-progress-counter');
   const track = document.getElementById('exercise-progress-track');
   const path = document.getElementById('exercise-progress-path');
   const quiet = document.getElementById('exercise-progress-quiet');
-  if (!counter || !track || !path || !quiet) return;
+  if (!counter || !track || !path) return;
 
   const bar = track.firstElementChild;
   const prog = exState.mode === 'movement' ? exState.progression : null;
@@ -1627,8 +1629,11 @@ function renderExerciseProgressPanel(exState) {
       const current = i === stepIndex && !onPassing;
       const state = current ? 'is-active' : i < stepIndex || (i === stepIndex && onPassing) ? 'is-done' : '';
       const role = { departure: 'Départ', passing: 'Passage écrit', arrival: 'Arrivée' }[chord.harmonicRole];
+      // [Claude] — 2026-11-07 — Le rôle/minutage (« Départ · 1 temps ») ne
+      // s'affiche plus sous le nom de l'accord (Narcisse) : gardé seulement
+      // dans l'info-bulle (title), pas perdu, juste moins visible d'un coup d'œil.
       const timing = chord.studyStep ? `${role ? `${role} · ` : ''}${chord.studyStep.beats.toLocaleString('fr-FR')} temps` : '';
-      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}${timing ? ` · ${timing}` : ''}"${current ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong>${timing ? `<small class="exercise-path-top">${timing}</small>` : ''}${topTag(chord)}</div></button>`;
+      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}${timing ? ` · ${timing}` : ''}"${current ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong>${topTag(chord)}</div></button>`;
       const p = chord.passingChord;
       if (!p) return row;
       const onIt = onPassing && i === stepIndex;
@@ -1637,8 +1642,6 @@ function renderExerciseProgressPanel(exState) {
       const hands = `main gauche ${notes(p.voicing?.leftHand || [])}, main droite ${notes(p.voicing?.rightHand || [])}`;
       return `${row}<button type="button" class="exercise-passing-chord${passingState}${playing}" data-passing="${i}" title="Accord de passage (tension) — ${hands}. Cliquez pour le travailler."${onIt ? ' aria-current="step"' : ''}><span aria-hidden="true">↳</span><div><strong>${p.name}</strong><small>passage</small>${topTag(p)}</div></button>`;
     }).join('');
-    quiet.textContent = 'Cliquez une tonalité ou un accord pour y aller directement.';
-    quiet.style.display = '';
     return;
   }
 
@@ -1648,6 +1651,7 @@ function renderExerciseProgressPanel(exState) {
   counter.style.display = 'none';
   track.style.display = 'none';
   path.innerHTML = '';
+  if (!quiet) return;
   const bits = [`${exState.score || 0} pt${(exState.score || 0) > 1 ? 's' : ''}`];
   if (exState.attempts > 0) bits.push(`${exState.attempts} essai${exState.attempts > 1 ? 's' : ''} sur l'accord en cours`);
   quiet.textContent = bits.join(' · ');
@@ -3180,16 +3184,9 @@ function initPracticeExercise() {
         ? ![ARCHIVE_CATEGORY, PERSO_CATEGORY].includes(libraryCategory) : written;
       renderDemoStyleMenu(select, useStudy);
     });
-    const studyInfo = document.getElementById('exercise-study-info');
-    if (studyInfo) {
-      studyInfo.hidden = btn.hidden || !written;
-      const tops = written ? exState.progression.chords.map((c) => {
-        const note = Math.max(...c.voicing.rightHand, ...c.voicing.leftHand);
-        const rootName = /^[A-G][#b]*/.exec(c.name)?.[0];
-        return spellChordTone(rootName, ((note - c.rootPc) % 12 + 12) % 12, c.quality);
-      }).join(' → ') : '';
-      studyInfo.innerHTML = written ? `<strong>${escapeHtml(entry.route)}</strong><p>Dessus en ${escapeHtml(exState.target?.keyName || '')} : ${escapeHtml(tops)}.</p><small>Repères en Do : ${escapeHtml(entry.focus)}</small><small>Étude originale · ${entry.score.tempo} à la noire · ${entry.score.steps.map((s) => s.beats.toLocaleString('fr-FR')).join(' + ')} temps${exState.progression.chords.some((c) => !c.studyStep?.writtenVoicing) ? ' · voicings modifiés' : ''}</small>` : '';
-    }
+    // [Claude] — 2026-11-07 — #exercise-study-info (route, dessus, repères,
+    // tempo de l'étude écrite) retiré sur annotation de Narcisse : le bloc qui
+    // le remplissait part avec.
     // « Selon le mouvement » annonce le style qu'il donnera pour le mouvement affiché.
     const movementStyle = exState.progression?.movement?.style;
     const autoStyle = DEMO_STYLES[defaultDemoStyle(movementStyle)];

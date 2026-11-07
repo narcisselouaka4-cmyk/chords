@@ -1672,13 +1672,8 @@
 :root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-done > span {
   color: var(--tr-green);
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progress-quiet,
-:root[data-skin='v2'] #practice-view-exercices .tr-progress-quiet {
-  margin-top: 12px;
-  color: var(--tr-muted);
-  font: 10px var(--tr-mono);
-  letter-spacing: .03em;
-}
+/* [Claude] — 2026-11-07 — .tr-progress-quiet retiré avec son HTML
+   (#exercise-progress-quiet, l'indice « Cliquez une tonalité... »). */
 
 /* ---- Mouvement 12 tons : réglages, tonalité en cours, frise ---------------
    [Claude] — 2026-09-24 — Narcisse : tonalité active « pas au bon endroit »,

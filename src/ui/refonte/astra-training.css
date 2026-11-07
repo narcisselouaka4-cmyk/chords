@@ -616,7 +616,6 @@
 .tr-exercise-label > span { font: 7.5px var(--tr-mono); letter-spacing: .06em; }
 .tr-exercise-label > span:last-child { margin-left: 5px; padding-left: 9px; border-left: 1px solid var(--tr-border); color: var(--tr-muted); }
 .tr-exercise-brief h2 { margin: 14px 0 12px; font-size: clamp(21px, 1.9vw, 29px); font-weight: 450; line-height: 1.18; letter-spacing: -.045em; }
-.tr-exercise-brief > p { max-width: 260px; color: var(--tr-secondary); font-size: 10px; line-height: 1.75; }
 .tr-exercise-key { display: flex; align-items: center; gap: 13px; padding: 0; margin-top: 19px; border: 0; background: none; color: var(--tr-text); }
 .tr-exercise-key > span { font: 7px var(--tr-mono); color: var(--tr-muted); }
 .tr-exercise-key > strong { font: 16px var(--tr-mono); }
@@ -657,7 +656,6 @@
 .tr-progression-path > button.is-active strong { color: var(--tr-text); }
 .tr-progression-path > button.is-active > svg { color: var(--tr-accent); }
 .tr-progression-path > button.is-done > span { color: var(--tr-green); background: var(--tr-green-soft); border-color: transparent; }
-.tr-progress-quiet { display: block; margin-top: 15px; color: var(--tr-muted); font: 8px var(--tr-mono); }
 .tr-exercise-response { min-height: 60px; display: flex; align-items: center; gap: 15px; padding: 11px 15px; border: 1px solid var(--tr-border); border-radius: 8px; background: var(--tr-surface); flex-shrink: 0; }
 .tr-response-content { display: flex; align-items: center; gap: 12px; flex: 1; }
 .tr-response-content strong { display: block; font-size: 11px; font-weight: 550; color: var(--tr-text); }
@@ -716,7 +714,6 @@
   .tr-coach-setting-title { font-size: 15px; }
   .tr-coach-settings > p, .tr-breath-label { font-size: 12px; }
   .tr-exercise-brief { padding: 32px 42px; }
-  .tr-exercise-brief > p { font-size: 12px; max-width: 300px; }
   .tr-exercise-progress { padding: 30px 40px; }
   .tr-key-counter strong { font-size: 59px; }
   .tr-target-chord .tr-piano-preview { width: 330px; }
@@ -798,7 +795,6 @@
   .tr-exercise-brief { padding: 18px; }
   .tr-exercise-progress { padding: 19px; }
   .tr-exercise-brief h2 { font-size: 21px; }
-  .tr-exercise-brief > p { font-size: 9px; }
   .tr-exercise-response { gap: 12px; }
   .tr-response-content p { max-width: 300px; line-height: 1.5; }
 }
@@ -884,7 +880,6 @@
   .tr-exercise-stage { grid-template-columns: .9fr 1.1fr; min-height: 560px; }
   .tr-chord-arena { min-height: 440px; }
   .tr-exercise-brief { padding: 24px; }
-  .tr-exercise-brief > p { font-size: 11px; }
   .tr-exercise-brief h2 { font-size: 25px; }
   .tr-exercise-progress { grid-column: 1 / -1; display: grid; grid-template-columns: 110px 1fr; grid-template-rows: 14px 1fr; padding: 15px 22px; border-left: 0; border-top: 1px solid var(--tr-border); gap: 7px 22px; }
   .tr-exercise-progress > .tr-eyebrow { grid-column: 2; }
@@ -894,7 +889,6 @@
   .tr-progression-path { grid-column: 2; margin: 0; flex-direction: row; gap: 19px; }
   .tr-progression-path > button { padding: 3px 0; }
   .tr-progression-path > button > svg { display: none; }
-  .tr-progress-quiet { display: none; }
   .tr-local-detection { font-size: 7px; }
   .tr-response-content p { max-width: 220px; }
   .tr-exercise-response .tr-button { font-size: 10px; padding: 0 10px; }
@@ -1056,7 +1050,6 @@
   .tr-exercise-brief { padding: 22px 24px; }
   .tr-exercise-brief h2 br { display: none; }
   .tr-exercise-brief h2 { font-size: 25px; }
-  .tr-exercise-brief > p { max-width: none; font-size: 12px; }
   .tr-exercise-key { margin-top: 16px; }
   .tr-exercise-label > svg, .tr-exercise-label > span:last-child { display: inline-flex; }
   .tr-exercise-label > span { font-size: 8px; }
