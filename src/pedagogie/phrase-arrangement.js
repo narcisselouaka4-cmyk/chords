@@ -11,6 +11,7 @@ import {resolvingVoices,pitchClass as pc} from './harmonic-intentions.js';
 import {voiceLeadingCost} from '../practice-exercise.js';
 import {comparedTakeExample} from './playing-diff.js';
 import {extractKey} from './intent-classifier.js';
+import {accompanimentPerformance} from './arrangement-performance.js';
 const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const minor=q=>/^m(?!aj)/.test(q);
 const velocity=p=>Math.min(.8,p.event.velocity>1?p.event.velocity/127:p.event.velocity);
@@ -142,7 +143,12 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
     const qualities=palette!=null&&pc(f.chord.rootPc-palette)===7
       &&!minor(f.chord.quality)&&!/sus|dim|aug|[b#](?:5|9|11|13)/.test(f.chord.quality)
       ?['13','9','7']:qualityChoices(f);
-    const v=choose(f,f.chord.rootPc,qualities,previous?.notes,melody,f.at,end,{preserveBass:keepBass,palette,reference:reference&&voicingMode!=='linked'});
+    // Si l'attaque ne fournit même pas trois classes de hauteur, le nom dépend
+    // des notes déjà tenues : garder sa basse de renversement pendant l'arpège,
+    // plutôt que d'imposer une nouvelle fondamentale sur cette preuve partielle.
+    const inversion=f.chord.bassPc!=null&&f.chord.bassPc!==f.chord.rootPc
+      &&pc(f.bassMidi)===f.chord.bassPc&&new Set(f.source.map(p=>pc(p.event.note))).size<3;
+    const v=choose(f,f.chord.rootPc,qualities,previous?.notes,melody,f.at,end,{preserveBass:keepBass||inversion,palette,reference:reference&&voicingMode!=='linked'});
     if(!v||(keepBass&&v.notes[0]!==f.bassMidi)){
       // Une position non résolue ne fait pas disparaître toute la phrase :
       // garder exactement cet accord et travailler les autres destinations.
@@ -205,33 +211,20 @@ export function buildPhraseArrangement(take,{message='',latin=false,voicingMode=
   const notes=[];
   for(const s of segments){
     if(s.unchanged)continue;
-    const roleGain=s.kind==='tonic'?.84:s.kind==='arp-support'?.8:['dominant','iiø'].includes(s.kind)?.94:1;
-    const source=s.frame.accompaniment;
-    const inner=source.filter(p=>p.event.note!==s.frame.bassMidi).map(velocity).sort((a,b)=>a-b);
-    const middle=inner[Math.floor(inner.length/2)]??velocity(s.frame.top)*.65;
-    // Ne pas gonfler une basse douce à partir de l'attaque de la mélodie.
-    // Davantage de voix demandent aussi moins d'énergie par note.
-    const density=Math.min(1,Math.sqrt(source.length/s.notes.length));
-    const v=Math.max(.08,Math.min(.38,middle*.72,velocity(s.frame.top)*.7)*density*roleGain);
-    const bassSource=source.find(p=>p.event.note===s.frame.bassMidi);
-    const bassVelocity=Math.min(v,Math.max(.08,velocity(bassSource||s.frame.top)*.85*roleGain));
+    const performance=accompanimentPerformance(s,segments);
     for(const n of s.notes){
       if(keepBass&&n===s.frame.bassMidi)continue;
-      const attack=n===s.notes[0]?bassVelocity:v;
-      const overlap=melody.filter(p=>p.event.note===n&&p.event.time<s.end&&p.end>s.at);
-      if(fixedOnly&&overlap.length){
-        // En mode fixe, ne pas réattaquer une voix après une note source de même hauteur.
+      const {at,velocity:attack}=performance.get(n);
+      const overlap=melody.filter(p=>p.event.note===n&&p.event.time<s.end&&p.end>at);
+      if(overlap.length){
+        // La note source prend le relais. Son relâchement n'est pas une nouvelle
+        // attaque musicale : ne pas réintroduire automatiquement cette voix
+        // juste après, hors du geste joué (la pédale conserve sa résonance).
         const end=Math.min(s.end,...overlap.map(p=>p.event.time-.025));
-        if(end-s.at>=.12)notes.push({note:n,time:s.at,end,velocity:attack});
+        if(end-at>=.12)notes.push({note:n,time:at,end,velocity:attack});
         continue;
       }
-      let cursor=s.at;
-      // Une note originale de même hauteur est prioritaire ; aucun doublon MIDI.
-      for(const p of overlap.sort((a,b)=>a.event.time-b.event.time)){
-        if(p.event.time-cursor>.12)notes.push({note:n,time:cursor,end:p.event.time-.025,velocity:attack});
-        cursor=Math.max(cursor,p.end+.025);
-      }
-      if(s.end-cursor>=.12)notes.push({note:n,time:cursor,end:s.end,velocity:attack});
+      if(s.end-at>=.12)notes.push({note:n,time:at,end:s.end,velocity:attack});
     }
   }
   const noPedal=/sans pedale|sans sustain|sec\b/.test(text);

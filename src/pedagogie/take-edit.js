@@ -126,6 +126,8 @@ export function applyTakeEdit(take, edit) {
     const anchor = pairs.find((p) => p.on === edit.on);
     if (!anchor) return null;
     if (edit.velocity != null && (!Number.isFinite(edit.velocity) || edit.velocity <= 0 || edit.velocity > 127)) return null;
+    if (edit.velocities !== undefined && (!Array.isArray(edit.velocities) || edit.velocities.length !== edit.notes.length
+      || edit.velocities.some(v => !Number.isFinite(v) || v <= 0 || v > 127))) return null;
     const attacks = edit.attacks || edit.notes.map((_, i) => edit.start + i * Math.min(.04, (edit.end - edit.start) / (edit.notes.length * 3)));
     if (attacks.length !== edit.notes.length || attacks.some((t, i) => !Number.isFinite(t) || t < edit.start || t >= edit.end || (i && t < attacks[i - 1]))) return null;
     const adjustments = edit.adjustments || [];
@@ -147,7 +149,7 @@ export function applyTakeEdit(take, edit) {
     events.length = 0;
     events.push(...kept);
     edit.notes.forEach((note, i) => {
-      events.push({ type: 'note_on', note, time: attacks[i], velocity: edit.velocity ?? anchor.event.velocity, channel: anchor.event.channel || 0 },
+      events.push({ type: 'note_on', note, time: attacks[i], velocity: edit.velocities?.[i] ?? edit.velocity ?? anchor.event.velocity, channel: anchor.event.channel || 0 },
         { type: 'note_off', note, time: edit.end, velocity: 0, channel: anchor.event.channel || 0 });
     });
     events.sort((a, b) => a.time - b.time);

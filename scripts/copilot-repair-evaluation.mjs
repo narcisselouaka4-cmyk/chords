@@ -13,14 +13,15 @@ const root=fileURLToPath(new URL('../',import.meta.url));
 const read=file=>JSON.parse(fs.readFileSync(file,'utf8'));
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
 
-export function prepareRepair(baselineDirectory,output){
+export function prepareRepair(baselineDirectory,output,{previousDirectory=null}={}){
   if(fs.existsSync(output))throw Error('Choisir un dossier neuf ; les écoutes précédentes restent intactes.');
   if(git('diff','HEAD','--','src','scripts/copilot-repair-evaluation.mjs'))throw Error('Commiter le moteur et le dispositif avant de rendre une nouvelle écoute.');
   const baseline=read(path.join(baselineDirectory,'baseline.json'));
+  const previous=previousDirectory?read(path.join(previousDirectory,'comparison-private.json')):null;
   if(digest(fs.readFileSync(path.join(baselineDirectory,baseline.archive.file)))!==baseline.archive.sha256)throw Error('Archive initiale altérée.');
   const before=digest(baseline),media=[],key=[],entries=[];
   const cases=[
-    ['session016','p02','Prise 2 — accompagnement','Écoute la continuité sous la mélodie et la douceur des attaques, notamment à la fin.'],
+    ['session016','p02','Prise 2 — accompagnement','Écoute la continuité sous la mélodie et l’équilibre de l’accompagnement, notamment à la fin.'],
     ['arpeggiated','p05','Prise 5 — résolution','Écoute le passage vers 13–14 secondes et la suspension suivie de la tension, avant le retour final.'],
   ];
   for(const [name,id,title,note] of cases){
@@ -32,7 +33,11 @@ export function prepareRepair(baselineDirectory,output){
     // Même sélection que les cartes normales de Copilot ; aucune note manuelle.
     const selected=buildPhraseVariants(take,{message:record.message});
     if(!selected[0]||selected[0].id!=='arrangement')throw Error('La reconstruction attendue n’est pas sélectionnée : '+name);
-    const proposals=[{mode:'baseline-reference',proposal:record.open},{mode:'continuity-v'+PROPOSAL_POLICY,proposal:selected[0]}];
+    const earlier=previous?.key.find(c=>c.fixture===record.fixture);
+    const old=earlier?.candidates.find(c=>c.mode==='continuity-v'+previous.proposalPolicy);
+    if(previous&&(!old?.proposal||digest(old.proposal.advice.take)!==record.sourceSha256))throw Error('Ancienne proposition absente ou source différente : '+name);
+    const proposals=[old?{mode:old.mode,proposal:old.proposal}:{mode:'baseline-reference',proposal:record.open},
+      {mode:'continuity-v'+PROPOSAL_POLICY,proposal:selected[0]}];
     if(crypto.randomInt(2))proposals.reverse();
     media.push({id:id+'-original',take});
     const candidates=proposals.map(({mode,proposal},i)=>{
@@ -48,11 +53,12 @@ export function prepareRepair(baselineDirectory,output){
   }
   if(digest(read(path.join(baselineDirectory,'baseline.json')))!==before)throw Error('Baseline modifiée.');
   const packId=crypto.randomUUID(),publicData={schema:1,packId,
-    title:'Copilot — fluidité et résolution',
+    title:previous?'Copilot — rythme et équilibre':'Copilot — fluidité et résolution',
     introduction:'Deux comparaisons ciblées. Tu peux réécouter ton jeu et passer de A à B au même endroit. Indique si une version te convient davantage, ou si le problème reste présent.',cases:entries};
   const manifest={schema:1,packId,createdAt:new Date().toISOString(),appCommit:git('rev-parse','HEAD'),
     baselineCommit:baseline.appCommit,baselineSha256:before,proposalPolicy:PROPOSAL_POLICY,
-    comparison:'frozen-baseline-vs-current-normal-selection',inferenceCalls:0,media,key};
+    previousPack:previous?{packId:previous.packId,appCommit:previous.appCommit,sha256:digest(previous)}:null,
+    comparison:previous?'previous-listening-vs-current-normal-selection':'frozen-baseline-vs-current-normal-selection',inferenceCalls:0,media,key};
   fs.mkdirSync(output,{recursive:true});
   for(const [file,data] of [['comparison-private.json',manifest],['listening.json',publicData]])
     fs.writeFileSync(path.join(output,file),JSON.stringify(data,null,2)+'\n',{flag:'wx'});
@@ -65,7 +71,7 @@ export function prepareRepair(baselineDirectory,output){
 }
 
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
-  const [baseline,output]=process.argv.slice(2);
-  if(!baseline||!output)throw Error('Usage : node scripts/copilot-repair-evaluation.mjs BASELINE NOUVEAU_DOSSIER');
-  prepareRepair(path.resolve(baseline),path.resolve(output));
+  const [baseline,output,previous]=process.argv.slice(2);
+  if(!baseline||!output)throw Error('Usage : node scripts/copilot-repair-evaluation.mjs BASELINE NOUVEAU_DOSSIER [SERIE_PRECEDENTE]');
+  prepareRepair(path.resolve(baseline),path.resolve(output),{previousDirectory:previous?path.resolve(previous):null});
 }

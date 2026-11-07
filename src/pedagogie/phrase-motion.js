@@ -5,6 +5,7 @@ import {notePairs, applyTakeEdit} from './take-edit.js';
 import {voiceLeadingCost} from '../practice-exercise.js';
 import {pitchClass as pc, resolvingVoices} from './harmonic-intentions.js';
 import {planPassingEdit} from './playing-passage.js';
+import {accompanimentPerformance} from './arrangement-performance.js';
 
 function pedalIn(events, start, end) {
   let held = false;
@@ -64,7 +65,7 @@ function passing(take, previous, target, rest) {
   const anchor = target.source.find(p => p.event.note === target.bassMidi);
   let edit = {type: 'passing', on: anchor.on, start: rest.start, end: rest.end,
     notes: v.notes, attacks: v.notes.map(() => rest.start), adjustments: [],
-    velocity: anchor.event.velocity * .82, placement: 'source-rest'};
+    placement: 'source-rest'};
   if(rest.held) {
     const notes=v.notes.filter(n=>n!==previous.topMidi);
     if(notes.length<3) return null;
@@ -77,8 +78,16 @@ function passing(take, previous, target, rest) {
       if(p.event.time>=rest.start-.06)return null;
       edit.adjustments.push({on:p.on,off:p.off,end:rest.start-.01});
     }
-    edit.velocity=anchor.event.velocity*.82;edit.placement='held-phrase';
+    edit.placement='held-phrase';
   }
+  const source=f=>({...f,top:f.source.find(p=>p.event.note===f.topMidi),
+    accompaniment:f.source.filter(p=>p.event.note<f.topMidi)});
+  const from=source(previous),to=source(target);
+  const segment={at:rest.start,frame:from,notes:edit.notes,kind:'dominant'};
+  const performance=accompanimentPerformance(segment,[segment,{frame:to}]);
+  // La basse cible peut être très douce ; ne pas l'utiliser pour atténuer
+  // toutes les voix du passage, ni y appliquer un coefficient arbitraire.
+  edit.velocities=edit.notes.map(n=>performance.get(n).velocity);
   return {edit, at: rest.start, end: rest.end, goal: 'passing', chord: v.label, function: v.function,
     placement:edit.placement,summary: `${v.label} prépare ${target.chord.name}`, evidence: 'drop2:1:51-2:12;above-all:1:37-1:54'};
 }

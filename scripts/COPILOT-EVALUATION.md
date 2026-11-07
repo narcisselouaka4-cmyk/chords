@@ -97,3 +97,16 @@ aux cartes sélectionnées par le moteur actuel, sur les mêmes entrées contrô
 par empreintes. Deux paires ciblent la continuité (prise 2) et la résolution (prise 5).
 Le format de sauvegarde des éditions reste 8 ; la politique de génération passe à 9
 pour proposer de recalculer les anciennes cartes sur demande, sans les réécrire.
+
+Un troisième argument facultatif permet de comparer la dernière proposition évaluée
+au correctif actuel, plutôt que de rejouer systématiquement la sortie initiale :
+
+```bash
+node scripts/copilot-repair-evaluation.mjs /chemin/baseline /chemin/nouvelle-ecoute /chemin/serie-precedente
+```
+
+L'outil vérifie que la proposition précédente est celle de sa politique musicale et
+repose sur la même source. Elle reste archivée dans sa série ; aucun résultat n'est
+écrasé. La politique 10 reprend les instants des arpèges source et leurs nuances, avec
+un relais des nuances entre accords pour les passages. Elle n'assimile plus douceur
+d'attaque et atténuation globale des notes ajoutées.

@@ -44,8 +44,8 @@ assert(!active(simpleChanged,3).length,'Silence réel respecté');
 assert.equal(simpleChanged.events.filter(e=>e.controller===64&&e.time<=3).at(-1)?.value,0);
 for(const h of simplePlan.harmony.filter(h=>h.kind==='enrich')){
   const added=simplePlan.advice.edit.notes.filter(n=>n.time===h.at);
-  assert(added.length);assert(added.every(n=>n.velocity<=.289),'Accords générés moins durs que le dessus');
-  assert(added.find(n=>n.note===h.notes[0]).velocity<=.12,'Ne pas amplifier la basse douce');
+  assert(added.length);assert(added.every(n=>n.velocity<=.4),'Les voix ajoutées suivent l’accompagnement, pas le dessus plus fort');
+  assert.equal(added.find(n=>n.note===h.notes[0]).velocity,.14,'Conserver la basse douce, sans l’atténuer davantage');
 }
 
 const original=read('arpeggiated-take'),originalText=JSON.stringify(original);
@@ -87,7 +87,7 @@ const old={role:'assistant',content:'Ancienne proposition',toolResult:{originalT
 assert(answerActions(old,{last:true}).some(a=>a.label==='Écouter les nouvelles propositions'));
 const saved=JSON.stringify(old);
 const reply=await sendCopilotMessage({message:'Fais-moi entendre un exemple',messages:[old],context:{type:'session',playing:{session:take}}});
-assert.equal(reply.toolResult.proposalPolicy,PROPOSAL_POLICY);assert.equal(PROPOSAL_POLICY,9);
+assert.equal(reply.toolResult.proposalPolicy,PROPOSAL_POLICY);assert.equal(PROPOSAL_POLICY,10);
 assert(lowSupport(applyTakeEdit(take,reply.toolResult.playingAdvice.edit),5.9,70).length>=2);
 assert.equal(JSON.stringify(old),saved);
 assert.equal(requestedPersonalStyle('Propose une autre version de mon jeu.'),null);
