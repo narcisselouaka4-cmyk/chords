@@ -434,14 +434,49 @@
 
             <!-- [Astra round 3] — Parcours harmonique garde son bandeau existant,
                  intact : titre, texte, « Options du tour », tonalités du tour. -->
+            <!-- [Claude] — 2026-11-06 — Parcours harmonique : panneau de droite scindé
+                 en deux (Narcisse). La progression (tonalité, étude, accords) migre ici,
+                 à la place du bouton « Options du tour » retiré (jamais utilisé) ; la
+                 colonne de droite ne garde plus que le Voicing. Toujours masqué en entier
+                 en Accord cible (.is-chord-mode .tr-exercise-brief), où rien de ceci ne
+                 sert — l'explorateur a son propre panneau de gauche. -->
             <div class="tr-exercise-brief">
-              <div class="tr-exercise-label" id="exercise-brief-label">
-                <svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                <span id="exercise-brief-category">EXERCICE</span>
+              <div class="tr-exercise-brief-head">
+                <div class="tr-exercise-label" id="exercise-brief-label">
+                  <svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                  <span id="exercise-brief-category">EXERCICE</span>
+                </div>
+                <h2 id="exercise-brief-title">Un accord,<br />puis le suivant.</h2>
+                <p id="exercise-brief-text"></p>
               </div>
-              <h2 id="exercise-brief-title">Un accord,<br />puis le suivant.</h2>
-              <p id="exercise-brief-text"></p>
-              <button class="tr-button exercise-options-btn" type="button" data-astra-open="exercise-options-dialog">Options du tour</button>
+              <div class="tr-exercise-brief-body">
+                <span class="tr-eyebrow" id="exercise-progress-eyebrow">VOTRE PROGRESSION</span>
+                <!-- [Claude] — 2026-09-24 — Tonalité en cours, bien en vue en tête du
+                     panneau, puis la frise des tonalités du tour et les accords :
+                     un clic sur une tonalité ou un accord y va directement. -->
+                <div class="exercise-current-key" id="exercise-current-key" hidden></div>
+                <div class="tr-key-counter" id="exercise-progress-counter" style="display: none;"></div>
+                <div class="tr-key-progress-track" id="exercise-progress-track" style="display: none;"><span></span></div>
+                <!-- [Claude] — 2026-09-24 — Démo du mouvement (gospel / worship) dans la
+                     tonalité en cours, avec les voicings de l'exercice. -->
+                <button class="tr-button exercise-demo-btn" type="button" id="exercise-demo-btn" hidden title="Démo gospel / worship dans la tonalité en cours, avec les voicings de l'exercice"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span>Écouter le mouvement</span></button>
+                <!-- Style de la démo (rempli par main.js) : selon le mouvement, ou imposé. -->
+                <div class="exercise-demo-style" id="exercise-demo-style-row" hidden>
+                  <label for="exercise-demo-style">Écoute</label>
+                  <select id="exercise-demo-style" data-demo-style aria-label="Écoute de l’étude"></select>
+                  <button type="button" id="exercise-demo-drums" class="exercise-demo-drums is-on" aria-pressed="true" aria-label="Boucle de batterie"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="7" rx="9" ry="3.4"/><path d="M3 7v8c0 1.9 4 3.4 9 3.4s9-1.5 9-3.4V7"/><path d="m5.5 9.6 13 6.2M18.5 9.6l-13 6.2"/></svg>Batterie</button>
+                </div>
+                <div class="exercise-demo-variation" id="exercise-demo-variation-row" hidden>
+                  <label for="exercise-demo-variation">Interprétation</label>
+                  <select id="exercise-demo-variation" aria-label="Interprétation de la démo"></select>
+                  <p id="exercise-demo-variation-description"></p>
+                </div>
+                <div class="exercise-study-info" id="exercise-study-info" hidden></div>
+                <div class="exercise-key-strip" id="exercise-key-strip" role="group" aria-label="Tonalités du tour" hidden></div>
+                <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
+                <div class="tr-progression-path" id="exercise-progress-path"></div>
+                <p class="tr-progress-quiet" id="exercise-progress-quiet">Lancez un exercice : l'avancement s'affiche ici.</p>
+              </div>
             </div>
 
             <div class="tr-chord-arena">
@@ -458,32 +493,6 @@
             </div>
 
             <div class="tr-exercise-progress">
-              <span class="tr-eyebrow" id="exercise-progress-eyebrow">VOTRE PROGRESSION</span>
-              <!-- [Claude] — 2026-09-24 — Tonalité en cours, bien en vue en tête du
-                   panneau, puis la frise des tonalités du tour et les accords :
-                   un clic sur une tonalité ou un accord y va directement. -->
-              <div class="exercise-current-key" id="exercise-current-key" hidden></div>
-              <div class="tr-key-counter" id="exercise-progress-counter" style="display: none;"></div>
-              <div class="tr-key-progress-track" id="exercise-progress-track" style="display: none;"><span></span></div>
-              <!-- [Claude] — 2026-09-24 — Démo du mouvement (gospel / worship) dans la
-                   tonalité en cours, avec les voicings de l'exercice. -->
-              <button class="tr-button exercise-demo-btn" type="button" id="exercise-demo-btn" hidden title="Démo gospel / worship dans la tonalité en cours, avec les voicings de l'exercice"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span>Écouter le mouvement</span></button>
-              <!-- Style de la démo (rempli par main.js) : selon le mouvement, ou imposé. -->
-              <div class="exercise-demo-style" id="exercise-demo-style-row" hidden>
-                <label for="exercise-demo-style">Écoute</label>
-                <select id="exercise-demo-style" data-demo-style aria-label="Écoute de l’étude"></select>
-                <button type="button" id="exercise-demo-drums" class="exercise-demo-drums is-on" aria-pressed="true" aria-label="Boucle de batterie"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="7" rx="9" ry="3.4"/><path d="M3 7v8c0 1.9 4 3.4 9 3.4s9-1.5 9-3.4V7"/><path d="m5.5 9.6 13 6.2M18.5 9.6l-13 6.2"/></svg>Batterie</button>
-              </div>
-              <div class="exercise-demo-variation" id="exercise-demo-variation-row" hidden>
-                <label for="exercise-demo-variation">Interprétation</label>
-                <select id="exercise-demo-variation" aria-label="Interprétation de la démo"></select>
-                <p id="exercise-demo-variation-description"></p>
-              </div>
-              <div class="exercise-study-info" id="exercise-study-info" hidden></div>
-              <div class="exercise-key-strip" id="exercise-key-strip" role="group" aria-label="Tonalités du tour" hidden></div>
-              <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
-              <div class="tr-progression-path" id="exercise-progress-path"></div>
-              <p class="tr-progress-quiet" id="exercise-progress-quiet">Lancez un exercice : l'avancement s'affiche ici.</p>
               <!-- [Claude] — 2026-09-24 — Mode Accord cible : la colonne de droite
                    (score inutile ici) accueille les voicings de l'accord affiché ;
                    les favoris sont passés à gauche. Les autres modes gardent leur
@@ -493,7 +502,9 @@
                    un vrai titre à la place — pas un retour en arrière, un titre qui se VOIT.
                    Plus de panneau dans le panneau non plus (exercise-chord-side n'a plus son
                    propre cadre, voir exercise-workspace.css) : .tr-exercise-progress.is-chord-side
-                   reste le seul cadre visible. -->
+                   reste le seul cadre visible. Depuis la scission du panneau de droite en
+                   Parcours harmonique, c'est aussi le SEUL contenu de .tr-exercise-progress
+                   dans ce mode : la progression a migré dans .tr-exercise-brief. -->
               <div class="exercise-chord-side" id="exercise-chord-side" hidden>
                 <h3 class="exercise-chord-side-title">Voicing</h3>
                 <!-- Voicings disponibles pour l'accord affiché : rempli par main.js. -->
@@ -512,42 +523,10 @@
              « visuellement ça ne rend pas très bien »), au lieu d'un panneau
              collé au bord. Onglet Progressions retiré avec le mode ; « Ma grille »
              joue des accords tapés en symboles dans les tonalités choisies. -->
-        <div class="tr-overlay exercise-panel-overlay" id="exercise-options-dialog" hidden>
-          <div class="tr-dialog" role="dialog" aria-modal="true" aria-labelledby="exercise-options-title">
-            <div class="tr-dialog-title"><h2 id="exercise-options-title">Options du tour</h2><button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer les options">✕</button></div>
-            <div class="tr-dialog-body">
-              <div class="exercise-settings" id="exercise-movement-settings">
-                <p class="exercise-options-hint">Choisissez les couleurs et le parcours qui vous intéressent. Ces choix ne mesurent pas votre niveau au piano.</p>
-                <div class="exercise-setting" id="exercise-difficulty-selector">
-                  <label for="exercise-difficulty-select">Couleurs</label>
-                  <!-- Recettes harmoniques ; valeurs historiques conservées pour les grilles. -->
-                  <select id="exercise-difficulty-select" aria-label="Couleurs harmoniques et accords de passage">
-                    <option value="1">7e / 6e · sans passage</option>
-                    <option value="2">9e · sans passage</option>
-                    <option value="3" selected>Couleurs étendues · passages diminués</option>
-                    <option value="4">Couleurs étendues · passages 7b9, 7#5, 7b5</option>
-                    <option value="5">Couleurs étendues · passages alt, #9</option>
-                  </select>
-                </div>
-                <div class="exercise-setting exercise-setting-keys">
-                  <span class="exercise-setting-label" id="exercise-key-grid-label">Tonalités</span>
-                  <div class="exercise-key-grid" id="exercise-key-grid" role="group" aria-labelledby="exercise-key-grid-label"></div>
-                </div>
-                <div class="exercise-setting">
-                  <label for="exercise-key-order">Ordre</label>
-                  <select id="exercise-key-order" aria-label="Ordre de parcours des tonalités"></select>
-                </div>
-                <div class="exercise-setting" id="exercise-key-selector">
-                  <label for="exercise-key-select">Départ</label>
-                  <select id="exercise-key-select" aria-label="Tonalité de départ du tour">
-                    <option value="">Au hasard</option>
-                  </select>
-                </div>
-              </div>
-              <button class="tr-button tr-primary" type="button" data-astra-close>Revenir au mouvement</button>
-            </div>
-          </div>
-        </div>
+        <!-- [Claude] — 2026-11-06 — « Options du tour » (couleurs, tonalités, ordre,
+             départ) retiré : Narcisse « je m'en sers jamais [...] c'est pas les autres
+             qui vont s'en servir ». L'état (difficulté, tonalités, ordre, départ) garde
+             ses valeurs par défaut dans le moteur ; plus aucune UI pour les changer. -->
 
         <!-- [Claude] — 2026-11-05 — La bibliothèque n'est plus une FENÊTRE : c'est une
              PAGE de l'onglet, sur le fond Velours. Narcisse : « le panneau faut

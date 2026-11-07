@@ -169,9 +169,9 @@ function testDomContract() {
   check(['exercise-grid-top', 'exercise-grid-cancel', 'exercise-grid-name', 'exercise-grid-save', 'exercise-grid-status']
     .every((id) => html.includes(`id="${id}"`)),
     'DOM — Ma grille : note du dessus, modification d\'un accord, enregistrement nommé');
-  // Les couleurs décrivent le contenu musical, sans classer le pianiste.
-  check(['sans passage', 'passages diminués', 'passages 7b9, 7#5, 7b5', 'passages alt, #9'].every((label) => html.includes(label)),
-    'DOM — Couleurs et passages disponibles sans étiquette de niveau');
+  // [Claude] — 2026-11-06 — Le sélecteur de Couleurs vivait dans « Options du
+  // tour », retiré (Narcisse : jamais utilisé) avec le reste de ce réglage.
+  // Le test qui vérifiait ses libellés sans étiquette de niveau part avec.
 
   // CSS : panneaux jamais branchés (voir plus haut) + navigation réelle. Les
   // styles du rail et des tiroirs (.app-rail, .rail-btn, .domain-drawer,

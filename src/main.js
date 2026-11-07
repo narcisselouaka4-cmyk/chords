@@ -88,7 +88,6 @@ import {
   difficultyOfVoicing,
   getAvailableTechniques,
   listMovementNames,
-  KEY_ORDERS,
   TARGET_QUALITY_GROUPS,
   findChordsByTopNote,
   renderTopNoteBrowser,
@@ -239,11 +238,6 @@ const els = {
   practiceMidiStatus: document.getElementById('practice-midi-status'),
   practiceMidiStatusDot: document.getElementById('practice-midi-status-dot'),
   practiceMidiStatusText: document.getElementById('practice-midi-status-text'),
-  exerciseDifficultySelect: document.getElementById('exercise-difficulty-select'),
-  exerciseKeySelect: document.getElementById('exercise-key-select'),
-  exerciseMovementSettings: document.getElementById('exercise-movement-settings'),
-  exerciseKeyGrid: document.getElementById('exercise-key-grid'),
-  exerciseKeyOrder: document.getElementById('exercise-key-order'),
   exerciseCurrentKey: document.getElementById('exercise-current-key'),
   exerciseKeyStrip: document.getElementById('exercise-key-strip'),
   exerciseChordsEyebrow: document.getElementById('exercise-chords-eyebrow'),
@@ -1535,13 +1529,14 @@ function updateExerciseProgressUI(exState) {
 // avancement qui ne venait jamais. Elles affichent maintenant les données que
 // practice-exercise.js calcule déjà — rien n'est inventé, aucun libellé
 // pédagogique n'est ajouté.
-// [Claude] — 2026-09-24 — Mode Progression retiré ; en Mouvement, la colonne de
-// gauche porte les réglages du tour (niveau, tonalités, ordre, départ) et celle
-// de droite la tonalité en cours, la frise des tonalités et les accords, tous
-// cliquables (Narcisse : tonalité active mal placée, réglages « posés à la
-// va-vite », pas de saut direct à un accord, tonalités non choisies).
+// [Claude] — 2026-09-24 — Mode Progression retiré ; en Mouvement, la tonalité
+// en cours, la frise des tonalités et les accords sont tous cliquables
+// (Narcisse : tonalité active mal placée, pas de saut direct à un accord).
+// [Claude] — 2026-11-06 — Panneau de droite scindé en deux (Narcisse) : la
+// progression migre dans .tr-exercise-brief (à la place d'« Options du
+// tour », jamais utilisé — réglages couleurs/tonalités/ordre/départ retirés
+// avec), .tr-exercise-progress ne garde que le Voicing.
 
-const KEY_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 const DEMO_PLAY_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
 const DEMO_STOP_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>';
 const DEMO_PAUSE_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
@@ -1562,44 +1557,12 @@ function renderExerciseBrief(exState) {
     category.textContent = EXERCISE_KIND_LABELS[entry?.kind] || target.movementCategory || 'PARCOURS HARMONIQUE';
     title.textContent = target.movementName;
     text.textContent = entry?.context || target.movementDescription || '';
-    renderMovementSettings(exState);
     return;
   }
 
   category.textContent = 'ACCORD CIBLE';
   title.textContent = 'Un accord, puis le suivant.';
   text.textContent = '';
-}
-
-/** Réglages du tour : niveau, tonalités retenues, ordre et départ, lus dans l'état. */
-function renderMovementSettings(exState) {
-  if (els.exerciseDifficultySelect) {
-    els.exerciseDifficultySelect.value = String(exState.difficulty);
-    // Mouvement aux accords fixés (Barry Harris, « Ma grille ») : le niveau ne change pas ses qualités.
-    const fixed = Boolean(exState.progression?.movement?.preserveQualities);
-    els.exerciseDifficultySelect.disabled = fixed;
-    if (els.exerciseDifficultySelect.closest('.exercise-setting')) els.exerciseDifficultySelect.closest('.exercise-setting').hidden = fixed;
-    els.exerciseDifficultySelect.title = fixed ? 'Les accords de ce mouvement sont fixés : le choix de couleurs ne les change pas.' : '';
-  }
-  const keySet = new Set(exState.keySet || []);
-  if (els.exerciseKeyGrid) {
-    els.exerciseKeyGrid.innerHTML = KEY_NAMES.map((name, pc) => {
-      const on = keySet.has(pc);
-      const alone = on && keySet.size === 1;
-      return `<button type="button" class="exercise-key-toggle${on ? ' is-on' : ''}" data-key-toggle="${pc}" aria-pressed="${on}"${alone ? ' disabled title="Au moins une tonalité"' : ''}>${name}</button>`;
-    }).join('') + `<button type="button" class="exercise-key-all" data-key-all${keySet.size === 12 ? ' hidden' : ''}>Toutes les tonalités</button>`;
-  }
-  if (els.exerciseKeyOrder) {
-    if (!els.exerciseKeyOrder.options.length) {
-      els.exerciseKeyOrder.innerHTML = Object.entries(KEY_ORDERS).map(([id, o]) => `<option value="${id}">${o.label}</option>`).join('');
-    }
-    els.exerciseKeyOrder.value = exState.keyOrder || 'chromatic';
-  }
-  if (els.exerciseKeySelect) {
-    els.exerciseKeySelect.innerHTML = '<option value="">Au hasard</option>'
-      + KEY_NAMES.map((name, pc) => (keySet.has(pc) ? `<option value="${pc}">${name}</option>` : '')).join('');
-    els.exerciseKeySelect.value = exState.keyChoice == null ? '' : String(exState.keyChoice);
-  }
 }
 
 /** Panneau de droite : tonalité en cours, frise des tonalités, accords (cliquables). */
@@ -2104,42 +2067,11 @@ function initPracticeExercise() {
     });
   });
 
-  const difficultySelect = els.exerciseDifficultySelect;
-  difficultySelect?.addEventListener('change', () => {
-    const value = difficultySelect.value;
-    practiceExercise.setDifficulty(value);
-    render();
-  });
-
-  els.exerciseKeySelect?.addEventListener('change', () => {
-    const value = els.exerciseKeySelect.value;
-    practiceExercise.setKeyChoice(value);
-    render();
-  });
-
-  // Tonalités du tour : bascule d'une tonalité, « Toutes », ordre de parcours.
-  els.exerciseKeyGrid?.addEventListener('click', (e) => {
-    const exState = practiceExercise.getState();
-    const toggle = e.target.closest('[data-key-toggle]');
-    if (toggle) {
-      const pc = Number(toggle.dataset.keyToggle);
-      const set = new Set(exState.keySet);
-      if (set.has(pc)) set.delete(pc);
-      else set.add(pc);
-      if (set.size === 0) return;
-      practiceExercise.setKeySet([...set]);
-      render();
-      return;
-    }
-    if (e.target.closest('[data-key-all]')) {
-      practiceExercise.setKeySet(Array.from({ length: 12 }, (_, pc) => pc));
-      render();
-    }
-  });
-  els.exerciseKeyOrder?.addEventListener('change', () => {
-    practiceExercise.setKeyOrder(els.exerciseKeyOrder.value);
-    render();
-  });
+  // [Claude] — 2026-11-06 — « Options du tour » retiré (Couleurs/Tonalités/
+  // Ordre/Départ) : le câblage de ces 4 contrôles (difficulté, grille de
+  // tonalités, ordre, tonalité de départ) part avec. setDifficulty/setKeySet/
+  // setKeyOrder/setKeyChoice restent dans practice-exercise.js (valeurs par
+  // défaut toujours utilisées à la génération du tour), seule l'UI disparaît.
 
   // Saut direct : une tonalité de la frise, un accord de la liste.
   els.exerciseKeyStrip?.addEventListener('click', (e) => {
