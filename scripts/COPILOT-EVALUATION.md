@@ -110,3 +110,36 @@ repose sur la même source. Elle reste archivée dans sa série ; aucun résulta
 écrasé. La politique 10 reprend les instants des arpèges source et leurs nuances, avec
 un relais des nuances entre accords pour les passages. Elle n'assimile plus douceur
 d'attaque et atténuation globale des notes ajoutées.
+
+## Harmoniser une session de mélodie sur des degrés demandés
+
+Après commit, le client habituel peut produire une version à partir d'une mélodie
+seule et d'une progression numérique (par exemple 4–5–3–6). Préparer une écoute
+dans un dossier neuf, sans inventer une proposition manuelle :
+
+```bash
+node scripts/copilot-melody-evaluation.mjs /chemin/Session_010 /chemin/nouvelle-ecoute 'Fais-moi entendre ma mélodie harmonisée sur 4-5-3-6 avec des accords de passage et des appoggiatures.'
+python3 scripts/copilot-render.py /chemin/nouvelle-ecoute
+```
+
+La commande passe par `sendCopilotMessage`, interdit toute requête réseau, conserve
+les empreintes des trois JSON de session et refuse de remplacer un dossier existant.
+Deux fichiers : la mélodie d'origine et une seule proposition, pas une paire masquée A/B.
+La page propose un lecteur commun, une vitesse réglable, la grille active et un export
+de commentaire ; cet export n'utilise pas le dépouilleur des anciennes paires.
+Après conversion éventuelle des WAV en FLAC, actualiser les chemins dans `listening.json`
+et les données intégrées de `index.html` ; vérifier l'identité PCM et archiver les mesures.
+
+La politique 12 interprète les degrés en utilisant la tonalité explicite ou une
+estimation suffisamment étayée. Quatre temps par accord et première attaque principale
+prise comme début de mesure sont des hypothèses à déclarer à l'auditeur. Les événements
+source restent exacts, y compris les petites notes ; la carte des temps privilégie
+l'attaque principale d'un groupe plutôt qu'une petite note d'approche. Les dispositions
+sont cherchées sur la chaîne entière ; seules les dominantes dont une voix résout
+effectivement vers l'accord suivant sont retenues. Appoggiatures intérieures facultatives,
+mains et pédale contrôlées. Ces contrôles ne garantissent pas un résultat musical réussi.
+
+`test 4` est Session_010, déjà présente parmi les fixtures : cette écoute ne constitue
+pas une validation sur une prise inconnue. Les anciens avis, séries et référence
+approuvée ne sont pas remplacés. Aucun identifiant de session ou passage de référence
+n'est codé dans le générateur musical.

@@ -1856,7 +1856,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   if(!explanation){
   // Un rejeu exact ne nécessite ni réponse du modèle ni génération musicale.
   const replay=myPlayingRequest(message,{session:Boolean(context?.playing?.session||context?.type==='session')});
-  if(replay&&!/amélior|amelior|enrich|reharmoni|réharmoni|modifi|corrig|plaqu|aér|aer|accompagnement sous|accompagne/i.test(message||'')){
+  if(replay&&!/amélior|amelior|enrich|reharmoni|réharmoni|harmonis|modifi|corrig|plaqu|aér|aer|accompagnement sous|accompagne/i.test(message||'')){
     if(/session/i.test(message||'')&&context?.playing?.session)replay.source='session';
     const result=myPlayingExample(context?.playing,replay);
     return {ok:true,content:result.example?'Voici ton jeu, rejoué à partir de ses notes MIDI.':result.note||'Je n’ai pas de jeu disponible dans ce contexte.',

@@ -4,6 +4,7 @@ import {samePlayingSource} from './personal-source.js';
 import { buildPhraseVariants } from './phrase-variants.js';
 import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
 import {PROPOSAL_POLICY} from './proposal-policy.js';
+import {requestedDegreeProgression} from './melody-progression.js';
 const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'").toLowerCase();
 
 export const buildPlayingVariants = buildPhraseVariants;
@@ -14,6 +15,7 @@ function continuedRequest(previous, message) {
  if([...message.matchAll(key)].length)inherited=inherited.replace(key,'');
  if(/basses?\s*:|basses?\s+par\s+quartes/i.test(message))inherited=inherited
   .replace(/basses?\s*:[^.!?\n]+/gi,'').replace(/(?:des\s+)?basses?\s+par\s+quartes/gi,'');
+ if(requestedDegreeProgression(message))inherited=inherited.replace(/\b\d+(?:\s*[-–—→]\s*\d+){1,7}\b/g,'');
  return `${inherited}\n${message}`;
 }
 
@@ -26,10 +28,12 @@ export function personalVariantsAnswer({message,messages=[],context,preferences=
  const previous=[...relevant].reverse().find(m=>m.role==='assistant'&&!m.toolResult?.variants?.some(v=>v.advice?.version===6)&&samePlayingSource(m.toolResult?.originalTake,take)&&(m.toolResult?.phraseHarmony||m.toolResult?.fixedHarmony||m.toolResult?.variants?.length));
  const interpretation=personalInterpretationRequest(message);
  const hear=interpretation||/entendre|ecout|demonstration|\bdemo\b|montre.moi|joue.moi/.test(text);
- const broad=interpretation||/^(?:fais|fait|faisons) comme (?:tu veux|vous voulez)|carte blanche/.test(text)||/(?:propose|fais|faire|donne).*(?:propositions?|versions?|variantes?)|transform.*(?:accord|progression|jeu|session)|accompagn.*(?:melodie|jeu)|enrich|reharmonis|voicings?|developp|mouvements?|liaisons?|accords? de passage|ameliore.*(?:jeu|progression|accord)|plusieurs (?:propositions|versions|variantes)|rends.*(?:accords|jeu).*(?:beau|riche)|(?:rajoute|ajoute|ajouter).*(?:mouvements|accords)|basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text);
+ const broad=Boolean(requestedDegreeProgression(message))||interpretation||/^(?:fais|fait|faisons) comme (?:tu veux|vous voulez)|carte blanche/.test(text)||/(?:propose|fais|faire|donne).*(?:propositions?|versions?|variantes?)|transform.*(?:accord|progression|jeu|session)|accompagn.*(?:melodie|jeu)|enrich|reharmonis|voicings?|developp|mouvements?|liaisons?|accords? de passage|ameliore.*(?:jeu|progression|accord)|plusieurs (?:propositions|versions|variantes)|rends.*(?:accords|jeu).*(?:beau|riche)|(?:rajoute|ajoute|ajouter).*(?:mouvements|accords)|basses?\s*:|(?:basse|cycle|parcours).*quartes/.test(text);
  const follow=previous&&/une autre (?:version|proposition|variante)|encore|va plus loin|c'est tout|rien.*plus|ajout.*plus|autre chose|autre.*(?:couleur|accord)|(?:prefere|robot|catastroph|mieux).*(?:liaison|arpege)|(?:liaison|arpege).*(?:robot|catastroph|mieux)/.test(text);
  if(!broad&&!follow&&!(hear&&previous))return null;
- const baseRequest=follow&&previous.toolResult.harmonicRequest?continuedRequest(previous.toolResult.harmonicRequest,message):message;
+ const inheritedDegrees=previous?.toolResult.harmonicRequest&&requestedDegreeProgression(previous.toolResult.harmonicRequest)
+  &&!requestedDegreeProgression(message)&&!/oublie.*progression|sans progression|harmonie libre/.test(text);
+ const baseRequest=(follow||inheritedDegrees)&&previous?.toolResult.harmonicRequest?continuedRequest(previous.toolResult.harmonicRequest,message):message;
  // Une consigne actuelle sur le même sujet remplace la préférence ancienne.
  const subjects=[/basse/i,/p[eé]dale|sustain/i,/mouvements?|passages?|accords? fixes/i,/tonalit[eé]/i];
  const activePreferences=preferences.filter(p=>!subjects.some(subject=>subject.test(message)&&subject.test(p)));

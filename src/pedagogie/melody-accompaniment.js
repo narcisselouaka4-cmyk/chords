@@ -7,6 +7,7 @@ import {parseChordName} from './note-roles.js';
 import {handDistribution,voicedQuality} from './piano-voicing.js';
 import {phrasePedal} from './proposal-pedal.js';
 import {comparedTakeExample} from './playing-diff.js';
+import {requestedDegreeProgression,buildDegreeAccompaniment} from './melody-progression.js';
 import {voiceLeadingCost,chordToneIntervals} from '../practice-exercise.js';
 const pc=n=>(n%12+12)%12;
 const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -54,6 +55,8 @@ export function buildMelodyAccompaniment(take,{message='',target=null,technique=
  const source=melodySource(take);if(!source)return null;
  const {pairs,attacks}=source,text=plain(message),review=reviewTake(take.events);
  if(/hasard|n'importe quoi|aleatoire|sans intention|test des touches|basses?\s*:|bassiste|sans ajouter de basse|(?:garde|conserv).*basse|(?:basse|cycle|parcours).*quartes/.test(text))return null;
+ const progression=requestedDegreeProgression(message);
+ if(progression&&!target)return buildDegreeAccompaniment(take,{message,request:progression});
  const key=extractKey(message)||extractKey(`en ${take.key||''}`)||
    (review.key?.confidence>=.7?{rootPc:review.key.pc,minor:review.key.mode==='minor'}:null);
  if(!key)return null;
