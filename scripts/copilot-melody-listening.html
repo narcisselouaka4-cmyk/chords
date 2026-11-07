@@ -14,7 +14,7 @@
 <details open><summary>Grille de la proposition</summary><div id="grid" class="grid" aria-label="Accords de la proposition"></div></details>
 <p class="muted" id="ornaments"></p><p id="status" class="muted" aria-live="polite"></p>
 </section>
-<section class="card"><h2>Ton avis</h2><p>Les voicings sont-ils agréables et jouables ? Les passages restent-ils dans le tempo ? Les tensions et les appoggiatures se résolvent-elles bien ? Indique les moments qui te gênent.</p><label for="opinion">Ton commentaire</label><textarea id="opinion" placeholder="Par exemple : vers 0:24, cette résolution…"></textarea><button id="export" type="button">Exporter mon avis</button></section>
+<section class="card"><h2>Ton avis</h2><p id="feedback-question">Les voicings sont-ils agréables et jouables ? Les passages restent-ils dans le tempo ? Les tensions et les appoggiatures se résolvent-elles bien ? Indique les moments qui te gênent.</p><label for="opinion">Ton commentaire</label><textarea id="opinion" placeholder="Par exemple : vers 0:24, cette résolution…"></textarea><button id="export" type="button">Exporter mon avis</button></section>
 <p class="muted">Même piano pour les deux écoutes. Aucune inférence payante. Cette écoute sert à évaluer la proposition ; elle ne démontre pas sa qualité sur toutes les mélodies.</p>
 </main>
 <!--LISTENING_DATA-->
@@ -22,6 +22,7 @@
 const data=JSON.parse(document.querySelector('#listening-data').textContent),audio=document.querySelector('#audio');
 document.querySelector('#title').textContent=data.name+' — harmonisation';document.querySelector('#description').textContent=data.description;
 document.querySelector('#placement').textContent=data.placement==='melody-arrivals'?'Les accords principaux tombent sur tes notes d’arrivée.'+(data.arrivals?.some(a=>a.variant)?' La variante finale passe directement du V au VI.':'')+' La mélodie originale reste intacte.':'Une mesure par accord, à partir de la première note. Ce placement reste à juger à l’écoute.';
+if(data.accompaniment==='held')document.querySelector('#feedback-question').textContent='Les accords arrivent-ils sur les bonnes notes principales ? Restent-ils présents jusqu’au changement suivant, sans gêner la mélodie ? Indique les moments à reprendre.';
 const clock=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
 const buttons=data.harmony.map(h=>{const b=document.createElement('button');b.type='button';b.className='chord';const time=document.createElement('small');time.textContent=clock(h.at);b.append(time,document.createTextNode(h.chord));b.onclick=()=>{audio.currentTime=h.at;};document.querySelector('#grid').append(b);return b;});
 document.querySelector('#ornaments').textContent=data.ornaments.length?'Appoggiatures intérieures vers '+data.ornaments.map(o=>clock(o.at)).join(' et ')+'.':'';

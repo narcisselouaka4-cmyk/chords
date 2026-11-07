@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import {buildDegreeAccompaniment,requestedDegreeProgression} from './melody-progression.js';
 import {notePairs,applyTakeEdit} from './take-edit.js';
 import {handDistribution,voicedQuality} from './piano-voicing.js';
-import {resolvingVoices} from './harmonic-intentions.js';
 import {chordToneIntervals} from '../practice-exercise.js';
 import {sendCopilotMessage} from './copilot-client.js';
 import {requestedPersonalStyle} from './style-capabilities.js';
@@ -11,12 +10,15 @@ import {proposalChordGrid,activeChordColumn} from './proposal-chord-grid.js';
 const source={...JSON.parse(fs.readFileSync(new URL('./fixtures/copilot-session010.json',import.meta.url))),key:''};
 const snapshot=JSON.stringify(source),pc=n=>(n%12+12)%12;
 const base='Fais-moi entendre ma mélodie harmonisée sur 4-5-3-6 en accord-mélodie.';
-const message=base+' Arrivées : 4 sur Fa, 5 sur Si, 3 sur Mi, 6 sur Do. Variante 4-5-6 : 6 sur Mi aigu. Voicings légers en drop 2.';
-const expected=[[.994,4,65],[2.669,5,71],[4.786,3,64],[7.084,6,72],[9.25,4,65],[11.370,5,71],[13.445,3,64],[15.522,6,72],[17.632,4,65],[19.701,5,71],[21.733,6,76],[33.529,6,69]];
+const message=base+' Arrivées : 4 sur Fa, 5 sur Si, 3 sur Mi, 6 sur Do. Variante 4-5-6 : 6 sur Mi aigu. Uniquement les notes principales, puis le premier La. Maintiens les voicings jusqu’à la suivante. Sans passages ni grace notes.';
+const expected=[[.994,4,65],[2.669,5,71],[4.786,3,64],[7.084,6,72],[9.25,4,65],[11.370,5,71],[13.445,3,64],[15.522,6,72],[17.632,4,65],[19.701,5,71],[21.733,6,76],[25.686,6,69]];
+const addedOnsets=v=>[...new Set(v.advice.edit.notes.map(n=>n.time))];
 function check(take,v,{rate=1,shift=0}={}){
  assert(v,'Une proposition existe sans référence ni fournisseur');
  const changed=applyTakeEdit(take,v.advice.edit);assert(changed);
- assert.equal(v.rhythm.placement,'melody-arrivals');
+ assert.equal(v.rhythm.placement,'melody-arrivals');assert.equal(v.rhythm.accompaniment,'held');
+ assert.equal(v.harmony.length,12);assert(v.harmony.every(h=>h.kind==='arrival'));assert.equal(v.ornaments.length,0);
+ assert(addedOnsets(v).every(t=>v.arrivals.some(a=>a.at===t)),'Aucune attaque ajoutée sur les notes intermédiaires');
  assert.deepEqual(v.arrivals.map(a=>[+a.at.toFixed(5),a.degree,a.melody]),expected.map(([t,d,n])=>[+(t*rate).toFixed(5),d,n+shift]));
  const pairs=notePairs(take.events),edit=v.advice.edit,added=edit.notes;
  assert.equal(edit.remove.length,0);assert.equal(edit.keep.length,pairs.length);
@@ -33,25 +35,31 @@ function check(take,v,{rate=1,shift=0}={}){
    const close=[...tones].map(t=>{let n=h.topMidi;while(pc(n-h.rootPc)!==t)n--;return n;}).sort((a,b)=>a-b);
    assert.deepEqual(h.notes,[close[0],close[1],close[2]-12,close[3]].sort((a,b)=>a-b));
   }
-  if(h.kind==='dominant'){
-   const to=v.harmony.find(s=>s.at===h.targetAt);assert(to&&resolvingVoices(h,to));
-   assert.equal(pc(h.rootPc-to.rootPc),7);assert(h.end<to.at);
-  }
+
  }
- assert(v.harmony.some(h=>h.technique==='drop2'));
+ for(const [i,h] of v.harmony.entries()){
+  const end=v.harmony[i+1]?.at??take.duration;assert.equal(h.end,end);
+  const held=added.filter(n=>n.time===h.at);assert(held.every(n=>n.end===end),'Les voix restent tenues jusqu’au prochain voicing');
+ }
+ assert(!added.some(n=>Math.abs(n.time-33.529*rate)<.00001),'Pas de réattaque tardive du La final');
  const changedPairs=notePairs(changed.events);
+ for(const p of pairs)assert(changedPairs.some(q=>q.event.note===p.event.note&&q.event.time===p.event.time&&q.end===p.end),'Le relais de la même touche ne coupe pas une note source');
+ for(const n of added)assert(changedPairs.some(q=>q.event.note===n.note&&q.event.time===n.time&&q.end===n.end),'Chaque tenue existe dans le flux MIDI réellement ordonné');
  for(const t of new Set(changed.events.map(e=>e.time+.000001))){
   const active=changedPairs.filter(p=>p.event.time<=t&&p.end>t);assert(!active.length||handDistribution(active.map(p=>p.event.note)));
   const line=pairs.filter(p=>p.event.time<=t&&p.end>t);
   if(line.length)assert(added.filter(p=>p.time<=t&&p.end>t).every(n=>n.note<Math.max(...line.map(p=>p.event.note))));
  }
  assert(!v.harmony.some(h=>Math.abs(h.at-21.269*rate)<.00001),'Le Sol avant le Mi aigu reste mélodique');
- assert.equal(v.harmony.find(h=>Math.abs(h.at-12.411*rate)<.00001)?.topMidi,67+shift,'La petite approche ne remplace pas le vrai sommet');
+ assert(!v.harmony.some(h=>Math.abs(h.at-12.411*rate)<.00001),'Pas de nouvel accord sur le Sol intermédiaire');
  let down=false;for(const e of edit.pedal){assert.notEqual(down,e.value===127);down=e.value===127;}assert(!down);
  assert.deepEqual(applyTakeEdit(take,JSON.parse(JSON.stringify(edit))),changed);
  return v;
 }
 assert.equal(requestedDegreeProgression('Variante 4-5-6 : 6 sur Mi aigu.'),null,'Une variante seule ne remplace pas la progression principale');
+const relay={duration:2,events:[{type:'note_on',note:60,time:0,velocity:.6},{type:'note_off',note:60,time:1},{type:'note_on',note:64,time:1,velocity:.7},{type:'note_off',note:64,time:2}]};
+const relayed=applyTakeEdit(relay,{type:'arrangement',keep:[0,2],remove:[],notes:[{note:64,time:0,end:1,velocity:.5}]});assert(relayed);
+assert(notePairs(relayed.events).some(p=>p.event.note===64&&p.event.time===1&&p.end===2),'Note_off avant note_on pour le relais exact de la même touche');
 const variant=check(source,buildDegreeAccompaniment(source,{message}));
 assert.equal(requestedPersonalStyle(message),null,'Accord-mélodie est une technique, pas un genre indisponible');
 const simple=buildDegreeAccompaniment(source,{message:base});assert(simple);
@@ -81,4 +89,4 @@ try{
  assert.equal(calls,0);
 }finally{globalThis.fetch=oldFetch;}
 assert.equal(JSON.stringify(source),snapshot);
-console.log('✓ Arrivées sur les attaques réelles, variante IV–V–VI, accord-mélodie de 3/4 voix, vrais drop 2, 57 notes intactes, résolutions/pédale/mains, transpositions et changements de tempo, parcours normal et mémoire sans fournisseur.');
+console.log('✓ 12 notes principales, premier La après Mi aigu, voicings tenus sans attaque intermédiaire, 57 notes source intactes, mains/hauteurs/pédale, transpositions/tempos, parcours normal et mémoire sans fournisseur.');

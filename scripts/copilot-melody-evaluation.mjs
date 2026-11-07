@@ -30,7 +30,7 @@ const packId=crypto.randomUUID(),manifest={schema:1,packId,createdAt:new Date().
  inferenceCalls:calls,sessionId:session.id,inputFilesSha256:Object.fromEntries(Object.entries(input).map(([name,d])=>[name,d.sha256])),message,
  media:[{id:'p01-original',take},{id:'p01-A',take:changed}],response};
 const data={schema:1,packId,name:take.name,duration:take.duration,original:'audio/p01-original.wav',proposal:'audio/p01-A.wav',harmony:variant.harmony,
- ornaments:variant.ornaments,description:variant.description,placement:variant.rhythm?.placement,arrivals:variant.arrivals};
+ ornaments:variant.ornaments,description:variant.description,placement:variant.rhythm?.placement,accompaniment:variant.rhythm?.accompaniment,arrivals:variant.arrivals};
 fs.mkdirSync(output,{recursive:true});
 for(const [name,value] of [['comparison-private.json',manifest],['listening.json',data]])fs.writeFileSync(path.join(output,name),JSON.stringify(value,null,2)+'\n',{flag:'wx'});
 const html=fs.readFileSync(new URL('./copilot-melody-listening.html',import.meta.url),'utf8')

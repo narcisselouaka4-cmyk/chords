@@ -22,5 +22,8 @@ export function applyArrangement(take, edit) {
   for(const n of added){const on={type:'note_on',note:n.note,time:n.time,velocity:n.velocity,channel:0};newAttacks.add(on);events.push(on,{type:'note_off',note:n.note,time:n.end,velocity:0,channel:0});}
   events=applyProposalPedal(events,edit,duration);if(!events)return null;
   if(!playableTimeline(events,e=>newAttacks.has(e)))return null;
-  return {...take,events:events.sort((a,b)=>a.time-b.time)};
+  // Au relais exact, relâcher l'ancienne touche avant la nouvelle attaque,
+  // sinon le note_off de l'accompagnement peut couper la mélodie qui la reprend.
+  const attack=e=>Number(e.type==='note_on'&&e.velocity>0);
+  return {...take,events:events.sort((a,b)=>a.time-b.time||attack(a)-attack(b))};
 }

@@ -87,7 +87,7 @@ const old={role:'assistant',content:'Ancienne proposition',toolResult:{originalT
 assert(answerActions(old,{last:true}).some(a=>a.label==='Écouter les nouvelles propositions'));
 const saved=JSON.stringify(old);
 const reply=await sendCopilotMessage({message:'Fais-moi entendre un exemple',messages:[old],context:{type:'session',playing:{session:take}}});
-assert.equal(reply.toolResult.proposalPolicy,PROPOSAL_POLICY);assert.equal(PROPOSAL_POLICY,13);
+assert.equal(reply.toolResult.proposalPolicy,PROPOSAL_POLICY);assert.equal(PROPOSAL_POLICY,14);
 assert(lowSupport(applyTakeEdit(take,reply.toolResult.playingAdvice.edit),5.9,70).length>=2);
 assert.equal(JSON.stringify(old),saved);
 assert.equal(requestedPersonalStyle('Propose une autre version de mon jeu.'),null);

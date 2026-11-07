@@ -167,3 +167,27 @@ chevauchements aussi. Pas de nouvelle appoggiature ni de 7–3 forcé dans ce lo
 La page d'écoute distingue le placement sur notes d'arrivée du mode par mesures.
 Le contrôle de propreté du générateur cible les sources musicales, pour préserver
 les changements UI concurrents sans les confondre avec une édition musicale cachée.
+
+## Politique 14 : soutenir seulement les notes principales
+
+Le retour sur la politique 13 rejette les drop 2 sur les notes intermédiaires.
+Le parcours des arrivées ne crée désormais qu'un voicing par repère principal.
+L'accompagnement est tenu jusqu'au suivant, sans accord de passage, arpège ni
+nouvelle grace note. La première fondamentale après la dernière arrivée reçoit
+le voicing de fermeture ; on n'attend plus sa répétition à la fin. Les positions
+sont vérifiées sous toute la mélodie de la tenue, avec les notes legato intactes.
+
+Exemple de demande pour l'écoute :
+
+```text
+Fais-moi entendre ma mélodie harmonisée sur 4-5-3-6.
+Arrivées : 4 sur Fa, 5 sur Si, 3 sur Mi, 6 sur Do.
+Variante 4-5-6 : 6 sur Mi aigu.
+Uniquement les notes principales, puis le premier La. Maintiens les voicings.
+Sans passages ni grace notes.
+```
+
+Un relâchement à l'instant d'une nouvelle attaque de la même touche doit être
+trié avant celle-ci dans le MIDI. Le test des tenues vérifie aussi les paires
+attaque/relâchement, pas seulement la présence des événements dans le JSON.
+Le mode explicitement demandé « une mesure par accord » reste distinct.
