@@ -25,12 +25,23 @@ const MAX_RH_NOTES = 5;
 
 const hasSemitoneNeighbour = (notes, midi) => notes.some((n) => Math.abs(n - midi) === 1);
 
+// [Claude] — 2026-11-08 — Shell / Two-Note Shell / Rootless A/B sont main
+// gauche seule par choix (décision de Narcisse, cette session : « on les
+// garde main gauche »). Sans cette garde, la doublure de basse par défaut
+// déplaçait leurs notes du haut vers la main droite pour loger l'octave en
+// dessous (branche « une seule main » plus bas) : Shell d'un Cmaj7 jouait
+// alors C2·C3 en main gauche et E3·B3 en main droite, deux mains au lieu
+// d'une. Rootless est déjà protégé par construction (sa basse n'est jamais
+// la fondamentale), mais Shell/Two-Note Shell l'ont toujours comme basse.
+const LEFT_HAND_ONLY_FAMILIES = new Set(['shell', 'twoNoteShell', 'rootlessA', 'rootlessB']);
+
 /**
  * Octave de la fondamentale à la main gauche, seulement si la basse est déjà
  * la fondamentale (on n'invente pas de basse sous un voicing rootless).
  * Retourne les nouvelles mains et la note ajoutée, ou null.
  */
-function bassOctave(lh, rh, rootPc) {
+function bassOctave(lh, rh, rootPc, familyId) {
+  if (LEFT_HAND_ONLY_FAMILIES.has(familyId)) return null;
   const all = [...lh, ...rh];
   if (all.length === 0) return null;
   const low = Math.min(...all);
@@ -92,7 +103,7 @@ export function applyDoublings(voicing, rootPc, mode = 'none') {
   let rh = [...(voicing?.rightHand || [])];
   const doubled = [];
   if (mode === 'bass' || mode === 'full') {
-    const res = bassOctave(lh, rh, rootPc);
+    const res = bassOctave(lh, rh, rootPc, voicing?.familyId);
     if (res) { ({ lh, rh } = res); doubled.push(res.added); }
   }
   if (mode === 'melody' || mode === 'full') {

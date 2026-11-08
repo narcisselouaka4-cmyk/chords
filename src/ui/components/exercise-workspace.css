@@ -1423,8 +1423,6 @@
   gap: 10px;
 }
 
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-auto-row { flex: none; }
-
 :root[data-skin] #practice-tab #practice-view-exercices .voicing-btn {
   position: relative;
   display: flex;
@@ -1456,25 +1454,6 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
-/* Le fond teinté (--tr-accent-soft) reste : un APLAT en accent n'a pas de
-   contrainte de lecture. Le TEXTE, lui, ne peut pas être en --tr-accent sur
-   un fond presque blanc — mesuré 2,28:1 (vert sur vert très clair). Seule
-   l'icône décorative garde l'accent : une pastille, pas une lettre à lire. */
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-auto {
-  background: var(--tr-accent-soft);
-  border-color: var(--tr-accent-soft);
-  color: var(--tr-text);
-  font-size: 11px;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-auto-icon {
-  color: var(--tr-accent);
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-auto[data-active='true'] {
-  background: var(--tr-accent);
-  border-color: var(--tr-accent);
-  color: #fff;
-}
-:root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-auto-icon { flex: none; }
 :root[data-skin] #practice-tab #practice-view-exercices .voicing-btn-label {
   overflow: hidden;
   text-overflow: ellipsis;

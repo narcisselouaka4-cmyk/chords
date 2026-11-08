@@ -1310,8 +1310,15 @@ export function findChordsByTopNote(topPc, { chordRoot = 'all', ...options } = {
 
 // Ordre pédagogique du mode Auto. À 1★ (Progression/Mouvement), on commence
 // par les voicings VoicingLab de difficulté 1 : two-note shell puis shell.
-const AUTO_ORDER = ['shell', 'two_note_shell', 'close', 'fourway_close', 'drop2', 'rootless'];
-const AUTO_ORDER_BEGINNER = ['two_note_shell', 'shell', 'rootless', 'close', 'drop2'];
+// [Claude] — 2026-11-08 — Narcisse : « je ne veux plus voir des accords avec
+// comme voicing la main droite et pas de main gauche », y compris au hasard.
+// Close et Four-Way Close restent des techniques légitimes (main droite
+// seule par définition chez VoicingLab) : gardées sélectionnables à la main
+// (décision de Narcisse), seulement retirées de l'ordre pédagogique de
+// l'Auto. resolveVariants les garde en dernier recours (reste de TECHNIQUES)
+// si aucune autre famille n'a de voicing pour l'accord.
+const AUTO_ORDER = ['shell', 'two_note_shell', 'drop2', 'rootless'];
+const AUTO_ORDER_BEGINNER = ['two_note_shell', 'shell', 'rootless', 'drop2'];
 
 /**
  * Libellé lisible d'une variante (note droppée, triade d'upper structure…),
@@ -2154,8 +2161,13 @@ export function createPracticeExercise({ library = movementsLibrary } = {}) {
       pc: null, level: 'all', hands: 'all', technique: 'all',
       chordRoot: 'all', key: 'all',
     },
-    // Doublures d'octave : 'none' | 'bass' | 'melody' | 'full'.
-    doubling: 'none',
+    // Doublures d'octave : 'none' | 'bass' | 'melody' | 'full'. [Claude] —
+    // 2026-11-08 — Narcisse : « par défaut, le filtre les deux ». Conséquence
+    // acceptée par lui : useWritten (plus bas, buildMovementChords) exige
+    // doubling === 'none', donc la Mise en voix de l'étude ne s'affiche plus
+    // seule en Parcours harmonique tant que ce filtre n'est pas remis à
+    // « Aucune » à la main.
+    doubling: 'full',
     // Main gauche d'un style ajoutée au voicing : 'none' | 'gospel' | 'ballade' | 'swing'.
     leftHandStyle: 'none',
     history: [],
@@ -3296,15 +3308,17 @@ export function renderChordExplorerVoicings(target, categories) {
       </span>`;
   };
 
-  const autoActive = activeTechnique === 'auto';
-  const autoBtn = `<button type="button" class="voicing-btn voicing-btn-auto exercise-category-tag" data-technique="auto" data-active="${autoActive}" aria-pressed="${autoActive}" title="L'application choisit la technique (ordre pédagogique)">
-      <span class="voicing-btn-auto-icon" aria-hidden="true">✦</span>
-      <span class="voicing-btn-label">${escapeHtml(TECHNIQUE_LABELS.auto)}</span>
-    </button>`;
-
+  // [Claude] — 2026-11-08 — Narcisse : « tu m'enlèves le mode automatique en
+  // Accord cible [...] à la limite dans parcours harmonique c'est
+  // compréhensible, mais dans accord cible non. » Le bouton Auto disparaît
+  // d'ici (Accord cible uniquement — renderVoicingCategories, Parcours
+  // harmonique, n'est pas touché) ; buildChordTarget continue de recevoir
+  // state.technique tel quel, qui reste 'auto' tant qu'aucune technique n'a
+  // été cliquée, résolu en silence vers la première famille disponible
+  // (resolveVariants) sans qu'aucun bouton « Auto » ne soit plus montré.
   const buttonsHtml = VOICING_EXPLORER_IDS.map(button).filter(Boolean).join('');
 
-  return `<div class="voicing-auto-row">${autoBtn}</div><div class="voicing-grid">${buttonsHtml}</div>`;
+  return `<div class="voicing-grid">${buttonsHtml}</div>`;
 }
 
 /**

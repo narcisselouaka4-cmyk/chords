@@ -35,7 +35,15 @@ import {
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 // Fixtures historiques du moteur (recettes automatiques et passages écrits).
 // Le catalogue livré, immuable et phrasé, est vérifié dans exercise-studies.test.js.
-const createPracticeExercise = () => createEngine({ library: movementsLibrary });
+// [Claude] — 2026-11-08 — doubling par défaut passé à 'full' dans l'app (Narcisse).
+// Ici, les tests de registre / technique / main gauche du style n'ont rien à voir
+// avec les doublures : on revient à 'none' pour garder leurs fixtures historiques
+// lisibles, sans aucune note ajoutée qui n'y a pas sa place.
+const createPracticeExercise = () => {
+  const ex = createEngine({ library: movementsLibrary });
+  ex.setDoubling('none');
+  return ex;
+};
 const listMovementNames = () => movementsLibrary.movements.map((m) => m.name);
 import { getVoicingLabVoicings } from './voicing-engine/voicinglab-availability.js';
 import { generateCopilotVoicing } from './pedagogie/copilot-voicing.js';
@@ -717,7 +725,12 @@ function checkDoublings() {
       if (!ex.check(t.notes).success) validated = false;
     }
   }
-  check('Doublures appliquées à une majorité de voicings', changed > total / 2, `${changed}/${total}`);
+  // [Claude] — 2026-11-08 — Shell / Two-Note Shell / Rootless A/B (main gauche
+  // seule) sont désormais immunisés contre la doublure de basse (décision de
+  // Narcisse : elle les coupait en deux mains). 'auto' les choisit souvent en
+  // premier (AUTO_ORDER) : la moitié pile des 42 combinaisons ci-dessus n'a
+  // plus de doublure, au lieu d'une franche majorité avant cette immunité.
+  check('Doublures appliquées à la moitié au moins des voicings', changed >= total / 2, `${changed}/${total}`);
   check('Doublures : accord détecté et classes de hauteur inchangés', stable);
   check('Doublures : le voicing enrichi est validé par check()', validated);
   ex.setDoubling('none');

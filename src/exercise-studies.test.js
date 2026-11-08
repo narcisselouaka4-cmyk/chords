@@ -2,7 +2,16 @@
 // transposition exacte, carte fidèle à l'écoute et provenance explicite.
 import assert from 'node:assert/strict';
 import catalogue, { archivedMovements, findCatalogueEntry } from './exercise-catalogue.js';
-import { createPracticeExercise, listMovementNames, movementChordNames, spellChordTone } from './practice-exercise.js';
+import { createPracticeExercise as createEngine, listMovementNames, movementChordNames, spellChordTone } from './practice-exercise.js';
+// [Claude] — 2026-11-08 — doubling par défaut passé à 'full' dans l'app (Narcisse) ;
+// useWritten (practice-exercise.js) exige doubling === 'none' pour afficher la
+// mise en voix de l'étude. Ce fichier existe pour vérifier CETTE mise en voix :
+// on revient à 'none' pour garder ce contrat testé, indépendamment du défaut appli.
+const createPracticeExercise = () => {
+  const ex = createEngine();
+  ex.setDoubling('none');
+  return ex;
+};
 import { buildDemo } from './practice-demo.js';
 import { exerciseContext, exerciseContextLines } from './pedagogie/exercise-context.js';
 import { upsertGrid, saveGrids, loadGrids } from './practice-grids.js';
