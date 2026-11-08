@@ -441,8 +441,17 @@ function checkVoicingLabCoverage() {
   pr.setDifficulty(1);
   const chords = pr.getState().progression.chords;
   check('1★ : accords sans extension (m7 / 7 / maj7)', chords.map((c) => c.symbol).join(' ') === 'm7 7 maj7', chords.map((c) => c.symbol).join(' '));
-  check('1★ : two-note shell en Auto', chords.every((c) => c.voicing.technique === 'two_note_shell'));
-  check('1★ : 2 notes par accord', chords.every((c) => c.notes.length === 2));
+  // [Claude] — 2026-11-08 — L'Auto ne propose plus de famille à une seule main
+  // (règle de Narcisse : « il faut qu'il y ait les deux »). Le 1★ donnait
+  // jusqu'ici un two-note shell de 2 notes, main gauche seule. Il donne
+  // maintenant la forme à deux mains la plus simple de l'ordre débutant
+  // (basse à gauche, accord à droite). Note : le sélecteur de difficulté
+  // n'existe plus dans l'interface, ce chemin n'est plus atteignable depuis
+  // l'application — il reste vérifié ici pour le moteur.
+  check('1★ : deux mains en Auto (plus de famille à une seule main)',
+    chords.every((c) => c.voicing.leftHand.length > 0 && c.voicing.rightHand.length > 0),
+    chords.map((c) => `${c.voicing.technique}:${c.voicing.leftHand.length}|${c.voicing.rightHand.length}`).join(' '));
+  check('1★ : la basse seule à la main gauche', chords.every((c) => c.voicing.leftHand.length === 1));
 }
 
 // [Claude] — 2026-09-23 — Qualités absentes de VoicingLab servies par des
@@ -888,6 +897,83 @@ function checkDoublingsInSequences() {
 }
 
 // [Claude] — 2026-09-23 — Étiquette « Auto » : retour possible après un clic sur une technique.
+// [Claude] — 2026-11-08 — Règle de Narcisse : « je ne veux plus voir que des
+// accords avec comme voicing la main droite et pas de main gauche. Il faut
+// qu'il y ait les deux. » Un premier correctif n'avait écarté de l'Auto que
+// les familles main DROITE seule en laissant les familles main GAUCHE seule :
+// le défaut est revenu en miroir (Auto tombait sur Shell) et personne ne l'a
+// vu avant que Narcisse le signale sur un F7. Ce garde-fou balaie TOUT le
+// référentiel pour que la règle ne puisse plus se reperdre à moitié.
+function checkAutoAlwaysTwoHands() {
+  console.log('\n=== Auto : jamais une seule main ===');
+  // createEngine (et non le createPracticeExercise local, qui force
+  // doubling='none') : ce garde-fou doit mesurer CE QUE NARCISSE VOIT, donc
+  // avec les réglages par défaut de l'application — doublure « Les deux »
+  // comprise, puisqu'elle fait partie du résultat affiché.
+  const ex = createEngine({ library: movementsLibrary });
+  ex.setMode('chord');
+  const quals = [...new Set(TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities))];
+  const oneHand = [];
+  const wideGap = [];
+  let total = 0;
+  for (let root = 0; root < 12; root += 1) {
+    for (const q of quals) {
+      ex.setTargetChoice(root, q);
+      const target = ex.getState().target;
+      if (!target) continue;
+      total += 1;
+      const { leftHand: lh, rightHand: rh } = target.voicing;
+      if (lh.length === 0 || rh.length === 0) oneHand.push(`${target.name}[${target.voicing.technique}]`);
+      else if (Math.min(...rh) - Math.max(...lh) > 12) wideGap.push(`${target.name} ${Math.min(...rh) - Math.max(...lh)}`);
+    }
+  }
+  // Seule exception admise : les accords que VoicingLab ne publie QUE dans des
+  // familles à une main (mesuré : sus4 et augmentés, 24 sur 576). Tout autre
+  // accord resté à une main est une régression de la règle ci-dessus.
+  const allowed = oneHand.every((s) => /sus4|aug/.test(s));
+  check('Auto : deux mains partout, sauf sus4 / augmentés (aucun voicing à deux mains publié)',
+    allowed && oneHand.length <= 24, `${oneHand.length}/${total} à une main : ${[...new Set(oneHand.map((s) => s.replace(/^[A-G][#b]?/, '')))].join(', ')}`);
+  // L'écart de 2 octaves signalé par Narcisse (08/11) venait de la mise en voix
+  // de l'étude, pas du moteur. Ici : avec les réglages par défaut, aucun accord
+  // ne dépasse l'octave entre les mains (mesuré : 11 demi-tons au pire).
+  // À noter : un Spread SANS doublure monte à 16 demi-tons — c'est la
+  // définition de la famille (basse en bas, accord largement au-dessus), le cas
+  // « quand le voicing l'impose » que Narcisse a lui-même réservé. C'est la
+  // doublure de mélodie, active par défaut, qui referme l'écart.
+  check('Auto : jamais plus d\'une octave entre les deux mains', wideGap.length === 0, wideGap.slice(0, 5).join(' ; '));
+
+  // Parcours harmonique : c'est LÀ que Narcisse a vu le défaut, et le chemin
+  // y est différent (buildMovementChords + chainVoicings, pas buildChordTarget).
+  const mv = createEngine({ library: movementsLibrary });
+  mv.setMode('movement');
+  const mvOneHand = [];
+  const mvWide = [];
+  let mvTotal = 0;
+  for (const name of listMovementNames()) {
+    for (let k = 0; k < 12; k += 1) {
+      mv.setKeyChoice(k);
+      mv.setContentChoice(name);
+      for (const c of mv.getState().progression.chords) {
+        const { leftHand: lh, rightHand: rh, technique } = c.voicing;
+        mvTotal += 1;
+        if (lh.length === 0 || rh.length === 0) mvOneHand.push(`${c.name}[${technique}]`);
+        else if (Math.min(...rh) - Math.max(...lh) > 12) mvWide.push(technique);
+      }
+    }
+  }
+  check('Parcours harmonique : aucun accord à une seule main', mvOneHand.length === 0,
+    `${mvOneHand.length}/${mvTotal} : ${mvOneHand.slice(0, 5).join(', ')}`);
+  // Les écarts de plus d'une octave qui restent sont tous des Spread, la famille
+  // dont c'est la définition même (basse en bas, accord largement au-dessus) :
+  // le cas « quand le voicing l'impose » réservé par Narcisse. Mesuré sur les
+  // 61 mouvements × 12 tonalités : 85 accords sur 3276 (2,6 %), 17 demi-tons au
+  // pire. Ce qui compte est la FAMILLE : toute autre qui s'écarterait autant
+  // serait une régression. Le plafond de proportion n'est qu'un garde-fou large.
+  check('Parcours harmonique : un écart de plus d\'une octave n\'est admis qu\'en Spread',
+    mvWide.every((t) => t === 'spread') && mvWide.length < mvTotal * 0.05,
+    `${mvWide.length}/${mvTotal} : ${[...new Set(mvWide)].join(', ')}`);
+}
+
 function checkAutoTag() {
   console.log('\n=== Étiquette Auto ===');
   const ex = createPracticeExercise();
@@ -895,7 +981,15 @@ function checkAutoTag() {
   const cats = () => getAvailableTechniques('Cmaj7');
   let html = renderExerciseTarget(ex.getState().target, { categories: cats(), selectedTechnique: ex.getState().technique });
   check('Auto affiché et actif par défaut', /exercise-category-auto active"[^>]*data-technique="auto"/.test(html));
-  check('En Auto : technique jouée marquée current', /exercise-category-tag current" data-technique="shell"/.test(html));
+  // [Claude] — 2026-11-08 — La technique retenue par l'Auto n'est plus « shell »
+  // (familles à une seule main écartées de l'Auto) : on la lit sur l'état plutôt
+  // que de la coder en dur, le contrat vérifié étant « celle qui est jouée est
+  // marquée current », pas son nom.
+  const played = ex.getState().target.voicing.technique;
+  check('En Auto : technique jouée marquée current',
+    new RegExp(`exercise-category-tag current" data-technique="${played}"`).test(html), played);
+  check('En Auto : la technique jouée a bien deux mains',
+    ex.getState().target.voicing.leftHand.length > 0 && ex.getState().target.voicing.rightHand.length > 0, played);
   ex.setTechnique('block');
   html = renderExerciseTarget(ex.getState().target, { categories: cats(), selectedTechnique: ex.getState().technique });
   check('Block choisi : Block actif, Auto inactif',
@@ -910,7 +1004,10 @@ function checkAutoTag() {
   check('Technique indisponible : absente', !/data-technique="drop2"/.test(html) && !/exercise-category-tag disabled/.test(html));
   check('Techniques disponibles : toujours là', /data-technique="shell"/.test(html) && /data-technique="block"/.test(html));
   ex.setTechnique('auto');
-  check('Retour en Auto : technique auto et voicing shell', ex.getState().technique === 'auto' && ex.getState().target.voicing.technique === 'shell');
+  check('Retour en Auto : technique auto et voicing à deux mains',
+    ex.getState().technique === 'auto'
+    && ex.getState().target.voicing.technique === played
+    && ex.getState().target.voicing.leftHand.length > 0 && ex.getState().target.voicing.rightHand.length > 0);
 }
 
 // [Claude] — 2026-09-24 — Mouvements : « II-V-I altéré en mineur » et « Cycle de
@@ -1891,6 +1988,7 @@ async function runTests() {
   checkTopNoteBrowser();
   checkTopNoteIgnoresCardTechnique();
   checkAutoTag();
+  checkAutoAlwaysTwoHands();
   checkDoublings();
   checkDoublingsInSequences();
   checkClusterLeftHand();

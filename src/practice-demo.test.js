@@ -145,6 +145,16 @@ console.log('\n=== Démo : mélodie choisie ===');
 console.log('\n=== Démo : grille complète ===');
 const chords = movement('Cadence II-V-I majeur');
 const { events, beats } = buildGospelDemo(chords);
+// [Claude] — 2026-11-08 — Carte à UNE seule main, pour les vérifications qui
+// portent sur ce cas précis (la démo doit alors déplacer le voicing à la main
+// droite et poser elle-même la basse à gauche). Elles l'obtenaient jusqu'ici
+// par accident : `chords` demande drop2, que VoicingLab ne publie pas pour
+// Dm11, et l'ancien repli tombait sur rootless (main gauche seule). Depuis
+// que le repli préfère les familles à deux mains (règle de Narcisse : « il
+// faut qu'il y ait les deux »), ce même repli donne un drop3 à deux mains.
+// La technique est donc demandée explicitement.
+const oneHandChords = movement('Cadence II-V-I majeur', { technique: 'rootless' });
+const oneHandDemo = buildGospelDemo(oneHandChords);
 check('Une mesure de 4 temps par accord (+ un temps pour la montée finale)', beats >= chords.length * 4 && beats <= chords.length * 4 + 1.1, String(beats));
 const steps = events.filter((e) => e.type === 'step');
 check('Un repère par accord, dans l\'ordre, sur le 1er temps', steps.map((e) => `${e.step}@${e.time}`).join() === chords.map((_, i) => `${i}@${i * 4}`).join());
@@ -166,8 +176,8 @@ check('Le passage joué est celui de la carte (voicing enchaîné de l\'exercice
   const played = onsets({ events }, 3, 4).map((e) => e.note);
   return [...card.lh, ...card.rh].every((n) => played.includes(n));
 })());
-check('Pas de cadre d\'octave sous Fa3 (rootless F3 G3 A3 C4 : pas de C3)', onsets({ events }, 0, 1, 'rh').map((e) => e.note).join() === '53,55,57,60',
-  onsets({ events }, 0, 1, 'rh').map((e) => e.note).join());
+check('Pas de cadre d\'octave sous Fa3 (rootless F3 G3 A3 C4 : pas de C3)', onsets(oneHandDemo, 0, 1, 'rh').map((e) => e.note).join() === '53,55,57,60',
+  onsets(oneHandDemo, 0, 1, 'rh').map((e) => e.note).join());
 const closeGrid = movement('Cadence II-V-I majeur', { technique: 'close' });
 const closeDemo = buildGospelDemo(closeGrid);
 check('Main droite en cadre d\'octave sur Dm11 en close (C4 D4 F4 G4 C5)', onsets(closeDemo, 0, 1, 'rh').map((e) => e.note).join() === '60,62,65,67,72',
@@ -247,8 +257,10 @@ const ballade = buildDemo(chords, 'ballade');
 // Main droite de la démo (le rootless de la carte passe à la main droite, au-dessus de la basse).
 const cardRh = demoHands(chords[0], 'fifth').rh;
 check('Rootless à une main : joué à la main droite, la main gauche prend la basse (Dm11 : D2 A2 | F3 G3 A3 C4)',
-  cardHands(chords[0]).rh.length === 0 && cardRh.join() === cardHands(chords[0]).lh.join() && demoHands(chords[0], 'fifth').lh.join() === '38,45',
-  `${demoHands(chords[0], 'fifth').lh} | ${cardRh}`);
+  cardHands(oneHandChords[0]).rh.length === 0
+  && demoHands(oneHandChords[0], 'fifth').rh.join() === cardHands(oneHandChords[0]).lh.join()
+  && demoHands(oneHandChords[0], 'fifth').lh.join() === '38,45',
+  `${demoHands(oneHandChords[0], 'fifth').lh} | ${demoHands(oneHandChords[0], 'fifth').rh}`);
 const arpeggio = onsets(ballade, 0, 2, 'rh');
 check('Ballade : main droite arpégée du grave à l\'aigu, après la main gauche', arpeggio.length === cardRh.length
   && arpeggio.every((e, k) => k === 0 || (e.time > arpeggio[k - 1].time && e.note > arpeggio[k - 1].note)) && arpeggio[0].time > 0,
@@ -260,7 +272,10 @@ check('Ballade : main gauche tenue jusqu\'au diminué de passage (4e temps) ou j
 const swing = buildDemo(chords, 'swing');
 check('Swing : Charleston — main droite au 1er temps et au « et » du 2e (croche swinguée)',
   cardRh.every((n) => onsets(swing, 0, 0.1, 'rh').some((e) => e.note === n) && onsets(swing, 1.6, 1.8, 'rh').some((e) => e.note === n)));
-const swingLh = onsets(swing, 0, 3, 'lh');
+// Main gauche POSÉE PAR LA DÉMO : sur une carte à une main, elle est seule à
+// gauche, donc lisible telle quelle (sur une carte à deux mains, celle de la
+// carte s'y ajoute et le motif « fondamentale puis quinte » n'est plus isolé).
+const swingLh = onsets(buildDemo(oneHandChords, 'swing'), 0, 3, 'lh');
 check('Swing : main gauche au 1er et au 3e temps (fondamentale, puis quinte au-dessus ou en dessous)', swingLh.length === 2 && swingLh[0].time === 0 && swingLh[1].time === 2
   && [7, -5].includes(swingLh[1].note - swingLh[0].note), swingLh.map((e) => `${e.note}@${e.time}`).join(' '));
 

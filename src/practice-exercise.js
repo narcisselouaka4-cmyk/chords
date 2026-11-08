@@ -1308,17 +1308,41 @@ export function findChordsByTopNote(topPc, { chordRoot = 'all', ...options } = {
   return out;
 }
 
-// Ordre pédagogique du mode Auto. À 1★ (Progression/Mouvement), on commence
-// par les voicings VoicingLab de difficulté 1 : two-note shell puis shell.
-// [Claude] — 2026-11-08 — Narcisse : « je ne veux plus voir des accords avec
-// comme voicing la main droite et pas de main gauche », y compris au hasard.
-// Close et Four-Way Close restent des techniques légitimes (main droite
-// seule par définition chez VoicingLab) : gardées sélectionnables à la main
-// (décision de Narcisse), seulement retirées de l'ordre pédagogique de
-// l'Auto. resolveVariants les garde en dernier recours (reste de TECHNIQUES)
-// si aucune autre famille n'a de voicing pour l'accord.
-const AUTO_ORDER = ['shell', 'two_note_shell', 'drop2', 'rootless'];
-const AUTO_ORDER_BEGINNER = ['two_note_shell', 'shell', 'rootless', 'drop2'];
+// [Claude] — 2026-11-08 — Narcisse : « je ne veux plus voir que des accords
+// avec comme voicing la main droite et pas de main gauche. Il faut qu'il y
+// ait les deux », y compris en piochant au hasard.
+//
+// Mesuré sur tout le référentiel (576 accords jouables × 16 techniques) :
+// cinq familles ne produisent JAMAIS deux mains — shell (134 variantes),
+// two_note_shell (204) et rootless (804) sont main gauche seule ;
+// fourway_close (612) est main droite seule ; stride (797) est main gauche
+// seule (sa basse se joue à part). close est main droite seule à 924
+// variantes sur 1044. Les dix autres familles sont TOUJOURS à deux mains.
+//
+// Ces six familles restent sélectionnables à la main (décision de Narcisse :
+// ce sont des techniques légitimes, pas des défauts) mais ne sont plus
+// proposées d'elles-mêmes. Un premier correctif n'avait retiré de l'Auto que
+// les familles main DROITE seule (close, fourway_close) en laissant les
+// familles main GAUCHE seule : l'Auto tombait alors sur Shell, le même
+// défaut en miroir — et aucune doublure ne pouvait s'y appliquer, d'où
+// quatre réglages de doublure au résultat identique (Narcisse, sur un F7).
+//
+// Ordre : d'abord la basse à gauche et l'accord à droite (spread, open), la
+// forme à deux mains la plus simple, puis les drops, puis les couleurs.
+const SINGLE_HAND_TECHNIQUES = new Set([
+  'shell', 'two_note_shell', 'rootless', 'close', 'fourway_close', 'stride',
+]);
+// [Claude] — 2026-11-08 — Deux recherches contournent l'ordre de l'Auto en
+// énumérant TOUTES les techniques : la note du dessus imposée (conduite des
+// voix d'un mouvement) et les accords de passage. Elles ramenaient un close
+// main droite seule sur des m6, malgré les familles à deux mains disponibles.
+// Pénalité de dernier recours, volontairement hors d'échelle devant les coûts
+// réels (quelques dizaines de demi-tons) : une famille à une seule main n'est
+// retenue que s'il n'existe AUCUN candidat à deux mains, jamais pour un gain
+// de conduite des voix.
+const SINGLE_HAND_PENALTY = 1000;
+const AUTO_ORDER = ['spread', 'open', 'drop2', 'drop3', 'drop2_4', 'block', 'upper_structure', 'quartal', 'so_what', 'cluster'];
+const AUTO_ORDER_BEGINNER = ['spread', 'open', 'drop2', 'block'];
 
 /**
  * Libellé lisible d'une variante (note droppée, triade d'upper structure…),
@@ -1401,7 +1425,19 @@ function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficult
 function resolveVariants(rootPc, quality, technique, difficulty = null) {
   const autoOrder = difficulty === 1 ? AUTO_ORDER_BEGINNER : AUTO_ORDER;
   const first = technique === 'auto' ? autoOrder : [technique];
-  const order = [...first, ...TECHNIQUES.filter((t) => t !== 'auto' && !first.includes(t))];
+  // [Claude] — 2026-11-08 — Le repli suivait l'ordre de TECHNIQUES, qui
+  // commence justement par les familles à une seule main : retirer celles-ci
+  // de l'Auto n'aurait rien changé, le repli les reprenait aussitôt. Elles
+  // passent en dernier — un accord ne retombe sur une main seule que s'il
+  // n'a VRAIMENT aucun voicing à deux mains (mesuré : 48 accords sur 576,
+  // tous des sus2 / sus4 / power chords / augmentés, que VoicingLab ne
+  // publie qu'en famille à une main).
+  const rest = TECHNIQUES.filter((t) => t !== 'auto' && !first.includes(t));
+  const order = [
+    ...first,
+    ...rest.filter((t) => !SINGLE_HAND_TECHNIQUES.has(t)),
+    ...rest.filter((t) => SINGLE_HAND_TECHNIQUES.has(t)),
+  ];
   for (const t of order) {
     const variants = voicingLabVariantsFor(rootPc, quality, t);
     if (variants.length > 0) return { technique: t, variants };
@@ -1521,7 +1557,8 @@ function topNoteCandidates(chord, technique, difficulty, topPc) {
         const penalty = (t === resolved?.technique ? 0 : (COLOR_TECHNIQUES.has(t) ? 6 : 3))
           + Math.max(0, 64 - top) + Math.max(0, top - 81)
           + (notes.length < 3 ? 4 : 0)
-          + (shift ? 0.5 : 0);
+          + (shift ? 0.5 : 0)
+          + (candidate.lh.length === 0 || candidate.rh.length === 0 ? SINGLE_HAND_PENALTY : 0);
         out.push({ technique: t, count: variants.length, variant: candidate, index, shift, penalty });
       }
     });
@@ -1604,7 +1641,8 @@ function passingCandidates(chord) {
       for (const shift of [0, -12, 12]) {
         const candidate = shift ? shiftVariant(v, shift) : v;
         if (shift && !chainRegisterOk(candidate)) continue;
-        out.push({ technique: t, count: variants.length, variant: candidate, index, penalty: penalty + (shift ? 0.5 : 0) });
+        const oneHand = candidate.lh.length === 0 || candidate.rh.length === 0;
+        out.push({ technique: t, count: variants.length, variant: candidate, index, penalty: penalty + (shift ? 0.5 : 0) + (oneHand ? SINGLE_HAND_PENALTY : 0) });
       }
     });
   }
