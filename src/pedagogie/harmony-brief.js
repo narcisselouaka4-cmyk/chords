@@ -7,6 +7,8 @@ import {extractKey} from './intent-classifier.js';
 import {reviewTake} from '../recorder/take-review.js';
 import {samePlayingSource} from './personal-source.js';
 import {isExplanationQuestion} from './proposal-explanation.js';
+import {harmonyStyleFamilies,harmonyColors,findHarmonyStyle,findHarmonyColors,withoutStyleWords} from './harmony-preferences.js';
+import {requestedPersonalStyle} from './style-capabilities.js';
 const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'").toLowerCase();
 const pc=n=>(n%12+12)%12;
 const names=['Do','Ré♭','Ré','Mi♭','Mi','Fa','Fa♯','Sol','La♭','La','Si♭','Si'];
@@ -17,7 +19,29 @@ const keyFrom=s=>extractKey(String(s||'').replace(/♭/g,'b').replace(/♯/g,'#'
 const action=(label,message=label)=>({label,message});
 const chord=(degree,k)=>names[pc(k.rootPc+scale(k)[degree-1])]+(k.minor?[' mineur',' diminué','',' mineur',' mineur','','']:['',' mineur',' mineur','','',' mineur',' diminué'])[degree-1];
 const styleText={ccm:'couleurs CCM',jazz:'couleurs jazz',neutral:'couleurs libres'};
-const unsupported=/\b(salsa|montuno|merengue|bossa|reggae|zouk|compas|bachata|rumba|rock|blues|funk|classique)\b/i;
+const familyActions=()=>[...harmonyStyleFamilies.map(f=>action(f.label,`Voir les styles : ${f.label}.`)),action('Autre style…','Je veux écrire un autre style.'),action('Choisis pour moi','Choisis une couleur pour moi.')];
+const profileActions=()=>[action('Palette chaleureuse','Essayer seulement la palette chaleureuse.'),action('Palette jazz','Essayer seulement la palette jazz.'),action('Sans couleur imposée','Essayer sans couleur imposée.'),action('Choisir un autre style','Revenir aux familles de styles.')];
+const colorActions=()=>[...harmonyColors.slice(0,5).map(c=>action(c.label,`Ma couleur : ${c.label}`)),action('Autres nuances','Voir les autres nuances.'),action('Garder cet équilibre','Garder la couleur de ce style.')];
+function styleQuestion(state,take){
+ state.stage='style';
+ const family=harmonyStyleFamilies.find(f=>f.id===state.styleFamily);
+ if(family)return result(state,take,`${family.label} : quelle direction préfères-tu ?${family.id==='gospel'?' Le worship (aussi appelé CCM) désigne ici la louange contemporaine.':''} Tu peux aussi écrire ton propre style.`,[...family.styles.map(s=>action(s.label,`Mon style : ${s.label}`)),action('Toutes les familles','Revenir aux familles de styles.')]);
+ return result(state,take,'Dans quel style veux-tu travailler ? Choisis une famille, écris un style ou cite un morceau de référence. Tu peux aussi me laisser choisir. Le rythme de ta prise sera conservé ; je préciserai ce que je sais réellement réaliser.',familyActions());
+}
+function selectStyle(state,take,choice,text){
+ state.requestedStyle={id:choice?.id||'custom',label:choice?.label||text.slice(0,180),text};delete state.styleFamily;
+ state.colorConfirmed=false;delete state.requestedColor;delete state.colorPassages;delete state.colorScope;delete state.styleScope;
+ if(!choice?.profile){
+  state.stage='style-scope';delete state.style;
+  return result(state,take,`Je garde ton souhait : « ${state.requestedStyle.label} ». Je ne sais pas encore en réaliser un accompagnement fidèle. Je peux essayer une harmonisation avec la palette chaleureuse ou jazz, en gardant ta mélodie et ton rythme. Ce sera une alternative, pas une version de ce style. Veux-tu l’essayer ?`,profileActions());
+ }
+ state.style=choice.profile;state.styleScope='harmonic-palette';return next(state,take);
+}
+function colorQuestion(state,take,other=false){
+ state.stage='color';
+ return result(state,take,`Style souhaité : ${state.requestedStyle?.label||'sans style imposé'}. Quelle couleur veux-tu lui donner ? Tu peux combiner les mots, par exemple « chaleureux et aéré », ou écrire une autre nuance.`,other?
+  [...harmonyColors.slice(5).map(c=>action(c.label,`Ma couleur : ${c.label}`)),action('Écrire une nuance','Je veux écrire une autre nuance.'),action('Premières couleurs','Voir les premières couleurs.'),action('Garder cet équilibre','Garder la couleur de ce style.')]:colorActions());
+}
 const degreeActions=[action('Propose un parcours','Je ne connais pas la progression, propose un parcours.')];
 const roots={do:0,re:2,mi:4,fa:5,sol:7,la:9,si:11,c:0,d:2,e:4,f:5,g:7,a:9,b:11};
 function rootDegree(token,key){
@@ -52,8 +76,9 @@ function result(state,take,content,actions,preview=false){
 }
 function requestFor(state){
  const key=names[state.key.rootPc].replace(/♭/g,'b').replace(/♯/g,'#')+(state.key.minor?' mineur':' majeur');
- const original=state.request.replace(/\b(?:ccm|jazz|worship|gospel|salsa|montuno|merengue|bossa|reggae|zouk|compas|bachata|rumba|rock|blues|funk|classique)\b/gi,'').replace(/appuis(?: valid[eé]s)?\s*:[^\n.]+/gi,'');
+ const original=withoutStyleWords(state.request,state.requestedStyle?.id==='custom'?state.requestedStyle.text:null).replace(/appuis(?: valid[eé]s)?\s*:[^\n.]+/gi,'');
  return `Fais-moi entendre ma mélodie harmonisée sur ${state.degrees.join('-')} en ${key}. Avec quelques accords de passage.\n${original}\n${styleText[state.style]}.`
+  +(state.colorPassages===false?' Sans accords de passage.':state.colorPassages===true?' Avec quelques accords de passage.':'')
   +(state.arrivals?.length?`\nAppuis validés : ${state.arrivals.map(a=>`${a.degree} à ${stamp(a.at)}`).join(' ; ')}.`:'')
   +'\nConserve toutes les notes et le rythme de ma mélodie. Maintiens les voicings entre les appuis.'
   +(!/appoggiature|ornement|grace notes?/.test(plain(state.request))?' Sans appoggiature.':'');
@@ -77,8 +102,8 @@ function proposeProgression(state,take){
  return possible.sort((a,b)=>a.score-b.score)[0]||null;
 }
 function next(state,take){
- if(!state.style){state.stage='style';return result(state,take,(state.unsupportedStyle?`Je ne sais pas encore réaliser une version ${state.unsupportedStyle}. `:'')+'Quelle couleur veux-tu pour cette harmonisation ? Je garderai ton rythme : il s’agit de couleurs d’accords, pas d’une conversion complète de style.',[
-  action('CCM chaleureux','Des couleurs CCM.'),action('Jazz','Des couleurs jazz.'),action('Choisis pour moi','Choisis une couleur pour moi.')]);}
+ if(!state.style)return styleQuestion(state,take);
+ if(state.colorConfirmed===false)return colorQuestion(state,take);
  if(!state.melodyConfirmed){state.stage='melody';return result(state,take,'J’ai repéré une ligne surtout mélodique. Est-ce que toutes les notes de cette prise sont la mélodie à conserver ?',[
   action('Oui, toutes les notes','Oui, toutes ces notes sont ma mélodie.'),action('Il y a aussi un accompagnement','Il y a aussi des notes d’accompagnement.')],true);}
  if(!state.key){state.stage='key';return result(state,take,'Je n’ai pas assez de repères pour choisir une tonalité. La connais-tu ? Tu peux écrire par exemple « Do majeur », ou me laisser essayer une couleur.',[
@@ -88,7 +113,8 @@ function next(state,take){
  if(!state.arrivals){state.stage='progression';delete state.degrees;return result(state,take,'Je n’arrive pas à placer cette progression sur ta mélodie avec assez de repères. Je peux chercher un autre parcours, ou tu peux indiquer les changements d’accords.',degreeActions);}
  state.stage='arrivals';
  const summary=harmonyBriefLines(state).slice(0,4).join('\n');
- return result(state,take,`${state.progressionOrigin==='proposal'?'Voici un parcours possible, pas une progression détectée dans tes notes.':'Je garde la progression que tu as donnée.'}\n\nAu début, je propose ces changements :\n${summary}\n\nTu peux vérifier tous les appuis ci-dessous. Ces moments te conviennent-ils ? Tu peux aussi écrire une correction, par exemple « Sol à 0:04 ; La mineur à 0:07 ».`,[
+ const wishes=state.requestedStyle?`Souhait : ${state.requestedStyle.label}${state.requestedColor?`, ${state.requestedColor.label}`:''}. Essai : ${state.style==='ccm'?'palette chaleureuse':state.style==='jazz'?'palette jazz':'couleurs libres'}, rythme conservé.${state.styleScope==='alternative'?' Le style demandé n’est pas reproduit.':''}${state.colorScope==='alternative'?' La nuance demandée n’a pas de réglage dédié.':''}\n\n`:'';
+ return result(state,take,`${wishes}${state.progressionOrigin==='proposal'?'Voici un parcours possible, pas une progression détectée dans tes notes.':'Je garde la progression que tu as donnée.'}\n\nAu début, je propose ces changements :\n${summary}\n\nTu peux vérifier tous les appuis ci-dessous. Ces moments te conviennent-ils ? Tu peux aussi écrire une correction, par exemple « Sol à 0:04 ; La mineur à 0:07 ».`,[
   action('Ces appuis me conviennent','Ces appuis me conviennent, fais-moi entendre cette harmonisation.'),action('Modifier les appuis','Je veux modifier les moments des changements d’accords.'),action('Un autre parcours','Propose un autre parcours harmonique.')],true);
 }
 
@@ -111,34 +137,70 @@ export function harmonyBriefTurn({message,messages=[],context}){
  if(restart&&latest?.toolResult.harmonyBrief.status==='ready'){
   const state={...JSON.parse(JSON.stringify(latest.toolResult.harmonyBrief)),status:'pending',stage:'review'};
   return result(state,take,'Je garde les choix de cette harmonisation. Que veux-tu revoir ?',[
-   action('La couleur','Changer la couleur de cette harmonisation.'),action('La progression','Changer la progression de cette harmonisation.'),action('Les appuis','Revoir les appuis de cette harmonisation.')]);
+   action('Le style','Changer le style de cette harmonisation.'),action('La couleur','Changer la couleur de cette harmonisation.'),action('La progression','Changer la progression de cette harmonisation.'),action('Les appuis','Revoir les appuis de cette harmonisation.')]);
  }
  const review=reviewTake(take.events),declared=keyFrom(message),stored=keyFrom(`en ${take.key||''}`),key=declared||stored||
   (review.key?.confidence>=.7?{rootPc:review.key.pc,minor:review.key.mode==='minor'}:null);
+ const declaredStyle=findHarmonyStyle(message),legacyColor=(!declaredStyle||Boolean(declaredStyle.profile))&&/des couleurs?\s+(?:ccm|jazz)|\bcouleurs? ccm\b/.test(t);
  let state=pending&&!restart?JSON.parse(JSON.stringify(pending)):{version:1,status:'pending',request:message,stage:'style',key,keyOrigin:declared?'user':stored?'source':key?'hypothesis':null,
-  degrees:suppliedProgression(message,key)?.valid?suppliedProgression(message,key).degrees:null,progressionOrigin:'user',style:/\bccm\b/.test(t)?'ccm':/\bjazz\b/.test(t)?'jazz':null,
-  unsupportedStyle:unsupported.exec(t)?.[1],
+  degrees:suppliedProgression(message,key)?.valid?suppliedProgression(message,key).degrees:null,progressionOrigin:'user',style:legacyColor?(/\bccm\b/.test(t)?'ccm':'jazz'):null,
+  colorConfirmed:legacyColor,
   melodyConfirmed:/uniquement.*melodi|seulement.*melodi|que.*melodi|que des notes/.test(t)};
  if(/annul.*guidage|annul.*harmonis/.test(t)){
   state.status='cancelled';return result(state,take,'D’accord, je garde ta prise et j’arrête ce guidage.',[action('Rejouer ma prise','Rejoue mon jeu.')]);
  }
  if(pending&&!restart){
+  if(state.stage==='color-scope'&&!/^essayer\b/.test(t)&&(/revoir les couleurs/.test(t)||findHarmonyColors(message).length))state.stage='color';
   if(state.stage==='review'){
-   if(/couleur|style/.test(t)){delete state.style;return next(state,take);}
+   if(/style/.test(t)){delete state.style;delete state.styleFamily;state.colorConfirmed=false;return next(state,take);}
+   if(/couleur/.test(t)){state.colorConfirmed=false;return colorQuestion(state,take);}
    if(/progression|parcours/.test(t)){delete state.degrees;delete state.arrivals;return next(state,take);}
    if(/appuis|moments/.test(t))return next(state,take);
-   return result(state,take,'Tu peux revoir la couleur, la progression ou les moments où les accords changent.',[
-    action('La couleur','Changer la couleur de cette harmonisation.'),action('La progression','Changer la progression de cette harmonisation.'),action('Les appuis','Revoir les appuis de cette harmonisation.')]);
+   return result(state,take,'Tu peux revoir le style, la couleur, la progression ou les moments où les accords changent.',[
+    action('Le style','Changer le style de cette harmonisation.'),action('La couleur','Changer la couleur de cette harmonisation.'),action('La progression','Changer la progression de cette harmonisation.'),action('Les appuis','Revoir les appuis de cette harmonisation.')]);
   }
   if(state.stage==='arrivals'&&/propose.*parcours|change.*progression/.test(t)){
    if(state.degrees)state.excludedProgressions=[...new Set([...(state.excludedProgressions||[]),state.degrees.join('-')])];
    state.stage='progression';delete state.arrivals;delete state.degrees;
   }
-  if(state.stage==='style'){
-   if(/ccm|worship/.test(t))state.style='ccm';else if(/jazz/.test(t))state.style='jazz';else if(/choisis|sans style|comme tu veux|pas de preference/.test(t))state.style='neutral';
-   else return result(state,take,'Je ne sais pas encore réaliser toutes les harmonisations de style. Pour cette prise, je peux essayer des couleurs CCM, jazz, ou sans style imposé en gardant ton rythme.',[
-    action('CCM chaleureux','Des couleurs CCM.'),action('Jazz','Des couleurs jazz.'),action('Choisis pour moi','Choisis une couleur pour moi.')]);
-   delete state.unsupportedStyle;
+  if(['style','style-scope','color','color-scope'].includes(state.stage)){
+   if(/revenir aux familles|toutes les familles/.test(t)){delete state.style;delete state.styleFamily;return styleQuestion(state,take);}
+   if(state.stage==='style-scope'||state.stage==='color-scope'){
+    const accepted=/^essayer seulement la palette chaleureuse\.?$/.test(t)?'ccm':/^essayer seulement la palette jazz\.?$/.test(t)?'jazz':/^essayer sans couleur imposee\.?$/.test(t)?'neutral':null;
+    if(!accepted&&state.stage==='style-scope'&&(declaredStyle||legacyColor)){
+     if(legacyColor){state.style=/ccm/.test(t)?'ccm':'jazz';state.styleScope='alternative';state.colorConfirmed=true;return next(state,take);}
+     return selectStyle(state,take,declaredStyle,message.replace(/^mon style\s*:\s*/i,''));
+    }
+    if(!accepted)return state.stage==='style-scope'?selectStyle(state,take,null,state.requestedStyle.text):result(state,take,'Cette nuance n’a pas encore de réglage dédié. Choisis une alternative, ou reviens aux styles.',profileActions());
+    state.style=accepted;
+    if(state.stage==='color-scope'){state.colorScope='alternative';state.colorConfirmed=true;}
+    else state.styleScope='alternative';
+   }else if(state.stage==='style'){
+    const family=harmonyStyleFamilies.find(f=>t.replace(/[.!]+$/,'')===`voir les styles : ${plain(f.label)}`||t===`voir les styles : ${f.id}`||t===plain(f.label));
+    if(family){state.styleFamily=family.id;return styleQuestion(state,take);}
+    if(/autre style|ecrire.*style/.test(t))return result(state,take,'Écris le style, un mélange de styles, un artiste ou un morceau de référence. Je conserverai ta demande et te dirai si je peux la réaliser.',[action('Toutes les familles','Revenir aux familles de styles.')]);
+    if(/choisis|sans style|comme tu veux|pas de preference/.test(t)){state.style='neutral';state.requestedStyle={id:'auto',label:'Sans style imposé',text:message};state.colorConfirmed=true;}
+    else if(legacyColor){state.style=/ccm/.test(t)?'ccm':'jazz';state.requestedStyle={id:state.style,label:state.style==='ccm'?'Gospel doux / worship':'Jazz, couleurs d’accords',text:message};state.colorConfirmed=true;}
+    else return selectStyle(state,take,declaredStyle,message.replace(/^mon style\s*:\s*/i,''));
+   }else if(state.stage==='color'){
+    if(/revoir les couleurs/.test(t))return colorQuestion(state,take);
+    if(/voir les autres nuances/.test(t))return colorQuestion(state,take,true);
+    if(/voir les premieres couleurs/.test(t))return colorQuestion(state,take);
+    if(/ecrire.*nuance/.test(t))return result(state,take,'Écris la couleur que tu souhaites. Par exemple : « chaleureux mais sobre », « mystérieux », ou une nuance que tu ne trouves pas dans la liste.',[action('Voir les nuances','Voir les autres nuances.')]);
+    if(/garder la couleur|choisis|comme tu veux|pas de preference/.test(t)){state.colorConfirmed=true;delete state.requestedColor;delete state.colorPassages;delete state.colorScope;}
+    else{
+     const colors=findHarmonyColors(message);
+     state.requestedColor={label:message.replace(/^ma couleur\s*:\s*/i,'').slice(0,180),ids:colors.map(c=>c.id),text:message};
+     if(!colors.length||colors.some(c=>!c.detail)){
+      state.stage='color-scope';return result(state,take,`Je garde la nuance « ${state.requestedColor.label} ». Elle n’a pas encore de réglage dédié. Je peux essayer une palette chaleureuse ou jazz, sans prétendre reproduire exactement cette nuance.`,[...profileActions(),action('Autre couleur','Revoir les couleurs.')]);
+     }
+     const profiles=[...new Set(colors.map(c=>c.profile).filter(Boolean))];
+     if(profiles.length>1)return result(state,take,'Tu demandes à la fois la palette douce et la palette jazz. Je ne sais pas encore les combiner de façon fiable. Quelle direction veux-tu privilégier ?',colorActions());
+     if(profiles.length)state.style=profiles[0];
+     const passages=colors.map(c=>c.passages).filter(v=>v!==undefined);state.colorPassages=passages.at(-1);
+     state.colorConfirmed=true;state.colorScope='harmonic-palette';
+    }
+   }
   }else if(state.stage==='melody'){
    if(/^oui\b|toutes.*melodi|toutes.*notes.*garder/.test(t))state.melodyConfirmed=true;
    else return result(state,take,'Je n’ai pas encore de sélection fiable pour séparer ces voix dans cette prise. Je garde tes notes intactes ; je peux te les faire réécouter. Je ne vais pas choisir à ta place des notes à supprimer.',[
@@ -186,6 +248,12 @@ export function harmonyBriefTurn({message,messages=[],context}){
     if(state.arrivals.length<3||state.arrivals.some((a,i)=>i&&a.at<=state.arrivals[i-1].at))return result(pending,take,'Il faut garder des appuis distincts pour préparer la phrase. Je conserve les appuis précédents ; vérifie leurs moments.',[action('Réécouter ma prise','Rejoue mon jeu.')],true);
    }
   }
+ }else if(declaredStyle&&!legacyColor)return selectStyle(state,take,declaredStyle,message);
+ else if(!state.style){
+  const family=harmonyStyleFamilies.find(f=>new RegExp(`\\b${f.id}\\b`).test(t));
+  if(family){state.styleFamily=family.id;return styleQuestion(state,take);}
+  const custom=requestedPersonalStyle(message)||/(?:en style|dans le style|style souhaité\s*:)\s+([^.!?\n]+)/i.exec(message)?.[1];
+  if(custom)return selectStyle(state,take,null,custom);
  }
  return next(state,take);
 }

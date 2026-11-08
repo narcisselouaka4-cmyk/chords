@@ -1852,7 +1852,9 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     if(guided?.request){
       const generated=await sendCopilotMessageRaw({message:guided.request,messages,context,conversationId,copilotStyleId,review,skipHarmonyBrief:true});
       const brief=guided.brief.status==='ready'&&!generated.toolResult?.variants?.length?{...guided.brief,status:'pending',stage:'arrivals'}:guided.brief;
-      return {...generated,toolResult:{...generated.toolResult,harmonyBrief:brief,originalTake:context.playing.passage}};
+      const scope=brief.styleScope==='alternative'?`\n\nTon souhait « ${brief.requestedStyle.label} » est conservé. Cet essai utilise seulement la palette ${brief.style==='ccm'?'chaleureuse':brief.style==='jazz'?'jazz':'libre'} que tu as acceptée, en gardant ton rythme.`:'';
+      const colorScope=brief.colorScope==='alternative'?`\nLa nuance « ${brief.requestedColor.label} » reste un souhait ; elle n’a pas encore de réglage dédié.`:'';
+      return {...generated,content:generated.content+scope+colorScope,toolResult:{...generated.toolResult,harmonyBrief:brief,originalTake:context.playing.passage}};
     }
   }
   if((review||/qu['’]en penses|ton avis|analyse (?:ma session|mon jeu)/i.test(message))&&!/hasard|n'importe quoi|al[eé]atoire/.test(message)&&melodySource(context?.playing?.passage))return {ok:true,content:'Ta session contient surtout une mélodie, avec quelques notes qui se chevauchent. Ces chevauchements ne suffisent pas à retrouver une progression d’accords. Je peux te proposer un accompagnement sous cette mélodie en gardant tes notes et ton rythme.',toolResult:{played:[],ignored:0,suggestions:[],example:null,voicing:null,originalTake:context.playing.passage},suggestedActions:[{label:'Accompagner ma mélodie',message:'Fais-moi entendre un accompagnement sous ma mélodie.'},{label:'Rejouer mon jeu',message:'Rejoue mon jeu.'}],autoplay:false};

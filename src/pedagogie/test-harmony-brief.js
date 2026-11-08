@@ -22,7 +22,7 @@ try{
  const actions=answerActions({role:'assistant',...r},{last:true,source:'session'});
  assert.deepEqual(actions,r.suggestedActions);assert(!actions.some(a=>/version enrichie|autre proposition/.test(a.message)));
  assert.deepEqual(answerActions({role:'assistant',...r},{last:false}),[],'Les anciens choix ne restent pas des commandes actives');
- r=await c.turn('Je veux une version salsa.');pending(r,'style');assert.match(r.content,/ne sais pas encore/);
+ r=await c.turn('Je veux une version salsa.');pending(r,'style-scope');assert.match(r.content,/ne sais pas encore/);assert.equal(r.toolResult.harmonyBrief.requestedStyle.id,'salsa');
  r=await c.turn('Des couleurs CCM.');pending(r,'melody');assert(r.toolResult.harmonyBriefPreview);
  r=await c.turn('Il y a aussi des notes d’accompagnement.');pending(r,'melody');assert.match(r.content,/pas.*sélection fiable/);assert.doesNotMatch(r.content,/réenregistre|recommence ta prise/);
  const replay=await c.turn('Rejoue mon jeu.');assert(replay.toolResult.example?.events?.length);assert(!replay.toolResult.variants);
@@ -60,7 +60,7 @@ try{
  assert(answerActions({role:'assistant',...r},{last:true,source:'session'}).some(a=>/guidage/.test(a.message)));
  const choices=JSON.stringify(r.toolResult.harmonyBrief.arrivals);
  r=await c.turn('Reprendre le guidage de cette harmonisation.');pending(r,'review');
- r=await c.turn('Changer la couleur de cette harmonisation.');pending(r,'style');
+ r=await c.turn('Changer le style de cette harmonisation.');pending(r,'style');
  r=await c.turn('Des couleurs jazz.');pending(r,'arrivals');assert.equal(JSON.stringify(r.toolResult.harmonyBrief.arrivals),choices);
  r=await c.turn('Ces appuis me conviennent, fais-moi entendre cette harmonisation.');
  assert(r.toolResult.variants?.length);assert.equal(r.toolResult.variants[0].colorProfile,'jazz');assert.equal(r.toolResult.harmonyBrief.style,'jazz');
