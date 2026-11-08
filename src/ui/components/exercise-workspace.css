@@ -202,6 +202,11 @@
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-actions { margin-top: auto; padding-top: 8px; gap: 8px; }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-actions select { max-width: 190px; }
 :root[data-skin] #practice-tab #practice-view-exercices .exercise-doubled-note { max-width: 560px; margin: 0; font-size: 10px; line-height: 1.5; }
+/* [Claude] — 2026-11-08 — Narcisse : « le panneau de droite a un fond blanc
+   [...] le panneau de gauche a un fond transparent. Je veux que le panneau
+   de droite ait le même fond que le panneau de gauche. » En Parcours
+   harmonique, .tr-exercise-brief (gauche) n'a jamais eu de fond : ce panneau
+   doit donc perdre le sien pour redevenir transparent, comme lui. */
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-progress {
   grid-column: 3;
   grid-row: 1;
@@ -212,7 +217,6 @@
   overflow: auto;
   padding: 24px 20px;
   border-left: 1px solid var(--tr-border);
-  background: color-mix(in srgb, var(--tr-text) 2%, var(--tr-surface));
 }
 /* [Claude] — 2026-11-06 — .exercise-chord-side est maintenant le SEUL contenu
    de .tr-exercise-progress dans les deux modes (la progression a migré dans
@@ -1107,11 +1111,20 @@
   justify-content: center;
 }
 
+/* [Claude] — 2026-11-08 — Suite du fond transparent demandé ci-dessus : en
+   Accord cible, .chord-explorer-left (gauche) reste une vraie carte (fond,
+   bordure, rayon 14px) — Narcisse n'a rien annoté dessus. « Même logique »
+   ici veut dire que le panneau de droite doit être « le même type de
+   panneau » que celui de gauche, pas transparent comme lui : il reprend
+   donc la carte de l'Explorer plutôt que de rester nu. */
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-exercise-progress.is-chord-side {
   grid-column: 3;
   grid-row: 1;
   max-height: none;
   height: 100%;
+  border: 1px solid var(--tr-border);
+  border-radius: 14px;
+  background: var(--tr-surface);
 }
 
 /* ---------------------------------------------------------- Colonne de gauche : Explorer */
