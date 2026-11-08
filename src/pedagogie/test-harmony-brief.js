@@ -45,10 +45,12 @@ try{
  // appui du même degré : nécessaire pour une fin qui varie.
  r=await c.turn('La mineur à 0:21,7');pending(r,'arrivals');
  assert.equal(r.toolResult.harmonyBrief.arrivals.find(a=>a.at===21.733).degree,6);
+ assert(r.toolResult.harmonyBrief.planning?.correctedByUser);
+ assert(r.toolResult.harmonyBrief.planning.evidence.every(e=>r.toolResult.harmonyBrief.arrivals.some(a=>a.at===e.at&&a.degree===e.degree)),'Aucune ancienne preuve de degré après une correction');
  // Ajouter un changement absent puis l'enlever ne supprime aucune note de
  // la prise. Le placement revient à celui d'avant cette édition.
  const corrected=JSON.stringify(r.toolResult.harmonyBrief.arrivals);
- r=await c.turn('Sol à 0:27,7');pending(r,'arrivals');assert(r.toolResult.harmonyBrief.arrivals.some(a=>a.at===27.696&&a.degree===5));
+ r=await c.turn('Ajoute un appui Sol à 0:27,7');pending(r,'arrivals');assert(r.toolResult.harmonyBrief.arrivals.some(a=>a.at===27.696&&a.degree===5));
  r=await c.turn('Retire l’appui à 0:27,7');pending(r,'arrivals');assert.equal(JSON.stringify(r.toolResult.harmonyBrief.arrivals),corrected);
  const memory=buildConversationMemory(c.history,{take:source});assert.equal(memory.harmonyBrief.style,'ccm');assert(memory.harmonyBrief.melodyConfirmed);
  assert.match(conversationMemoryContext(memory),/parcours proposé reste une possibilité/);

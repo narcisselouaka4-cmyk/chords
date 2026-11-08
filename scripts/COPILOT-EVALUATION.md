@@ -1,8 +1,25 @@
 # État de départ et écoutes comparatives de Copilot
 
-Ce dispositif mesure une dépendance précise à la grammaire issue de la référence
+Le protocole comparatif historique mesure une dépendance précise à la grammaire issue de la référence
 approuvée. Il ne constitue ni un nouveau moteur d'IA ni un test sur des prises inconnues.
 Le comportement habituel de l'application reste inchangé.
+
+## Évaluer le guidage sans donner une grille
+
+Sur une version commitée, le client normal peut aussi préparer les questions et
+choisir lui-même le parcours (dossier de sortie neuf obligatoire) :
+
+```bash
+node scripts/copilot-melody-evaluation.mjs /chemin/session /chemin/nouvelle-ecoute 'Harmonise ma mélodie en couleurs CCM.' --guided
+python3 scripts/copilot-render.py /chemin/nouvelle-ecoute
+```
+
+Les réponses de test confirment le rôle mélodique, acceptent une tonalité d'essai
+si nécessaire, demandent un parcours puis confirment les appuis proposés. Aucun
+degré, accord ou horaire n'est fourni par le script. Le dialogue complet est
+conservé dans le manifeste, les appels réseau sont interdits. Cette écoute n'est
+pas aveugle et une prise déjà travaillée ne devient pas une prise indépendante.
+Ce mode ne modifie pas le protocole comparatif historique ci-dessous.
 
 ## Préparer une série, dans cet ordre
 
