@@ -141,6 +141,7 @@ function positions(w,spec,pairs,register){
    +tight*6+heldClashes*6+(notes[0]<register.floor?6:0)+(pc(notes[0])===spec.rootPc?0:spec.preferRootBass?8:1)+(notes.length===3?.6:0)});
  };
  // Le drop 2 est construit à partir d'un accord serré de quatre sons réel.
+ if(spec.lockedNotes){accept(spec.lockedNotes,spec.lockedTechnique);return result;}
  if(tones.size===4){const close=[...tones].map(t=>{let n=top;while(pc(n-spec.rootPc)!==t)n--;return n;}).sort((a,b)=>a-b);
   accept([close[0],close[1],close[2]-12,close[3]],'drop2');}
  const q=spec.quality,third=minor(q)||q==='dim7'?3:4,guide=q==='m'||q==='add9'?7:/dim7|^6$/.test(q)?9:/maj/.test(q)?11:10;
@@ -162,17 +163,22 @@ function positions(w,spec,pairs,register){
  return result.sort((a,b)=>a.cost-b.cost).slice(0,16);
 }
 
-function chooseSegments(windows,pairs,key,profile,checkMelody=false){
+function chooseSegments(windows,pairs,key,profile,checkMelody=false,lockedHarmony=[]){
  const lowest=Math.min(...windows.map(w=>w.source.event.note));
  const register={tonic:key.rootPc,floor:lowest-pc(lowest-key.rootPc)-12};
  const pools=windows.map(w=>{
   const a=w.anchor;
+  const locked=lockedHarmony.find(h=>h.at===w.at&&h.kind===w.kind);
+  if(locked)return positions(w,{rootPc:locked.rootPc,quality:locked.quality,lockedNotes:locked.notes,preferRootBass:true,
+   lockedTechnique:locked.technique,warm:profile==='ccm',function:locked.function},pairs,register)
+   .filter(v=>JSON.stringify(v.notes)===JSON.stringify(locked.notes));
   const qualities=w.kind==='dominant'?(profile==='ccm'&&!minor(w.target.quality)?['m7']:minor(w.target.quality)?['7b9b13','13','7b9','7']:['13','7b9b13','7']):a.leadingTone?['dim7']:a.color?[a.color]:
    profile==='ccm'&&!key.minor&&[1,4].includes(a.degree)?['sus2','add9','maj7']:profile==='ccm'&&!key.minor&&a.degree===5?['add9','7sus4','7']:
    !key.minor&&[1,4].includes(a.degree)?['6','maj7','maj9']:a.degree===5&&!key.minor?['13','9','7']:a.quality==='m7'?['m7','m']:[a.quality];
   const rootPc=w.kind==='dominant'?pc(w.target.rootPc+7):a.leadingTone?pc(a.rootPc+1):a.rootPc;
   const targetRootPc=w.kind==='dominant'?pc(w.target.rootPc+(w.target.leadingTone?1:0)):a.leadingTone?a.targetRootPc:null;
   return qualities.flatMap((quality,rank)=>positions(w,{rootPc,quality,rank,warm:profile==='ccm',checkMelody,
+   ...(a.rootBass&&w.kind==='arrival'?{rootBass:true}:{}),
    ...(a.leadingTone&&w.kind==='arrival'?{rootBass:true,rootName:['Si','Si♯','Do♯','Ré','Ré♯','Mi','Mi♯','Fa♯','Sol','Sol♯','La','La♯'][targetRootPc]}:{}),
    ...(profile==='ccm'&&w.kind==='arrival'&&a.closure&&a.degree===1&&quality==='sus2'?{rootBass:true}:{}),
    ...(profile==='ccm'&&w.kind==='arrival'&&a.closure&&a.degree===5&&quality==='add9'?{rootBass:true}:{}),
@@ -192,13 +198,29 @@ function chooseSegments(windows,pairs,key,profile,checkMelody=false){
  return beam[0].chosen.map((v,i)=>({...windows[i],...v}));
 }
 
-export function buildArrivalAccompaniment(take,{pairs,key,map,request,message}){
+export function buildArrivalAccompaniment(take,{pairs,key,map,request,message,constraints=null}){
  const plan=melodyArrivalPlan(pairs,request,key,message),{anchors,line}=plan;if(anchors.length<3)return null;
+ const lockedHarmony=constraints?.lockedHarmony||[];
+ if(constraints?.arrivals){
+  if(constraints.arrivals.length!==anchors.length)return null;
+  for(const [i,a]of anchors.entries()){
+   const c=constraints.arrivals[i];
+   if(c.sourceOn!==a.sourceOn||c.at!==a.at||c.degree!==a.degree||c.melody!==a.melody)return null;
+   if(c.color)a.color=c.color;if(c.rootBass)a.rootBass=true;
+  }
+ }
+ // Les positions conservées doivent appartenir à cette prise et à ces appuis.
+ // Le contrôle des notes et des mains reste celui du générateur habituel.
+ if(!Array.isArray(lockedHarmony)||lockedHarmony.length>128||lockedHarmony.some(h=>!['arrival','dominant'].includes(h.kind)
+  ||!Number.isFinite(h.at)||!Number.isFinite(h.end)||h.end<=h.at||h.end>take.duration
+  ||!pairs.some(p=>p.on===h.sourceOn&&p.event.note===h.topMidi&&(p.event.time===h.at||h.kind==='dominant'&&p.event.time<h.at&&p.end>=h.at+.08))
+  ||h.kind==='arrival'&&!anchors.some(a=>a.at===h.at&&a.sourceOn===h.sourceOn)
+  ||!Array.isArray(h.notes)||!h.notes.every(Number.isInteger)||h.notes.at(-1)!==h.topMidi))return null;
  const profile=melodyColorProfile(message),checkMelody=/evite les frottements avec les notes tenues de toute la phrase/.test(text(message));
  // V suivi du relatif mineur : une sensible diminuée prépare ce mineur,
  // plutôt qu'une dominante de la tonique maquillée par une neuvième bémol.
  if(profile==='ccm'&&!key.minor)for(let i=0;i<anchors.length-1;i++)
-  if(anchors[i].degree===5&&anchors[i+1].degree===6){anchors[i].leadingTone=true;anchors[i].targetRootPc=anchors[i+1].rootPc;anchors[i+1].resolvesLeadingTone=true;}
+  if(anchors[i].degree===5&&anchors[i+1].degree===6&&!lockedHarmony.some(h=>h.at===anchors[i].at&&h.kind==='arrival')){anchors[i].leadingTone=true;anchors[i].targetRootPc=anchors[i+1].rootPc;anchors[i+1].resolvesLeadingTone=true;}
  // Couleurs exprimées par fonction : transposables, sans horaire ni session
  // inscrits dans le moteur. Une couleur impossible n'est pas annoncée à tort.
  const colors=/couleurs\s*:\s*([^\n.]+)/i.exec(text(message))?.[1]||'';
@@ -217,7 +239,15 @@ export function buildArrivalAccompaniment(take,{pairs,key,map,request,message}){
  }
  let windows=anchors.map((a,i)=>({source:pairs.find(p=>p.on===a.sourceOn),anchor:a,kind:'arrival',at:a.at,
   end:anchors[i+1]?.at??take.duration,beat:a.beat??map.points.find(p=>Math.abs(p.time-a.at)<.001)?.beat}));
- let segments=chooseSegments(windows,pairs,key,profile,checkMelody);if(!segments)return null;
+ // Reconstituer les passages conservés avant de chercher de nouveaux ajouts.
+ // Ils ne doivent pas disparaître parce que le quota de passages est atteint.
+ for(const h of lockedHarmony.filter(h=>h.kind==='dominant')){
+  const index=windows.findIndex(w=>w.kind==='arrival'&&w.at<h.at&&w.end===h.end),target=anchors.find(a=>a.at===h.end);
+  if(index<0||!target)return null;
+  windows.splice(index,1,{...windows[index],end:h.at},{source:pairs.find(p=>p.on===h.sourceOn),anchor:windows[index].anchor,target,
+   kind:'dominant',at:h.at,end:h.end,beat:h.beat});
+ }
+ let segments=chooseSegments(windows,pairs,key,profile,checkMelody,lockedHarmony);if(!segments)return null;
  const t=text(message),lastIndex=re=>[...t.matchAll(re)].at(-1)?.index??-1;
  const passages=lastIndex(/(?:avec|ajout\w*|remet\w*|reintrodu\w*|quelques).*?accords? de passage/g)>lastIndex(/sans (?:accords? de )?passage|sans mouvement|accords? fixes/g);
  if(passages){
@@ -226,19 +256,34 @@ export function buildArrivalAccompaniment(take,{pairs,key,map,request,message}){
   let count=0;
   for(const {target,base} of options){
    if(count>=4)break;
-   const source=line.filter(p=>p.event.time>=base.at+map.pulse*1.5&&p.event.time<target.at-.18).at(-1);if(!source)continue;
+   if(windows.some(w=>w.kind==='dominant'&&w.end===target.at))continue;
    const index=windows.findIndex(w=>w.kind==='arrival'&&w.at===base.at);if(index<0)continue;
-   const trial=[...windows];trial.splice(index,1,{...windows[index],end:source.event.time},
-    {source,anchor:base,target,kind:'dominant',at:source.event.time,end:target.at,beat:map.points.find(p=>Math.abs(p.time-source.event.time)<.001)?.beat});
-   const chosen=chooseSegments(trial,pairs,key,profile,checkMelody);if(!chosen)continue;windows=trial;segments=chosen;count++;
+   const played=line.filter(p=>p.event.time>=base.at+map.pulse*1.5&&p.event.time<target.at-.18).at(-1);
+   const entries=played?[{source:played,at:played.event.time,beat:map.points.find(p=>Math.abs(p.time-played.event.time)<.001)?.beat}]:[];
+   // Une mélodie tenue n'interdit pas de préparer l'accord suivant. Utiliser
+   // un temps de sa pulsation, sous une note réellement tenue, sans la rejouer.
+   if(checkMelody){
+    const beat=windows.find(w=>w.anchor===target)?.beat-1,at=map.at(beat);
+    const source=line.find(p=>p.event.time<=at&&p.end>=at+.08);
+    if(source&&at>=base.at+map.pulse*1.5&&target.at-at>=.18&&!entries.some(e=>Math.abs(e.at-at)<.08))entries.push({source,at,beat});
+   }
+   for(const entry of entries){
+    const trial=[...windows];trial.splice(index,1,{...windows[index],end:entry.at},
+     {...entry,anchor:base,target,kind:'dominant',end:target.at});
+    const chosen=chooseSegments(trial,pairs,key,profile,checkMelody,lockedHarmony);if(!chosen)continue;
+    windows=trial;segments=chosen;count++;break;
+   }
   }
  }
  const developed=profile==='ccm'&&/developp.*(?:preparations|voix interieures)/.test(t)&&!/sans developpement/.test(t);
  let development=[];
  if(developed){
+  if(lockedHarmony.length)return null; // Ne pas remplacer les positions conservées par un développement.
   const lowest=Math.min(...anchors.map(a=>a.melody)),register={tonic:key.rootPc,floor:lowest-pc(lowest-key.rootPc)-12};
   ({segments,development}=developMelodySegments(segments,pairs,map,(w,spec)=>positions(w,{...spec,checkMelody},pairs,register)));
  }
+ if(lockedHarmony.some(h=>!segments.some(s=>s.at===h.at&&s.kind===h.kind&&s.rootPc===h.rootPc&&s.quality===h.quality
+  &&JSON.stringify(s.notes)===JSON.stringify(h.notes))))return null;
  let notes=melodyTouchNotes(segments,pairs,map.pulse),ornaments=[];
  if(lastIndex(/(?:avec|ajout\w*|une).*?appoggiature/g)>lastIndex(/sans appoggiature|sans ornement|sans.*grace note/g))
   ({notes,ornaments}=melodyAppoggiatura(take,segments,pairs,notes,map.pulse));

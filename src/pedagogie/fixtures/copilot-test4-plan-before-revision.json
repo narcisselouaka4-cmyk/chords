@@ -1,0 +1,654 @@
+{
+  "provenance": {
+    "packId": "1ebfe6d1-c2e5-4ff8-a580-14bd438eb238",
+    "appCommit": "2bf11799509dff75326631b71752ab7e61f0129b",
+    "description": "Parcours automatique évalué par Narcisse, 8 novembre. Source MIDI dans copilot-session010.json. Ce snapshot est un témoin de régression, pas une grille du moteur."
+  },
+  "brief": {
+    "version": 1,
+    "status": "ready",
+    "request": "Harmonise ma mélodie en couleurs CCM.",
+    "stage": "arrivals",
+    "key": {
+      "rootPc": 0,
+      "minor": false
+    },
+    "keyOrigin": "hypothesis",
+    "degrees": [
+      2,
+      5,
+      3,
+      6,
+      2,
+      5,
+      1,
+      6
+    ],
+    "progressionOrigin": "proposal",
+    "style": "ccm",
+    "colorConfirmed": true,
+    "melodyConfirmed": true,
+    "arrivals": [
+      {
+        "at": 0.994,
+        "sourceOn": 0,
+        "degree": 2,
+        "melody": 65
+      },
+      {
+        "at": 2.669,
+        "sourceOn": 5,
+        "degree": 5,
+        "melody": 71
+      },
+      {
+        "at": 4.786,
+        "sourceOn": 13,
+        "degree": 3,
+        "melody": 64
+      },
+      {
+        "at": 6.496,
+        "sourceOn": 16,
+        "degree": 6,
+        "melody": 64
+      },
+      {
+        "at": 9.25,
+        "sourceOn": 27,
+        "degree": 2,
+        "melody": 65
+      },
+      {
+        "at": 11.37,
+        "sourceOn": 35,
+        "degree": 5,
+        "melody": 71
+      },
+      {
+        "at": 13.445,
+        "sourceOn": 46,
+        "degree": 1,
+        "melody": 64
+      },
+      {
+        "at": 15.022,
+        "sourceOn": 48,
+        "degree": 6,
+        "melody": 64
+      },
+      {
+        "at": 17.632,
+        "sourceOn": 59,
+        "degree": 2,
+        "melody": 65
+      },
+      {
+        "at": 19.701,
+        "sourceOn": 68,
+        "degree": 5,
+        "melody": 71
+      },
+      {
+        "at": 21.733,
+        "sourceOn": 71,
+        "degree": 1,
+        "melody": 76
+      },
+      {
+        "at": 24.704,
+        "sourceOn": 79,
+        "degree": 4,
+        "melody": 72
+      },
+      {
+        "at": 27.215,
+        "sourceOn": 89,
+        "degree": 1,
+        "melody": 72
+      },
+      {
+        "at": 29.254,
+        "sourceOn": 97,
+        "degree": 4,
+        "melody": 72
+      },
+      {
+        "at": 31.517,
+        "sourceOn": 102,
+        "degree": 1,
+        "melody": 72
+      }
+    ],
+    "planning": {
+      "method": "melody-phrase-search-v1",
+      "noteCount": 57,
+      "pulse": 0.5150000000000006,
+      "evidence": [
+        {
+          "at": 0.994,
+          "degree": 2,
+          "sustainedTones": [
+            0,
+            1,
+            3
+          ],
+          "noteCount": 3
+        },
+        {
+          "at": 2.669,
+          "degree": 5,
+          "sustainedTones": [
+            5,
+            7,
+            9,
+            11
+          ],
+          "noteCount": 4
+        },
+        {
+          "at": 4.786,
+          "degree": 3,
+          "sustainedTones": [
+            13
+          ],
+          "noteCount": 1
+        },
+        {
+          "at": 6.496,
+          "degree": 6,
+          "sustainedTones": [
+            16,
+            17,
+            21,
+            23
+          ],
+          "noteCount": 6
+        },
+        {
+          "at": 9.25,
+          "degree": 2,
+          "sustainedTones": [
+            27,
+            30,
+            31,
+            33
+          ],
+          "noteCount": 4
+        },
+        {
+          "at": 11.37,
+          "degree": 5,
+          "sustainedTones": [
+            35,
+            37,
+            40,
+            43
+          ],
+          "noteCount": 4
+        },
+        {
+          "at": 13.445,
+          "degree": 1,
+          "sustainedTones": [
+            46
+          ],
+          "noteCount": 1
+        },
+        {
+          "at": 15.022,
+          "degree": 6,
+          "sustainedTones": [
+            48,
+            49,
+            53,
+            55
+          ],
+          "noteCount": 6
+        },
+        {
+          "at": 17.632,
+          "degree": 2,
+          "sustainedTones": [
+            59,
+            62,
+            63
+          ],
+          "noteCount": 4
+        },
+        {
+          "at": 19.701,
+          "degree": 5,
+          "sustainedTones": [
+            68
+          ],
+          "noteCount": 2
+        },
+        {
+          "at": 21.733,
+          "degree": 1,
+          "sustainedTones": [
+            71,
+            74,
+            75
+          ],
+          "noteCount": 4
+        },
+        {
+          "at": 24.704,
+          "degree": 4,
+          "sustainedTones": [
+            79,
+            81
+          ],
+          "noteCount": 5
+        },
+        {
+          "at": 27.215,
+          "degree": 1,
+          "sustainedTones": [
+            89,
+            91,
+            93,
+            95
+          ],
+          "noteCount": 4
+        },
+        {
+          "at": 29.254,
+          "degree": 4,
+          "sustainedTones": [
+            97,
+            100
+          ],
+          "noteCount": 2
+        },
+        {
+          "at": 31.517,
+          "degree": 1,
+          "sustainedTones": [
+            103,
+            107,
+            109
+          ],
+          "noteCount": 6
+        }
+      ]
+    },
+    "score": 18.19355389450123
+  },
+  "request": "Améliore mon jeu avec plusieurs propositions.\nFais-moi entendre ma mélodie harmonisée sur 2-5-3-6-2-5-1-6 en Do majeur. Avec quelques accords de passage.\nHarmonise ma mélodie en couleurs .\ncouleurs CCM.\nAppuis validés : 2 à 0:00,994000 ; 5 à 0:02,669000 ; 3 à 0:04,786000 ; 6 à 0:06,496000 ; 2 à 0:09,250000 ; 5 à 0:11,370000 ; 1 à 0:13,445000 ; 6 à 0:15,022000 ; 2 à 0:17,632000 ; 5 à 0:19,701000 ; 1 à 0:21,733000 ; 4 à 0:24,704000 ; 1 à 0:27,215000 ; 4 à 0:29,254000 ; 1 à 0:31,517000.\nConserve toutes les notes et le rythme de ma mélodie. Maintiens les voicings entre les appuis. Évite les frottements avec les notes tenues de toute la phrase. Sans appoggiature.",
+  "harmony": [
+    {
+      "at": 0.994,
+      "end": 2.126,
+      "chord": "Ré mineur 7 / La",
+      "notes": [
+        57,
+        60,
+        62,
+        65
+      ],
+      "rootPc": 2,
+      "quality": "m7",
+      "technique": "guide-tone-shell",
+      "beat": 0,
+      "degree": 2,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 65,
+      "sourceOn": 0
+    },
+    {
+      "at": 2.126,
+      "end": 2.669,
+      "chord": "Ré mineur 7 / La",
+      "notes": [
+        57,
+        62,
+        65,
+        72
+      ],
+      "rootPc": 2,
+      "quality": "m7",
+      "technique": "drop2",
+      "beat": 2,
+      "kind": "dominant",
+      "goal": "passing",
+      "topMidi": 72,
+      "sourceOn": 3,
+      "function": {
+        "kind": "predominant",
+        "targetRootPc": 7
+      },
+      "targetAt": 2.669
+    },
+    {
+      "at": 2.669,
+      "end": 4.786,
+      "chord": "Sol add9",
+      "notes": [
+        55,
+        57,
+        62,
+        71
+      ],
+      "rootPc": 7,
+      "quality": "add9",
+      "technique": "guide-tone-shell",
+      "beat": 3,
+      "degree": 5,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 71,
+      "sourceOn": 5
+    },
+    {
+      "at": 4.786,
+      "end": 6.496,
+      "chord": "Mi mineur 7 / Sol",
+      "notes": [
+        55,
+        62,
+        64
+      ],
+      "rootPc": 4,
+      "quality": "m7",
+      "technique": "guide-tone-shell",
+      "beat": 7,
+      "degree": 3,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 64,
+      "sourceOn": 13
+    },
+    {
+      "at": 6.496,
+      "end": 9.25,
+      "chord": "La mineur 7 / Sol",
+      "notes": [
+        55,
+        57,
+        60,
+        64
+      ],
+      "rootPc": 9,
+      "quality": "m7",
+      "technique": "guide-tone-shell",
+      "beat": 10,
+      "degree": 6,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 64,
+      "sourceOn": 16
+    },
+    {
+      "at": 9.25,
+      "end": 10.861,
+      "chord": "Ré mineur 7 / La",
+      "notes": [
+        57,
+        60,
+        62,
+        65
+      ],
+      "rootPc": 2,
+      "quality": "m7",
+      "technique": "guide-tone-shell",
+      "beat": 15,
+      "degree": 2,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 65,
+      "sourceOn": 27
+    },
+    {
+      "at": 10.861,
+      "end": 11.37,
+      "chord": "Ré mineur 7 / La",
+      "notes": [
+        57,
+        62,
+        65,
+        72
+      ],
+      "rootPc": 2,
+      "quality": "m7",
+      "technique": "drop2",
+      "beat": 18,
+      "kind": "dominant",
+      "goal": "passing",
+      "topMidi": 72,
+      "sourceOn": 33,
+      "function": {
+        "kind": "predominant",
+        "targetRootPc": 7
+      },
+      "targetAt": 11.37
+    },
+    {
+      "at": 11.37,
+      "end": 13.445,
+      "chord": "Sol add9",
+      "notes": [
+        55,
+        57,
+        62,
+        71
+      ],
+      "rootPc": 7,
+      "quality": "add9",
+      "technique": "guide-tone-shell",
+      "beat": 19,
+      "degree": 5,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 71,
+      "sourceOn": 35
+    },
+    {
+      "at": 13.445,
+      "end": 15.022,
+      "chord": "Do add9 / Sol",
+      "notes": [
+        55,
+        60,
+        62,
+        64
+      ],
+      "rootPc": 0,
+      "quality": "add9",
+      "technique": "guide-tone-shell",
+      "beat": 23,
+      "degree": 1,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 64,
+      "sourceOn": 46
+    },
+    {
+      "at": 15.022,
+      "end": 17.632,
+      "chord": "La mineur 7 / Sol",
+      "notes": [
+        55,
+        57,
+        60,
+        64
+      ],
+      "rootPc": 9,
+      "quality": "m7",
+      "technique": "guide-tone-shell",
+      "beat": 26,
+      "degree": 6,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 64,
+      "sourceOn": 48
+    },
+    {
+      "at": 17.632,
+      "end": 19.231,
+      "chord": "Ré mineur 7 / La",
+      "notes": [
+        57,
+        60,
+        62,
+        65
+      ],
+      "rootPc": 2,
+      "quality": "m7",
+      "technique": "guide-tone-shell",
+      "beat": 31,
+      "degree": 2,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 65,
+      "sourceOn": 59
+    },
+    {
+      "at": 19.231,
+      "end": 19.701,
+      "chord": "Ré mineur 7 / La",
+      "notes": [
+        57,
+        62,
+        65,
+        72
+      ],
+      "rootPc": 2,
+      "quality": "m7",
+      "technique": "drop2",
+      "beat": 34,
+      "kind": "dominant",
+      "goal": "passing",
+      "topMidi": 72,
+      "sourceOn": 66,
+      "function": {
+        "kind": "predominant",
+        "targetRootPc": 7
+      },
+      "targetAt": 19.701
+    },
+    {
+      "at": 19.701,
+      "end": 21.733,
+      "chord": "Sol add9",
+      "notes": [
+        55,
+        57,
+        62,
+        71
+      ],
+      "rootPc": 7,
+      "quality": "add9",
+      "technique": "guide-tone-shell",
+      "beat": 35,
+      "degree": 5,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 71,
+      "sourceOn": 68
+    },
+    {
+      "at": 21.733,
+      "end": 24.704,
+      "chord": "Do add9 / Sol",
+      "notes": [
+        55,
+        62,
+        72,
+        76
+      ],
+      "rootPc": 0,
+      "quality": "add9",
+      "technique": "guide-tone-shell",
+      "beat": 39,
+      "degree": 1,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 76,
+      "sourceOn": 71
+    },
+    {
+      "at": 24.704,
+      "end": 27.215,
+      "chord": "Fa sus2 / Do",
+      "notes": [
+        60,
+        65,
+        67,
+        72
+      ],
+      "rootPc": 5,
+      "quality": "sus2",
+      "technique": "guide-tone-shell",
+      "beat": 45,
+      "degree": 4,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 72,
+      "sourceOn": 79
+    },
+    {
+      "at": 27.215,
+      "end": 29.254,
+      "chord": "Do sus2",
+      "notes": [
+        60,
+        62,
+        67,
+        72
+      ],
+      "rootPc": 0,
+      "quality": "sus2",
+      "technique": "guide-tone-shell",
+      "beat": 50,
+      "degree": 1,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 72,
+      "sourceOn": 89
+    },
+    {
+      "at": 29.254,
+      "end": 31.517,
+      "chord": "Fa sus2 / Do",
+      "notes": [
+        60,
+        65,
+        67,
+        72
+      ],
+      "rootPc": 5,
+      "quality": "sus2",
+      "technique": "guide-tone-shell",
+      "beat": 54,
+      "degree": 4,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 72,
+      "sourceOn": 97
+    },
+    {
+      "at": 31.517,
+      "end": 33.867299999999815,
+      "chord": "Do sus2",
+      "notes": [
+        60,
+        62,
+        67,
+        72
+      ],
+      "rootPc": 0,
+      "quality": "sus2",
+      "technique": "guide-tone-shell",
+      "beat": 58.5,
+      "degree": 1,
+      "kind": "arrival",
+      "goal": "accompany",
+      "topMidi": 72,
+      "sourceOn": 102
+    }
+  ]
+}

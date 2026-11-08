@@ -40,7 +40,7 @@ function segmentEvidence(line,start,end,degree,scale,key){
 /** Cherche simultanément les changements et les degrés sur la phrase entière.
  * La pulsation sert à espacer les accords ; leurs attaques restent celles du
  * pianiste. Les chiffres de classement sont internes, pas une confiance en %. */
-export function melodyHarmonicPlans(take,{key,profile=null,exclude=[],limit=12}={}){
+export function melodyHarmonicPlans(take,{key,profile=null,exclude=[],limit=12,required=[]}={}){
  if(!key||!Number.isInteger(key.rootPc)||key.rootPc<0||key.rootPc>11)return [];
  const pairs=notePairs(take?.events||[]).sort((a,b)=>a.event.time-b.event.time);
  if(pairs.length<8||pairs.length>512)return [];
@@ -49,6 +49,13 @@ export function melodyHarmonicPlans(take,{key,profile=null,exclude=[],limit=12}=
  const line=map.points.map(point=>pairs.filter(p=>Math.abs(p.event.time-point.time)<.000001)
   .sort((a,b)=>Number(b.end-b.event.time>=.12)-Number(a.end-a.event.time>=.12)||level(b)-level(a))[0]);
  if(line.some(p=>!p))return [];
+ const fixed=new Map();
+ if(!Array.isArray(required)||required.length>64)return [];
+ for(const a of required){
+  const index=line.findIndex(p=>p.on===a.sourceOn&&p.event.time===a.at&&p.event.note===a.melody);
+  if(index<0||!Number.isInteger(a.degree)||a.degree<1||a.degree>7||fixed.has(index))return [];
+  fixed.set(index,a);
+ }
  const scale=intervals(key),inKey=new Set(scale.map(n=>pc(n+key.rootPc)));
  const length=pairs.reduce((s,p)=>s+p.end-p.event.time,0);
  if(pairs.filter(p=>inKey.has(pc(p.event.note))).reduce((s,p)=>s+p.end-p.event.time,0)<length*.85)return [];
@@ -65,6 +72,7 @@ export function melodyHarmonicPlans(take,{key,profile=null,exclude=[],limit=12}=
    const beats=end===line.length?(line.at(-1).end-line[start].event.time)/map.pulse:map.points[end].beat-map.points[start].beat;
    if(beats>8.5&&end>start+1)break;
    if(beats<1.5&&end<line.length)continue;
+   if([...fixed.keys()].some(i=>i>start&&i<end))break;
    // Une fin de note longue ou une respiration peut justifier un appui entre
    // les temps réguliers, sans recaler la prise sur une grille artificielle.
    const gap=end<line.length?line[end].event.time-line[end-1].end:0;
@@ -73,6 +81,7 @@ export function melodyHarmonicPlans(take,{key,profile=null,exclude=[],limit=12}=
    ends.push({end,beats,gap});
   }
   for(const {end,beats,gap} of ends)for(let degree=1;degree<=7;degree++){
+   if(fixed.has(start)&&fixed.get(start).degree!==degree)continue;
    const evidence=segmentEvidence(line,start,end,degree,scale,key);if(!evidence)continue;
    const unstable=degree===(key.minor?2:7);
    const firstTone=pc(line[start].event.note-evidence.rootPc);
@@ -95,7 +104,7 @@ export function melodyHarmonicPlans(take,{key,profile=null,exclude=[],limit=12}=
   const signature=p.anchors.map(a=>`${a.sourceOn}:${a.degree}`).join('|');if(seen.has(signature))return false;seen.add(signature);return true;
  }).slice(0,Math.max(1,Math.min(24,limit))).map(p=>({
   degrees:p.anchors.slice(0,8).map(a=>a.degree),
-  arrivals:p.anchors.map(({at,sourceOn,degree,melody})=>({at,sourceOn,degree,melody})),cost:p.cost,
+  arrivals:p.anchors.map(({at,sourceOn,degree,melody})=>({...required.find(a=>a.sourceOn===sourceOn),at,sourceOn,degree,melody})),cost:p.cost,
   analysis:{method:'melody-phrase-search-v1',noteCount:pairs.length,pulse:map.pulse,
    evidence:p.anchors.map(({at,degree,evidence})=>({at,degree,...evidence}))},
  }));

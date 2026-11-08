@@ -10,6 +10,7 @@ import {isExplanationQuestion} from './proposal-explanation.js';
 import {harmonyStyleFamilies,harmonyColors,findHarmonyStyle,findHarmonyColors,withoutStyleWords} from './harmony-preferences.js';
 import {requestedPersonalStyle} from './style-capabilities.js';
 import {melodyHarmonicPlans,accompanimentPlanCost} from './melody-harmonic-plan.js';
+import {hasHarmonyRevision,reviseHarmonyBrief,harmonyConstraints} from './harmony-revision.js';
 const plain=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'").toLowerCase();
 const pc=n=>(n%12+12)%12;
 const names=['Do','Ré♭','Ré','Mi♭','Mi','Fa','Fa♯','Sol','La♭','La','Si♭','Si'];
@@ -67,7 +68,7 @@ function suppliedProgression(message,key){
 }
 
 export function harmonyBriefLines(state){
- return state?.key?(state.arrivals||[]).map(a=>`${clock(a.at)} : ${chord(a.degree,state.key)}, sur ${names[pc(a.melody)]}`):[];
+ return state?.key?(state.arrivals||[]).map(a=>`${clock(a.at)} : ${a.color?names[pc(state.key.rootPc+scale(state.key)[a.degree-1])]+' '+a.color:chord(a.degree,state.key)}${a.rootBass?' (fondamentale à la basse)':''}, sur ${names[pc(a.melody)]}`):[];
 }
 
 function result(state,take,content,actions,preview=false){
@@ -93,9 +94,9 @@ function planFor(state,take){
 }
 function proposeProgression(state,take){
  const possible=[];
- for(const plan of melodyHarmonicPlans(take,{key:state.key,profile:state.style,exclude:state.excludedProgressions})){
+ for(const plan of melodyHarmonicPlans(take,{key:state.key,profile:state.style,exclude:state.excludedProgressions,required:state.revision?.requiredArrivals||[]})){
   const candidate={...state,degrees:plan.degrees,arrivals:plan.arrivals,planning:plan.analysis};
-  const rendered=buildDegreeAccompaniment(take,{message:requestFor(candidate)});if(!rendered)continue;
+  const rendered=buildDegreeAccompaniment(take,{message:requestFor(candidate),constraints:harmonyConstraints(candidate)});if(!rendered)continue;
   possible.push({...candidate,progressionOrigin:'proposal',score:plan.cost+accompanimentPlanCost(rendered,take)});
  }
  return possible.sort((a,b)=>a.score-b.score)[0]||null;
@@ -111,9 +112,11 @@ function next(state,take){
  if(!state.arrivals)state.arrivals=planFor(state,take);
  if(!state.arrivals){state.stage='progression';delete state.degrees;return result(state,take,'Je n’arrive pas à placer cette progression sur ta mélodie avec assez de repères. Je peux chercher un autre parcours, ou tu peux indiquer les changements d’accords.',degreeActions);}
  state.stage='arrivals';
- const summary=harmonyBriefLines(state).slice(0,4).join('\n');
+ const changed=state.revision?.changedSourceOns;
+ const summary=harmonyBriefLines(changed?.length?{...state,arrivals:state.arrivals.filter(a=>changed.includes(a.sourceOn))}:state).slice(0,changed?.length?6:4).join('\n');
+ const revised=state.revision?`${state.revision.lockedUntil!=null?`Les voicings avant ${clock(state.revision.lockedUntil)} sont conservés ; des passages peuvent les relayer. `:''}${state.revision.removedAt?.length?`Appui retiré : ${state.revision.removedAt.map(clock).join(', ')}. `:''}`:'';
  const wishes=state.requestedStyle?`Souhait : ${state.requestedStyle.label}${state.requestedColor?`, ${state.requestedColor.label}`:''}. Essai : ${state.style==='ccm'?'palette chaleureuse':state.style==='jazz'?'palette jazz':'couleurs libres'}, rythme conservé.${state.styleScope==='alternative'?' Le style demandé n’est pas reproduit.':''}${state.colorScope==='alternative'?' La nuance demandée n’a pas de réglage dédié.':''}\n\n`:'';
- return result(state,take,`${wishes}${state.progressionOrigin==='proposal'?'Voici un parcours possible, pas une progression détectée dans tes notes.':''}${state.planning?' Je l’ai choisi en comparant plusieurs chemins sous les notes tenues de ta mélodie, puis en vérifiant les voicings.':state.progressionOrigin!=='proposal'?'Je garde la progression que tu as donnée.':''}\n\nAu début, je propose ces changements :\n${summary}\n\nTu peux vérifier tous les appuis ci-dessous. Ces moments te conviennent-ils ? Tu peux aussi écrire une correction, par exemple « Sol à 0:04 ; La mineur à 0:07 ».`,[
+ return result(state,take,`${wishes}${state.progressionOrigin==='proposal'?'Voici un parcours possible, pas une progression détectée dans tes notes.':''}${state.planning?.correctedByUser?' J’applique tes corrections au parcours proposé.':state.planning?' Je l’ai choisi en comparant plusieurs chemins sous les notes tenues de ta mélodie, puis en vérifiant les voicings.':state.progressionOrigin!=='proposal'?'Je garde la progression que tu as donnée.':''}\n\n${changed?.length?'Voici les appuis corrigés':'Au début, je propose ces changements'} :\n${summary}\n${revised}\n\nTu peux vérifier tous les appuis ci-dessous. Ces moments te conviennent-ils ? Tu peux aussi écrire une correction, par exemple « Sol à 0:04 ; La mineur à 0:07 ».`,[
   action('Ces appuis me conviennent','Ces appuis me conviennent, fais-moi entendre cette harmonisation.'),action('Modifier les appuis','Je veux modifier les moments des changements d’accords.'),action('Un autre parcours','Propose un autre parcours harmonique.')],true);
 }
 
@@ -122,7 +125,8 @@ function next(state,take){
 export function harmonyBriefTurn({message,messages=[],context}){
  const take=context?.playing?.passage;if(!take||!['autonomous','session',undefined].includes(context?.type)||!melodySource(take))return null;
  const t=plain(message),latest=[...messages].reverse().find(m=>m.role==='assistant'&&m.toolResult?.harmonyBrief?.version===1&&samePlayingSource(m.toolResult.originalTake,take));
- const pending=latest?.toolResult.harmonyBrief.status==='pending'?latest.toolResult.harmonyBrief:null;
+ const revision=latest?.toolResult.harmonyBrief.status==='ready'&&hasHarmonyRevision(plain(message));
+ const pending=revision?{...latest.toolResult.harmonyBrief,status:'pending',stage:'arrivals'}:latest?.toolResult.harmonyBrief.status==='pending'?latest.toolResult.harmonyBrief:null;
  const restart=/reprendre le guidage|recommencer le guidage|guide.*harmonis|pose.*questions.*harmonis/.test(t);
  // Une prise nouvelle constitue une frontière. Une grille explicitement
  // renseignée ou une ancienne proposition continue de suivre le chemin direct.
@@ -153,13 +157,14 @@ export function harmonyBriefTurn({message,messages=[],context}){
   if(state.stage==='review'){
    if(/style/.test(t)){delete state.style;delete state.styleFamily;state.colorConfirmed=false;return next(state,take);}
    if(/couleur/.test(t)){state.colorConfirmed=false;return colorQuestion(state,take);}
-   if(/progression|parcours/.test(t)){delete state.degrees;delete state.arrivals;delete state.planning;return next(state,take);}
+   if(/progression|parcours/.test(t)){delete state.degrees;delete state.arrivals;delete state.planning;delete state.revision;return next(state,take);}
    if(/appuis|moments/.test(t))return next(state,take);
    return result(state,take,'Tu peux revoir le style, la couleur, la progression ou les moments où les accords changent.',[
     action('Le style','Changer le style de cette harmonisation.'),action('La couleur','Changer la couleur de cette harmonisation.'),action('La progression','Changer la progression de cette harmonisation.'),action('Les appuis','Revoir les appuis de cette harmonisation.')]);
   }
   if(state.stage==='arrivals'&&/propose.*parcours|change.*progression/.test(t)){
    if(state.degrees)state.excludedProgressions=[...new Set([...(state.excludedProgressions||[]),state.degrees.join('-')])];
+   state.revision={...state.revision,lockedHarmony:state.revision?.lockedHarmony||[],requiredArrivals:state.arrivals.filter(a=>a.userConfirmed)};
    state.stage='progression';delete state.arrivals;delete state.degrees;
   }
   if(['style','style-scope','color','color-scope'].includes(state.stage)){
@@ -210,7 +215,7 @@ export function harmonyBriefTurn({message,messages=[],context}){
    if(!state.key&&/choisis|ne sais pas/.test(t)&&review.key){state.key={rootPc:review.key.pc,minor:review.key.mode==='minor'};state.keyOrigin='proposal';}
   }else if(state.stage==='progression'){
    const supplied=suppliedProgression(message,state.key);
-   if(supplied?.valid){state.degrees=supplied.degrees;state.progressionOrigin='user';delete state.arrivals;delete state.planning;}
+   if(supplied?.valid){state.degrees=supplied.degrees;state.progressionOrigin='user';delete state.arrivals;delete state.planning;delete state.revision;}
    else if(/propose|choisis|ne (?:la )?connais pas|ne sais pas|comme tu veux/.test(t)){
     const proposed=proposeProgression(state,take);
     if(!proposed)return pending.arrivals?.length?result(pending,take,'Je n’ai pas trouvé d’autre parcours vérifiable avec ces contraintes. Je garde le précédent et ta prise.',[action('Garder ce parcours','Ces appuis me conviennent, fais-moi entendre cette harmonisation.')],true):result(state,take,'Je n’ai pas trouvé de parcours vérifiable pour cette mélodie. Je garde la prise ; je peux la rejouer, ou travailler une progression que tu indiques.',[action('Rejouer ma prise','Rejoue mon jeu.')]);
@@ -219,36 +224,14 @@ export function harmonyBriefTurn({message,messages=[],context}){
   }else if(state.stage==='arrivals'){
    if(/appuis me conviennent|confirme|^oui\b|essaie ces appuis/.test(t)){
     const request=requestFor(state);
-    if(!buildDegreeAccompaniment(take,{message:request}))return result(state,take,'Ces appuis ne donnent pas encore un accompagnement vérifiable. Je garde tes notes ; tu peux modifier les changements d’accords ou demander un autre parcours.',degreeActions);
+    if(!buildDegreeAccompaniment(take,{message:request,constraints:harmonyConstraints(state)}))return result(state,take,'Ces appuis ne donnent pas encore un accompagnement vérifiable. Je garde tes notes ; tu peux modifier les changements d’accords ou demander un autre parcours.',degreeActions);
     state.status='ready';return {request,brief:state};
    }
    if(/modifier.*(?:moments|appuis)/.test(t))return result(state,take,'Indique seulement les changements à corriger : par exemple « Sol à 0:04 ; La mineur à 0:07 ». Les degrés fonctionnent aussi. Je les recalerai sur les notes réellement jouées et te montrerai le placement avant de jouer.',[action('Garder les appuis proposés','Ces appuis me conviennent, fais-moi entendre cette harmonisation.')],true);
-   const changes=[...t.matchAll(/\b([1-7]|(?:sol|do|re|mi|fa|la|si|[a-g])\s*[#b♯♭]?(?:\s+(?:mineur|majeur))?)\s+a\s*(\d{1,2}):(\d{2})(?:[,.](\d+))?/g)];
-   const removals=[...t.matchAll(/(?:retire|enleve|supprime)\s+(?:l[' ]|le )?(?:appui|changement)\s+(?:a\s+)?(\d{1,2}):(\d{2})(?:[,.](\d+))?/g)];
-   if(changes.length||removals.length){
-    const pairs=melodySource(take).pairs;
-    for(const m of removals){
-     const at=Number(m[1])*60+Number(m[2])+Number('0.'+(m[3]||0));
-     const closest=state.arrivals.map((a,i)=>({i,distance:Math.abs(a.at-at)})).sort((a,b)=>a.distance-b.distance)[0];
-     if(!closest||closest.distance>.35)return result(pending,take,'Je ne retrouve pas cet appui. Aucun changement n’est appliqué ; vérifie son moment dans le placement proposé.',[action('Réécouter ma prise','Rejoue mon jeu.')],true);
-     state.arrivals.splice(closest.i,1);
-    }
-    for(const m of changes){
-     const at=Number(m[2])*60+Number(m[3])+Number('0.'+(m[4]||0));
-     const pair=[...pairs].sort((a,b)=>Math.abs(a.event.time-at)-Math.abs(b.event.time-at))[0];
-     if(!pair||Math.abs(pair.event.time-at)>.35)return result(pending,take,'Je ne retrouve pas de note jouée assez près de ce moment. Vérifie le moment dans la prise ; je garde le placement précédent.',[action('Réécouter ma prise','Rejoue mon jeu.')],true);
-     const closest=state.arrivals.map((a,i)=>({i,distance:Math.abs(a.at-at)})).sort((a,b)=>a.distance-b.distance)[0];
-     const adding=/ajout\w*.*(?:appui|changement)|nouvel appui|nouveau changement/.test(t);
-     const index=!adding&&closest?.distance<1.5?closest.i:state.arrivals.length;
-     const degree=/^[1-7]$/.test(m[1])?Number(m[1]):rootDegree(m[1],state.key);
-     if(!degree)return result(pending,take,'Cet accord ne fait pas partie du parcours tonal proposé. Pour changer de tonalité ou choisir un autre parcours, reprends le guidage ; les appuis précédents sont conservés.',[action('Reprendre le guidage','Reprendre le guidage de cette harmonisation.')],true);
-     state.arrivals[index]={at:pair.event.time,degree,melody:pair.event.note,sourceOn:pair.on};
-    }
-    state.arrivals.sort((a,b)=>a.at-b.at);
-    if(state.arrivals.length<3||state.arrivals.some((a,i)=>i&&a.at<=state.arrivals[i-1].at))return result(pending,take,'Il faut garder des appuis distincts pour préparer la phrase. Je conserve les appuis précédents ; vérifie leurs moments.',[action('Réécouter ma prise','Rejoue mon jeu.')],true);
-    if(state.planning)state.planning={...state.planning,correctedByUser:true,
-     evidence:state.planning.evidence.filter(e=>state.arrivals.some(a=>a.at===e.at&&a.degree===e.degree))};
-   }
+   const previous=[...messages].reverse().find(m=>samePlayingSource(m.toolResult?.originalTake,take)&&m.toolResult?.variants?.length)?.toolResult.variants[0];
+   const revised=reviseHarmonyBrief(state,take,t,rootDegree,previous);
+   if(revised?.error)return result(pending,take,revised.error,[action('Réécouter ma prise','Rejoue mon jeu.')],true);
+   if(revised?.state)state=revised.state;
   }
  }else if(declaredStyle&&!legacyColor)return selectStyle(state,take,declaredStyle,message);
  else if(!state.style){

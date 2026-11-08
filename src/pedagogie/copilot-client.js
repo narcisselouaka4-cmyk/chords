@@ -1850,7 +1850,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     const guided=harmonyBriefTurn({message,messages,context});
     if(guided?.reply)return guided.reply;
     if(guided?.request){
-      const generated=await sendCopilotMessageRaw({message:guided.request,messages,context,conversationId,copilotStyleId,review,skipHarmonyBrief:true});
+      const generated=await sendCopilotMessageRaw({message:guided.request,messages,context:{...context,harmonyConstraints:{arrivals:guided.brief.arrivals,lockedHarmony:guided.brief.revision?.lockedHarmony||[]}},conversationId,copilotStyleId,review,skipHarmonyBrief:true});
       const brief=guided.brief.status==='ready'&&!generated.toolResult?.variants?.length?{...guided.brief,status:'pending',stage:'arrivals'}:guided.brief;
       const scope=brief.styleScope==='alternative'?`\n\nTon souhait « ${brief.requestedStyle.label} » est conservé. Cet essai utilise seulement la palette ${brief.style==='ccm'?'chaleureuse':brief.style==='jazz'?'jazz':'libre'} que tu as acceptée, en gardant ton rythme.`:'';
       const colorScope=brief.colorScope==='alternative'?`\nLa nuance « ${brief.requestedColor.label} » reste un souhait ; elle n’a pas encore de réglage dédié.`:'';

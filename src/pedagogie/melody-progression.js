@@ -102,7 +102,7 @@ function chooseChain(pools,windows){
  return beam[0].chosen.map((v,i)=>({...windows[i],...v}));
 }
 
-export function buildDegreeAccompaniment(take,{message='',request=requestedDegreeProgression(message)}={}){
+export function buildDegreeAccompaniment(take,{message='',request=requestedDegreeProgression(message),constraints=null}={}){
  if(!request?.valid)return null;
  const pairs=notePairs(take.events).sort((a,b)=>a.event.time-b.event.time),map=melodyBeatMap(pairs);
  if(!map)return null;
@@ -110,7 +110,7 @@ export function buildDegreeAccompaniment(take,{message='',request=requestedDegre
   ||(review?.key?.confidence>=.7?{rootPc:review.key.pc,minor:review.key.mode==='minor'}:null);
  if(!key)return null;
  if(!/une mesure par accord|quatre temps par accord|4 temps par accord/.test(plain(message)))
-  return buildArrivalAccompaniment(take,{pairs,key,map,request,message});
+  return buildArrivalAccompaniment(take,{pairs,key,map,request,message,constraints});
  const scale=key.minor?[0,2,3,5,7,8,10]:[0,2,4,5,7,9,11];
  const qualities=key.minor?['m9','m7b5','maj9','m9','m9','maj9','13']:['maj9','m9','m7','maj9','13','m9','m7b5'];
  const duration=take.duration||Math.max(...pairs.map(p=>p.end));

@@ -11,10 +11,10 @@ import {selectDistinctProposals} from './proposal-diversity.js';
 const plain = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
 /** Intentions différentes sur le même original ; chaque carte a son propre plan. */
-export function buildPhraseVariants(take, {message = '', exclude = []} = {}) {
+export function buildPhraseVariants(take, {message = '', exclude = [], constraints = null} = {}) {
   const text = plain(message);
   if(melodySource(take)){
-    const accompanied=buildMelodyAccompaniment(take,{message});
+    const accompanied=buildMelodyAccompaniment(take,{message,constraints});
     return selectDistinctProposals(accompanied?[accompanied]:[],take.events,{exclude});
   }
   const latin = analyzePlayingStyle(take).hypothesis === 'latin-montuno';

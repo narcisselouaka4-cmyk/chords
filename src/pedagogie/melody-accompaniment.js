@@ -52,12 +52,12 @@ export function melodyTechniqueAnswer({message,context}){
 }
 
 /** Ajouter un accompagnement proposé ; aucun événement mélodique supprimé ou déplacé. */
-export function buildMelodyAccompaniment(take,{message='',target=null,technique=null}={}){
+export function buildMelodyAccompaniment(take,{message='',target=null,technique=null,constraints=null}={}){
  const source=melodySource(take);if(!source)return null;
  const {pairs,attacks}=source,text=plain(message),review=reviewTake(take.events);
  if(/hasard|n'importe quoi|aleatoire|sans intention|test des touches|basses?\s*:|bassiste|sans ajouter de basse|(?:garde|conserv).*basse|(?:basse|cycle|parcours).*quartes/.test(text))return null;
  const progression=requestedDegreeProgression(message);
- if(progression&&!target)return buildDegreeAccompaniment(take,{message,request:progression});
+ if(progression&&!target)return buildDegreeAccompaniment(take,{message,request:progression,constraints});
  const key=extractKey(message)||extractKey(`en ${take.key||''}`)||
    (review.key?.confidence>=.7?{rootPc:review.key.pc,minor:review.key.mode==='minor'}:null);
  if(!key)return null;
