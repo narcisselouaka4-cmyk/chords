@@ -1,4 +1,7 @@
 import {melodySource,melodyTechniqueAnswer} from './melody-accompaniment.js';
+import {modelHarmonyRequest,modelHarmonySource,modelHarmonyData,MODEL_HARMONY_INSTRUCTIONS,realizeModelHarmony} from './model-harmonic-plan.js';
+import {PROPOSAL_POLICY} from './proposal-policy.js';
+import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
 import {harmonyBriefTurn} from './harmony-brief.js';
 import {TEACHING_GUIDANCE,readableTeachingText} from './teaching-language.js';
 import {personalStyleCapabilityAnswer} from './style-capabilities.js';
@@ -79,8 +82,9 @@ import { takeExample } from './take-attachment.js';
 // d'abord », « on ne dirait pas un assistant qui maîtrise son instrument »,
 // et une session doit être analysée : « donne des conseils et pointe ce qui ne
 // va pas »). Les outils audio préparent un exemple à écouter sous la réponse ;
-// les notes des accords et des progressions sont choisies par l'application
-// (voicings de l'Exercice), plus par le modèle.
+// Les outils pédagogiques ci-dessous utilisent les positions d’Exercices.
+// La réharmonisation du jeu personnel suit un autre parcours : le modèle
+// fournit ses hauteurs dans modelPlayingAnswer, avant ces outils.
 const COPILOT_SYSTEM_PROMPT = `Tu es l'assistant musical intégré à l'application Piano Jazz Chords : un assistant de piano et de pédagogie musicale, qui s'adresse aussi bien aux débutants qu'aux pianistes confirmés. Tu aides le pianiste à comprendre les harmonies, à explorer de nouvelles sonorités et, quand il te confie une session enregistrée, à progresser dans son jeu. Reste factuel et précis ; tes explications sont claires et concises.
 
 ${TEACHING_GUIDANCE}
@@ -1839,10 +1843,58 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
  */
 export async function sendCopilotMessage(params) {
   const reply=await sendCopilotMessageRaw(params);
+  // Les évaluations hors réseau restent disponibles, sans les présenter comme
+  // une décision du modèle sélectionné dans les réglages.
+  if(reply.toolResult?.variants?.length&&!reply.toolResult.generation){
+    reply.toolResult={...reply.toolResult,generation:{engine:'local'}};
+    reply.content='Version calculée par le moteur local, sans appel au modèle.\n\n'+reply.content;
+  }
   return reply.ok && !reply.toolResult?.memoryCommand ? {...reply,content:readableTeachingText(reply.content)} : reply;
 }
 
-async function sendCopilotMessageRaw({ message, messages = [], context, conversationId = null, copilotStyleId = 'auto', review = false, skipHarmonyBrief = false }) {
+async function modelPlayingAnswer({message,messages,context,memory,preferences}){
+  const config={...getAIConfig(),copilotDeadline:Date.now()+copilotTimeoutMs};
+  const source=modelHarmonySource(context.playing.passage,context.harmonyConstraints);
+  const generation={engine:'model',model:config.model,version:1};
+  const base={played:[],ignored:0,suggestions:[],voicing:null,originalTake:context.playing.passage,generation,proposalPolicy:PROPOSAL_POLICY,proposalDiversity:PROPOSAL_DIVERSITY};
+  if(!source.ok)return {ok:true,content:source.reason,toolResult:base,suggestedActions:[],autoplay:false};
+  source.request=message;
+  const follow=/autre|encore|plus loin/i.test(message);
+  const previous=messages.filter(m=>samePlayingSource(m.toolResult?.originalTake,source.take));
+  const exclude=follow?previous.flatMap(m=>m.toolResult?.variants||[]).map(v=>v.example?.events).filter(Boolean):[];
+  const payload=[{role:'system',content:MODEL_HARMONY_INSTRUCTIONS},
+    {role:'user',content:JSON.stringify({source:modelHarmonyData(source),memory:conversationMemoryContext(memory),recentRequests:memory.questions,preferences,request:message})}];
+  let reason='';
+  try{
+    for(let attempt=0;attempt<2;attempt++){
+      // JSON demandé par le prompt : pas de response_format obligatoire, dont
+      // le support varie suivant le fournisseur et le modèle cloud.
+      const options={includeTools:false,useMaxTokens:isOllamaCloudUrl(config.baseUrl),maxTokens:8192};
+      let result=await callChatCompletionOnce(config,buildChatCompletionPayload(config,payload,options));
+      if(!result.ok&&result.status===400&&!options.useMaxTokens&&/max_completion_tokens/i.test(result.responseText||''))
+        result=await callChatCompletionOnce(config,buildChatCompletionPayload(config,payload,{...options,useMaxTokens:true}));
+      if(!result.ok)return {...result,toolResult:base};
+      const content=result.choice?.content||'';
+      const realized=realizeModelHarmony(content,source,{exclude});
+      if(realized.ok){
+        const variants=realized.variants.map(v=>({...v,generation})),first=variants[0];
+        const scope=/appo[g]+iatur|arp[eè]g|lick/i.test(message)?' Cette version travaille les accords tenus et leurs liaisons ; les ornements et les licks ne sont pas encore pris en charge par ce parcours.':'';
+        return {ok:true,content:`${variants.length===1?'Voici une proposition':`Voici ${variants.length} propositions différentes`} préparée${variants.length===1?'':'s'} avec ${config.model}. Ta mélodie et son rythme sont conservés. La grille permet de comparer les nouveaux accords.${scope}`,
+          toolResult:{...base,phraseHarmony:true,harmonicRequest:message,example:first.example,playingAdvice:first.advice,variants},
+          suggestedActions:[],autoplay:/entendre|ecout|joue|demo/i.test(message)};
+      }
+      reason=realized.reason;
+      // Une seule correction, sous la même échéance globale. Ne jamais faire
+      // passer un échec du modèle pour une nouvelle proposition du moteur local.
+      payload.push({role:'assistant',content:content.slice(0,36000)},
+        {role:'user',content:`Le plan a été refusé : ${reason} Corrige le JSON complet, en respectant les autres contraintes. Pas de commentaire hors JSON.`});
+    }
+  }catch{return {ok:false,error:'AI_NETWORK_ERROR',toolResult:base};}
+  return {ok:true,content:'Le modèle choisi n’a pas fourni de plan d’accords jouable, même après une correction. Ta prise est conservée. Tu peux réessayer ou essayer un autre modèle.',
+    toolResult:{...base,generation:{...generation,rejected:true,validation:reason}},suggestedActions:[],autoplay:false};
+}
+
+async function sendCopilotMessageRaw({ message, messages = [], context, conversationId = null, copilotStyleId = 'auto', review = false, skipHarmonyBrief = false, generationMode = 'auto' }) {
   context = personalContext(restoreConversationPlaying(context,messages));
   const memory=buildConversationMemory(messages,{take:context?.playing?.passage,conversationId});
   const command=await memoryCommandAnswer(message,{memory});if(command)return command;
@@ -1850,7 +1902,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     const guided=harmonyBriefTurn({message,messages,context});
     if(guided?.reply)return guided.reply;
     if(guided?.request){
-      const generated=await sendCopilotMessageRaw({message:guided.request,messages,context:{...context,harmonyConstraints:{arrivals:guided.brief.arrivals,lockedHarmony:guided.brief.revision?.lockedHarmony||[]}},conversationId,copilotStyleId,review,skipHarmonyBrief:true});
+      const generated=await sendCopilotMessageRaw({message:guided.request,messages,context:{...context,harmonyConstraints:{key:guided.brief.key,arrivals:guided.brief.arrivals,lockedHarmony:guided.brief.revision?.lockedHarmony||[]}},conversationId,copilotStyleId,review,skipHarmonyBrief:true,generationMode});
       const brief=guided.brief.status==='ready'&&!generated.toolResult?.variants?.length?{...guided.brief,status:'pending',stage:'arrivals'}:guided.brief;
       const scope=brief.styleScope==='alternative'?`\n\nTon souhait « ${brief.requestedStyle.label} » est conservé. Cet essai utilise seulement la palette ${brief.style==='ccm'?'chaleureuse':brief.style==='jazz'?'jazz':'libre'} que tu as acceptée, en gardant ton rythme.`:'';
       const colorScope=brief.colorScope==='alternative'?`\nLa nuance « ${brief.requestedColor.label} » reste un souhait ; elle n’a pas encore de réglage dédié.`:'';
@@ -1880,6 +1932,12 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     if (previous?.example && previous.playingAdvice?.version !== 6 && samePlayingSource(previous.originalTake,context?.playing?.passage)) {
       return {ok:true,content:'Voici la même proposition, à comparer avec ton jeu original.',toolResult:previous,suggestedActions:[],autoplay:true};
     }
+  }
+  // Le modèle connecté reçoit les notes réelles AVANT les démonstrations et
+  // variantes déterministes. Rejouer la prise reste une lecture exacte locale.
+  if(!review&&generationMode!=='local'&&getAIConfig().apiKey&&context?.playing?.passage?.events?.length
+    &&modelHarmonyRequest(message,{hasProposal:Boolean(memory.proposals.length)})){
+    return modelPlayingAnswer({message,messages,context,memory,preferences});
   }
   const adjustment=sessionAdjustmentAnswer({message,context});
   if(adjustment)return adjustment;

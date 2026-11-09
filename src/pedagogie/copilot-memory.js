@@ -23,10 +23,10 @@ export function buildConversationMemory(messages = [], {take = null,conversation
     const r=m.toolResult;
     if(m.role!=='assistant'||m.isError||!r?.originalTake||!samePlayingSource(r.originalTake,source))return [];
     const variants=(r.variants || (r.playingAdvice ? [{title:r.example?.title,advice:r.playingAdvice}] : []))
-      .filter(v=>v.advice?.version!==6).map(v=>({id:v.id || v.advice?.id,title:excerpt(v.title || v.example?.title || 'Proposition',100),
+      .filter(v=>v.advice?.version!==6).map(v=>({id:v.id || v.advice?.id,title:excerpt(v.title || v.example?.title || 'Proposition',100),generation:v.generation||r.generation,
         harmony:(v.harmony || v.advice?.changes || []).filter(c=>c.chord&&Number.isFinite(c.at)).map(c=>({
           at:c.at,end:c.end,chord:excerpt(c.chord,100),notes:(c.notes || []).filter(Number.isInteger),kind:c.kind,goal:c.goal,targetAt:c.targetAt,source:c.source,technique:c.technique,topMidi:c.topMidi,
-          rootPc:c.rootPc,quality:c.quality,
+          rootPc:c.rootPc,quality:c.quality,reason:excerpt(c.reason,400)||undefined,
           function:c.function&&['dominant','tritone','predominant','leading-tone'].includes(c.function.kind)
             ?{kind:c.function.kind,targetRootPc:c.function.targetRootPc}:undefined,
         }))})).filter(v=>v.harmony.length);
@@ -52,7 +52,7 @@ export function conversationMemoryContext(memory) {
   for(const p of [...(memory.proposals || [])].reverse()){
     if(p.request)lines.push(`Demande ayant produit ces versions : ${p.request}`);
     for(const v of p.variants){
-      lines.push(`Proposition : ${v.title}`);
+      lines.push(`Proposition : ${v.title}${v.generation?` ; origine : ${JSON.stringify(v.generation)}`:''}`);
       // Les plans restent complets sur disque ; contexte borné pour le modèle.
       lines.push(JSON.stringify(v.harmony.slice(0,64)));
     }

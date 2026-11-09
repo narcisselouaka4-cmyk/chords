@@ -51,6 +51,11 @@ export function proposalExplanationAnswer({message,memory}) {
   for(const p of proposals){
     const variants=variantIndex?[p.variants[variantIndex]].filter(Boolean):p.variants;
     for(const v of variants){
+      if(!wanted.length&&v.generation?.engine==='model'&&detailed){
+        const reasons=v.harmony.filter(h=>h.reason).slice(0,5);
+        if(reasons.length)return {ok:true,content:reasons.map(h=>`À ${gridMoment(h.at)}, ${gridChordName(h.chord,'latin')} : ${h.reason}`).join('\n\n'),
+          toolResult:{played:[],ignored:0,suggestions:[],example:null,voicing:null},suggestedActions:[{label:'Réécouter la proposition',message:'Réécouter cette proposition.'}],autoplay:false};
+      }
       for(const id of [...wanted].reverse()){
         const candidates=v.harmony.map((h,i)=>({h,i})).filter(x=>identity(x.h.chord)===id);
         if(at!=null)candidates.sort((a,b)=>Math.abs(a.h.at-at)-Math.abs(b.h.at-at));
@@ -93,6 +98,7 @@ export function proposalExplanationAnswer({message,memory}) {
           }else content+=' Le plan permet de retrouver ses notes, mais ne précise pas la raison de ce choix.';
           if(detailed&&h.technique==='drop2')content+=' La position utilisée est un drop 2 : une voix intérieure descend d’une octave pour ouvrir l’accord.';
         }
+        if(v.generation?.engine==='model'&&h.reason)content=`${heading}${chosen} : ${h.reason}`;
         return {ok:true,content,toolResult:{played:[],ignored:0,suggestions:[],example:null,voicing:null,proposalReference:{messageIndex:p.messageIndex,variantId:v.id,at:h.at}},
           suggestedActions:[{label:'Réécouter la proposition',message:'Réécouter cette proposition.'}],autoplay:false};
       }

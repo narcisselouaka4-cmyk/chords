@@ -1,4 +1,5 @@
-// Écoute reproductible depuis une vraie session, par le client normal de Copilot.
+// Évaluation explicite du moteur LOCAL, sans cloud. Ne mesure pas le modèle
+// connecté dans l’application ; conservée pour comparer les références archivées.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -35,20 +36,20 @@ try{
   revision={fromPack:instructions.fromPack,fromPackId:previous.packId,fromPackSha256:sha(packBytes),instructions};
   for(const content of instructions.messages){
    if(typeof content!=='string'||content.length>4000)throw Error('Consigne de révision invalide.');
-   response=await sendCopilotMessage({message:content,messages:dialogue,context:{type:'autonomous'}});
+   response=await sendCopilotMessage({generationMode:'local',message:content,messages:dialogue,context:{type:'autonomous'}});
    dialogue.push({role:'user',content},{role:'assistant',...response});
   }
- }else response=await sendCopilotMessage({message,messages:[],context:{type:'session',playing:{session:take}}});
+ }else response=await sendCopilotMessage({generationMode:'local',message,messages:[],context:{type:'session',playing:{session:take}}});
  if(guided){
   dialogue.push({role:'user',content:message,take},{role:'assistant',...response});
   const answers={style:'Des couleurs CCM.',color:'Garder la couleur de ce style.',melody:'Oui, toutes ces notes sont ma mélodie.',key:'Je ne sais pas, choisis une tonalité à essayer.',progression:'Je ne connais pas la progression, propose un parcours.',arrivals:'Ces appuis me conviennent, fais-moi entendre cette harmonisation.'};
   for(let i=0;i<8&&response.toolResult?.harmonyBrief?.status==='pending';i++){
    const answer=answers[response.toolResult.harmonyBrief.stage];if(!answer)throw Error('Étape sans réponse de test : '+response.toolResult.harmonyBrief.stage);
-   response=await sendCopilotMessage({message:answer,messages:dialogue,context:{type:'autonomous'}});
+   response=await sendCopilotMessage({generationMode:'local',message:answer,messages:dialogue,context:{type:'autonomous'}});
    dialogue.push({role:'user',content:answer},{role:'assistant',...response});
   }
  }
- if(compareDevelopment)alternativeResponse=await sendCopilotMessage({message:alternativeMessage,messages:[],context:{type:'session',playing:{session:take}}});
+ if(compareDevelopment)alternativeResponse=await sendCopilotMessage({generationMode:'local',message:alternativeMessage,messages:[],context:{type:'session',playing:{session:take}}});
 }finally{globalThis.fetch=oldFetch;}
 const variant=response.toolResult?.variants?.[0];
 if(!response.ok||variant?.id!=='melody-progression'||calls)throw Error('La sélection normale n’a pas produit la progression demandée.');

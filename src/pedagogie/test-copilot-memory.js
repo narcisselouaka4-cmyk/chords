@@ -61,10 +61,12 @@ const id=(await loadPersonalMemories()).entries[0].id;
 await updatePersonalMemory({id,text:'Je préfère garder ma basse, sauf demande contraire.'});assert.match((await loadPersonalMemories()).entries[0].text,/sauf/);
 await memoryCommandAnswer('Retiens cette proposition comme référence.',{memory});
 const reference=(await loadPersonalMemories()).entries.at(-1);assert.equal(reference.reference.conversationId,'conv_fixture');assert.deepEqual(progression(reference.reference.variants[0].harmony),progression(variants[0].harmony));
-const personalised=await sendCopilotMessage({message:'Fais-moi des propositions',messages:[],context:{type:'session',playing:{session:take}}});
+// Ces deux assertions comparent les préférences du moteur local ; le parcours
+// cloud et sa mémoire sont couverts par test-model-harmonic-plan.js.
+const personalised=await sendCopilotMessage({generationMode:'local',message:'Fais-moi des propositions',messages:[],context:{type:'session',playing:{session:take}}});
 assert(personalised.toolResult.variants?.length);assert(personalised.toolResult.variants.every(v=>v.harmony.every(h=>h.goal!=='passing')),'La préférence de basse est transmise au générateur local');
 assert(!personalised.toolResult.harmonicRequest.includes('Préférences retenues'));
-const override=await sendCopilotMessage({message:'Fais-moi des propositions avec un autre parcours de basse',messages:[],context:{type:'session',playing:{session:take}}});
+const override=await sendCopilotMessage({generationMode:'local',message:'Fais-moi des propositions avec un autre parcours de basse',messages:[],context:{type:'session',playing:{session:take}}});
 assert(override.toolResult.variants.some(v=>v.harmony.some(h=>h.goal==='passing')),'La demande actuelle prime sur la préférence de basse');
 assert.equal((await listAllConversations()).length,2,'Le fichier mémoire ne doit pas apparaître comme conversation');
 await sendCopilotMessage({message:'Quelle est la neuvième dans ta proposition ?',messages,context:null});
