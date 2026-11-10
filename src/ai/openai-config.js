@@ -267,7 +267,9 @@ export const PRESETS = [
     name: 'OpenRouter',
     blurb: 'Multi-modèles gratuits',
     baseUrl: 'https://openrouter.ai/api/v1',
-    models: ['meta-llama/llama-3.1-8b-instruct:free', 'google/gemini-flash-1.5:free'],
+    // Catalogue public OpenRouter vérifié le 10/11/2026 : variantes gratuites
+    // annonçant le support des outils. Les deux anciennes références ont disparu.
+    models: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'google/gemma-4-26b-a4b-it:free', 'liquid/lfm-3-1.7b:free'],
     genUrl: 'https://openrouter.ai/keys',
   },
   {

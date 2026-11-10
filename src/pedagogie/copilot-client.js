@@ -27,6 +27,7 @@ import {isExplanationQuestion,explicitPlaybackRequest,proposalExplanationAnswer}
 //   - les erreurs réseau/clé sont propagées comme dans ai-client.js.
 
 import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
+import { COMPACT_COPILOT_SYSTEM_PROMPT, compactMovementsReference } from './copilot-compact-prompt.js';
 import { passageExample, transposeInterval, notesInRange } from './teacher-notes.js';
 import { onlySpeech, activitySummary } from './teacher-activity.js';
 import { exerciseContextLines } from './exercise-context.js';
@@ -134,6 +135,10 @@ Exercice en cours (quand le contexte décrit un exercice de l'onglet Exercices) 
 const MOVEMENTS_REFERENCE = movementsLibrary.movements
   .map((m) => `- ${m.kind} (${m.style}) : ${m.name} — ${m.pattern} — ${m.context} Réalisation originale de l’application ; références du procédé : ${m.provenance.sources.map((s) => `${s.title} (${s.url})`).join(' ; ')}. Ne pas présenter cette étude comme une transcription de ces sources.`)
   .join('\n');
+
+function usesCompactPrompt(baseUrl) {
+  try { return ['api.groq.com', 'openrouter.ai'].includes(new URL(baseUrl).hostname); } catch { return false; }
+}
 
 const PLAY_NOTE_TOOL = {
   type: 'function',
@@ -1534,7 +1539,7 @@ function buildChatCompletionPayload(config, payloadMessages, { includeTools = tr
     messages: payloadMessages,
     temperature: 0.4,
   };
-  if (useMaxTokens) {
+  if (useMaxTokens || isOpenRouterUrl(config.baseUrl)) {
     body.max_tokens = maxTokens;
   } else {
     body.max_completion_tokens = maxTokens;
@@ -1553,6 +1558,10 @@ function buildChatCompletionPayload(config, payloadMessages, { includeTools = tr
 
 function isOllamaCloudUrl(baseUrl = '') {
   return /(?:api\.)?ollama\.(?:ai|com)\/v1/i.test(baseUrl);
+}
+
+function isOpenRouterUrl(baseUrl) {
+  try { return new URL(baseUrl).hostname === 'openrouter.ai'; } catch { return false; }
 }
 
 // [Claude] — 2026-09-26 — Délai de réponse du service d'IA. Narcisse : « on ne peut
@@ -1750,6 +1759,14 @@ function withTextToolCalls(choice) {
   return { ...choice, content, ...(own.length || added.length ? { tool_calls: [...own, ...added] } : {}) };
 }
 
+function completionAPIError(status, text) {
+  if (status === 401 || status === 403) return { ok: false, error: 'AI_API_KEY_INVALID', responseText: text };
+  if (status === 413 || (status === 400 && /context_length_exceeded|max_tokens_exceeded|string_too_long|maximum context length/i.test(text))) {
+    return { ok: false, error: 'AI_REQUEST_TOO_LARGE', status };
+  }
+  return { ok: false, error: `AI_API_ERROR_${status}`, responseText: text, status };
+}
+
 async function callChatCompletionOnce(config, body) {
   const timeoutMs = Math.min(copilotTimeoutMs, config.copilotDeadline ? config.copilotDeadline - Date.now() : copilotTimeoutMs);
   if (timeoutMs <= 0) return { ok: false, error: 'AI_TIMEOUT' };
@@ -1768,12 +1785,16 @@ async function callChatCompletionOnce(config, body) {
     const response = await callChatCompletions(config.baseUrl, config.apiKey, body, { timeoutMs, signal: controller?.signal });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      if (response.status === 401 || response.status === 403) {
-        return { ok: false, error: 'AI_API_KEY_INVALID', responseText: text };
-      }
-      return { ok: false, error: `AI_API_ERROR_${response.status}`, responseText: text, status: response.status };
+      // OpenRouter relaie aussi les dépassements de contexte en HTTP 400.
+      // Les distinguer d'une incompatibilité des outils évite un second envoi identique.
+      return completionAPIError(response.status, text);
     }
     const data = await response.json();
+    // Une erreur fournisseur peut arriver dans un corps HTTP 200 chez OpenRouter.
+    if (data?.error) {
+      const status = Number(data.error.code);
+      return completionAPIError(Number.isInteger(status) && status >= 400 && status <= 599 ? status : 502, JSON.stringify(data.error));
+    }
     const { choice, diagnostics } = normalizeChatResponse(data);
     // [Claude] — 2026-10-04 — Jamais d'appel d'outil écrit en texte sous les yeux du pianiste.
     return { ok: true, choice: withTextToolCalls(choice), diagnostics };
@@ -2046,7 +2067,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   const knownScale = scaleRequest ? buildScaleNotes(scaleRequest) : null;
   const scaleFacts = knownScale ? `\n\nRéférence calculée par l'application pour cette question : ${knownScale.title}, ${knownScale.names.join(' – ')}. Ces notes priment sur toute supposition. Pour une gamme demandée, utiliser play_scale, pas play_lick.` : '';
   const payloadMessages = normalizePayloadMessages([
-    { role: 'system', content: `${COPILOT_SYSTEM_PROMPT}\n\nInstrument de cette application : PIANO. Décris le clavier et les touches, pas un manche, des frettes ou des positions de guitare. Ne propose pas de doigté précis sans données pour le justifier. Ne recopie aucune instruction de génération de suggestions dans ta réponse.\n\n## Bibliothèque de mouvements de référence\n${MOVEMENTS_REFERENCE}\n\n${contextText}${scaleFacts}` },
+    { role: 'system', content: `${usesCompactPrompt(config.baseUrl) ? COMPACT_COPILOT_SYSTEM_PROMPT : COPILOT_SYSTEM_PROMPT}\n\nInstrument de cette application : PIANO. Décris le clavier et les touches, pas un manche, des frettes ou des positions de guitare. Ne propose pas de doigté précis sans données pour le justifier. Ne recopie aucune instruction de génération de suggestions dans ta réponse.\n\n## Bibliothèque de mouvements de référence\n${usesCompactPrompt(config.baseUrl) ? compactMovementsReference(movementsLibrary.movements) : MOVEMENTS_REFERENCE}\n\n${contextText}${scaleFacts}` },
     ...sanitized,
   ]);
   // [Claude] — 2026-10-09 — « Fais-le-moi entendre » renvoie à la question et à la réponse d'avant.
@@ -2071,14 +2092,14 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // instructions textuelles pour jouer les notes. Cela garantit le
     // fonctionnement avec n'importe quel modèle OpenAI-compatible.
     let toolsMode = true;
-    if (!first.ok && first.status === 400) {
+    if (!first.ok && first.status === 400 && first.error !== 'AI_REQUEST_TOO_LARGE') {
       const ollamaCloud = isOllamaCloudUrl(config.baseUrl);
       const payloadMessagesWithoutTools = payloadMessages.map((m) => {
         if (m.role !== 'system') return m;
         return { ...m, content: `${m.content}\n${TOOLS_UNAVAILABLE_PROMPT_ADDENDUM}` };
       });
       let second = await callChatCompletionOnce(config, buildChatCompletionPayload(config, payloadMessagesWithoutTools, { includeTools: false, useMaxTokens: ollamaCloud }));
-      if (!second.ok && second.status === 400 && !ollamaCloud) {
+      if (!second.ok && second.status === 400 && second.error !== 'AI_REQUEST_TOO_LARGE' && !ollamaCloud) {
         // Certains endpoints Ollama Cloud ne supportent pas max_completion_tokens.
         second = await callChatCompletionOnce(config, buildChatCompletionPayload(config, payloadMessagesWithoutTools, { includeTools: false, useMaxTokens: true }));
       }

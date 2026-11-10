@@ -1841,7 +1841,9 @@ export function copilotErrorText(error) {
   if (code === 'AI_API_KEY_INVALID') return 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.';
   if (code === 'AI_NETWORK_ERROR') return 'La connexion au service d’IA a échoué. Ta prise est conservée ; vérifie la connexion puis réessaie.';
   if (code === 'AI_TIMEOUT') return 'Le service d\'IA n\'a pas répondu à temps (90 secondes). Réessaie ; s\'il est souvent aussi lent, choisis un autre modèle dans Réglages › Assistant IA.';
-  if (/^AI_API_ERROR_(413|429)$/.test(code)) return 'Le service d\'IA refuse la demande pour l\'instant (trop longue, ou trop de demandes rapprochées pour ce modèle). Réessaie dans une minute, ou choisis un autre modèle dans Réglages › Assistant IA.';
+  if (code === 'AI_REQUEST_TOO_LARGE' || code === 'AI_API_ERROR_413') return 'La demande dépasse la taille autorisée par ce fournisseur. Ta question et ta prise sont conservées. Choisis un passage plus court ou un modèle chez un autre fournisseur dans Réglages › Assistant IA.';
+  if (code === 'AI_API_ERROR_429') return 'Le quota du service d’IA est atteint pour l’instant. Réessaie plus tard ou choisis un autre fournisseur dans Réglages › Assistant IA.';
+  if (code === 'AI_API_ERROR_402') return 'Le fournisseur refuse la demande pour une limite de crédit ou de budget. Ta prise est conservée. Vérifie ton compte chez ce fournisseur ou choisis-en un autre dans Réglages › Assistant IA.';
   if (/^AI_API_ERROR_5\d\d$/.test(code)) return 'Le service d\'IA a un problème de son côté. Réessaie dans un moment.';
   return `Je n'ai pas pu répondre (${code || 'erreur inconnue'}). Réessaie ; si ça se répète, recopie-moi ce message.`;
 }
