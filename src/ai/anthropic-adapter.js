@@ -59,7 +59,9 @@ export function toAnthropicBody(body) {
     messages: chatMessages,
   };
   if (system) out.system = system;
-  if (typeof body.temperature === 'number') out.temperature = body.temperature;
+  // Les modèles Claude récents refusent temperature (HTTP 400). On laisse
+  // Anthropic appliquer son réglage par défaut, y compris pour les anciens
+  // modèles ; les requêtes aux autres fournisseurs ne passent pas ici.
   if (Array.isArray(body.tools) && body.tools.length) {
     out.tools = body.tools
       .filter((t) => t?.type === 'function' && t.function?.name)

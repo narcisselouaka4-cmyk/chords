@@ -45,7 +45,13 @@ check('anthropicHeaders utilise x-api-key et anthropic-version, pas Authorizatio
   check('Le message système sort des messages et devient `system`', body.system === 'Tu es un assistant.');
   check('Les messages restants gardent user/assistant dans l\'ordre',
     body.messages.length === 3 && body.messages[0].role === 'user' && body.messages[2].content === 'Joue un Do.');
-  check('max_tokens et temperature passent tels quels', body.max_tokens === 900 && body.temperature === 0.3);
+  check('max_tokens est conservé', body.max_tokens === 900);
+  check('temperature est omise pour éviter le refus des modèles Claude récents', !('temperature' in body));
+
+  for (const model of ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-5-5', 'claude-haiku-4-5-20251001']) {
+    const request = toAnthropicBody({ model, messages: [{ role: 'user', content: 'OK' }], temperature: 0.3 });
+    check(`${model} : modèle conservé, sans temperature`, request.model === model && !('temperature' in request));
+  }
   check('Aucun champ `tools` quand la requête n\'en a pas', !('tools' in body));
 }
 
