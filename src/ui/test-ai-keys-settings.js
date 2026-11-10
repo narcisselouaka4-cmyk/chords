@@ -121,12 +121,17 @@ function check(label, ok) {
 
 {
   const cfg = read('src/ai/openai-config.js');
-  check('PRESETS inclut Groq, OpenRouter, Google AI Studio et OpenAI',
-    ['Groq', 'OpenRouter', 'Google AI Studio', 'OpenAI'].every((n) => cfg.includes(`name: '${n}'`)));
+  check('PRESETS inclut Groq, OpenRouter, Google AI Studio, OpenAI et Anthropic (Claude)',
+    ['Groq', 'OpenRouter', 'Google AI Studio', 'OpenAI', 'Anthropic (Claude)'].every((n) => cfg.includes(`name: '${n}'`)));
   check('Chaque préréglage a un genUrl (page où générer une clé chez le fournisseur)',
     (cfg.match(/genUrl: 'https:\/\//g) || []).length >= 5);
-  check('EXTERNAL_PROVIDER_LINKS propose Anthropic (Claude) sans préréglage baseUrl inventé',
-    cfg.includes('EXTERNAL_PROVIDER_LINKS') && cfg.includes("name: 'Anthropic (Claude)'"));
+  // [Claude] — 2026-11-10 — Anthropic a désormais un vrai préréglage : son schéma natif
+  // (Messages API) est traduit par anthropic-adapter.js, transparent pour callChatCompletions.
+  check('Le préréglage Anthropic (Claude) pointe vers api.anthropic.com avec de vrais modèles Claude',
+    /name: 'Anthropic \(Claude\)',[\s\S]{0,200}?baseUrl: 'https:\/\/api\.anthropic\.com'/.test(cfg)
+    && cfg.includes('claude-haiku-4-5-20251001'));
+  check('anthropic-adapter.js traduit requête (toAnthropicBody) et réponse (fromAnthropicResponse)',
+    cfg.includes('toAnthropicBody') && cfg.includes('fromAnthropicResponse'));
 
   const mainJs = read('src/main.js');
   check('renderProviders() construit une carte par préréglage avec un bouton « Générer une clé »',

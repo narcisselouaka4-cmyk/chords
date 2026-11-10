@@ -1,5 +1,11 @@
 // [Claude] — 2026-07-04 — Configuration générique pour une API OpenAI-compatible (Groq, OpenRouter, Gemini, etc.)
 // [Refonte 2026-09-02] — La clé API est chiffrée via Electron safeStorage quand il est disponible.
+// [Claude] — 2026-11-10 — Anthropic (schéma natif Messages API, pas /chat/completions) est
+// maintenant un fournisseur réel : voir anthropic-adapter.js pour la traduction requête/réponse.
+
+import {
+  isAnthropicEndpoint, anthropicRequestUrl, anthropicHeaders, toAnthropicBody, fromAnthropicResponse,
+} from './anthropic-adapter.js';
 
 const STORAGE_KEY = 'piano-jazz-ai-config';
 const ENCRYPTED_PREFIX = 'enc:';
@@ -171,11 +177,12 @@ export function createOpenAIClient(config = getAIConfig()) {
  * { ok, status, json(), text() }.
  */
 export async function callChatCompletions(baseUrl, apiKey, body, options = {}) {
-  const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
   if (typeof window !== 'undefined' && window.electronAPI?.ai?.chatCompletion) {
     // Les appelants historiques construisent un AbortController + setTimeout(30000).
     // Un AbortSignal ne traverse pas IPC ; on transmet donc le délai explicite
-    // au processus principal pour qu'il l'applique sur son propre fetch().
+    // au processus principal pour qu'il l'applique sur son propre fetch(). Le
+    // processus principal traduit déjà Anthropic vers la forme OpenAI avant de
+    // renvoyer son texte : rien à faire ici dans ce cas.
     const timeoutMs = options.timeoutMs || (options.signal ? 30000 : undefined);
     const { ok, status, text } = await window.electronAPI.ai.chatCompletion(baseUrl, apiKey, body, timeoutMs);
     return {
@@ -185,12 +192,25 @@ export async function callChatCompletions(baseUrl, apiKey, body, options = {}) {
       text: async () => text,
     };
   }
-  return fetch(url, {
+
+  // Repli fetch() direct (hors Electron : tests Node, navigateur) — même traduction
+  // Anthropic que le processus principal, pour que les appelants n'aient jamais à
+  // savoir quel fournisseur répond.
+  const anthropic = isAnthropicEndpoint(baseUrl);
+  const url = anthropic ? anthropicRequestUrl(baseUrl) : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+  const headers = anthropic
+    ? anthropicHeaders(apiKey)
+    : { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` };
+  const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
+    headers,
+    body: JSON.stringify(anthropic ? toAnthropicBody(body) : body),
     ...(options.signal ? { signal: options.signal } : {}),
   });
+  if (!anthropic || !res.ok) return res; // erreur : le texte brut du fournisseur reste utile tel quel
+  const data = await res.json();
+  const translated = fromAnthropicResponse(data);
+  return { ok: true, status: res.status, json: async () => translated, text: async () => JSON.stringify(translated) };
 }
 
 export async function testAIConfig(config) {
@@ -218,8 +238,12 @@ export async function testAIConfig(config) {
 // gratuite chez le fournisseur (ouverte dans le navigateur système, pas dans l'app) ; blurb est la
 // phrase courte affichée sur la carte. OpenAI est ajouté : son API /chat/completions est au même
 // format que Groq/OpenRouter/Google (Authorization: Bearer, même schéma JSON) — compatible sans
-// code supplémentaire, contrairement à l'API native d'Anthropic (schéma différent, voir note plus
-// bas) qui reste donc hors de cette liste, à configurer manuellement en « Personnalisé ».
+// code supplémentaire.
+// [Claude] — 2026-11-10 — Anthropic (Claude) est un vrai préréglage : son schéma natif
+// (Messages API, en-têtes x-api-key/anthropic-version) est traduit par anthropic-adapter.js,
+// transparent pour callChatCompletions des deux côtés (requête et réponse). Avant ce lot,
+// l'app ne proposait qu'un lien vers la page de clé, sans jamais pouvoir réellement appeler
+// Claude (404 : /chat/completions n'existe pas chez Anthropic, et les en-têtes différaient).
 export const PRESETS = [
   {
     name: 'Groq',
@@ -249,15 +273,20 @@ export const PRESETS = [
     models: ['gpt-4o-mini', 'gpt-4o'],
     genUrl: 'https://platform.openai.com/api-keys',
   },
+  {
+    name: 'Anthropic (Claude)',
+    blurb: 'Payant, Haiku/Sonnet/Opus',
+    baseUrl: 'https://api.anthropic.com',
+    models: ['claude-haiku-4-5-20251001', 'claude-sonnet-5', 'claude-opus-5'],
+    genUrl: 'https://console.anthropic.com/settings/keys',
+  },
 ];
 
-// Fournisseur sans préréglage utilisable ici (schéma d'appel différent de
-// /chat/completions) : seul un lien vers sa page de clé est proposé, pour que
-// l'utilisateur configure lui-même une adresse compatible s'il en connaît une
-// (Narcisse : « ils configurent eux-mêmes leur clé avec Claude, ChatGPT, etc. »).
-export const EXTERNAL_PROVIDER_LINKS = [
-  { name: 'Anthropic (Claude)', genUrl: 'https://console.anthropic.com/settings/keys' },
-];
+// Fournisseurs sans préréglage utilisable ici (schéma d'appel différent de
+// /chat/completions, et pas de traduction écrite pour eux) : seul un lien vers
+// leur page de clé est proposé, pour que l'utilisateur configure lui-même une
+// adresse compatible s'il en connaît une.
+export const EXTERNAL_PROVIDER_LINKS = [];
 
 // ── Clés enregistrées (plusieurs profils, un seul actif à la fois) ─────────
 // [Claude] — 2026-10-19 — Narcisse : « il faut un bouton qui permette de voir

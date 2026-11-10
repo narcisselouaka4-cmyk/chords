@@ -13,6 +13,9 @@ import { pathToFileURL } from 'url';
 // parce qu'elle a besoin de ffmpeg et doit travailler en flux pour que la
 // mémoire n'enfle pas sur une vidéo longue.
 import { createFrame } from '../src/pedagogie/frame.js';
+import {
+  isAnthropicEndpoint, anthropicRequestUrl, anthropicHeaders, toAnthropicBody, fromAnthropicResponse,
+} from '../src/ai/anthropic-adapter.js';
 import { detectVideoFormat } from '../src/pedagogie/format-detector.js';
 import { readLitKeys } from '../src/pedagogie/key-detection.js';
 import {
@@ -2669,18 +2672,35 @@ ipcMain.handle('ai:chat-completion', async (event, { baseUrl, apiKey, body, time
   const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : null;
   const timer = effectiveTimeout ? setTimeout(() => controller.abort(), effectiveTimeout) : null;
 
+  // [Claude] — 2026-11-10 — Anthropic parle un schéma natif (Messages API), pas
+  // /chat/completions façon OpenAI : adresse, en-têtes et formats de requête/réponse
+  // différents. Traduit ici, au point d'entrée réseau unique, pour que le renderer
+  // (chat-response.js, ai-client.js…) continue de ne lire que la forme OpenAI.
+  const anthropic = isAnthropicEndpoint(baseUrl);
+  const url = anthropic ? anthropicRequestUrl(baseUrl) : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+  const headers = anthropic
+    ? anthropicHeaders(apiKey)
+    : { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` };
+
   try {
-    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify(body),
+      headers,
+      body: JSON.stringify(anthropic ? toAnthropicBody(body) : body),
       signal: controller.signal,
     });
     const text = await res.text();
     if (!res.ok) {
       console.warn('[Main:ai:chat-completion] Erreur API', res.status, 'modèle', body.model, '—', text.slice(0, 500));
+      return { ok: false, status: res.status, text };
     }
-    return { ok: res.ok, status: res.status, text };
+    if (!anthropic) return { ok: true, status: res.status, text };
+    try {
+      return { ok: true, status: res.status, text: JSON.stringify(fromAnthropicResponse(JSON.parse(text))) };
+    } catch (parseErr) {
+      console.warn('[Main:ai:chat-completion] Réponse Anthropic illisible :', parseErr.message);
+      return { ok: false, status: res.status, text };
+    }
   } catch (err) {
     if (controller.signal.aborted) {
       throw new Error(`Request timeout after ${effectiveTimeout}ms`);
