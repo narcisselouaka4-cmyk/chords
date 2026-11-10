@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
+import { groqBudgetRetry } from '../ai/groq-token-budget.js';
 
 global.window = { AudioContext: class { constructor() { this.state = 'suspended'; } } };
 global.document = { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], dispatchEvent: () => true };
 global.CustomEvent ||= class { constructor(type) { this.type = type; } };
 const store = new Map();
 global.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
-const { sendCopilotMessage } = await import('./copilot-client.js');
+const { sendCopilotMessage, setCopilotTimeout } = await import('./copilot-client.js');
 let captured;
 global.fetch = async (_url, options) => {
   captured = JSON.parse(options.body);
@@ -63,3 +64,62 @@ for (const [status, text, error] of [
   assert.equal(calls, 1);
 }
 console.log(JSON.stringify({ compactSystemChars: compact.messages[0].content.length, fullSystemChars: full.messages[0].content.length, compactBodyChars: JSON.stringify(compact).length, preserved: 'historique, contexte, question, outils', oversized: 'erreur explicite sans réessai identique' }));
+
+const quotaError = JSON.stringify({ error: { message: 'Request too large on tokens per minute (TPM): Limit 8000, Requested 10503, please reduce your message size.' } });
+const originalBody = { model: 'openai/gpt-oss-120b', messages: [{ role: 'user', content: 'Notes exactes' }], max_completion_tokens: 8192 };
+const reduced = groqBudgetRetry('https://api.groq.com/openai/v1', originalBody, 413, quotaError);
+assert.equal(reduced.max_completion_tokens, 5561);
+assert.equal(reduced.messages, originalBody.messages);
+assert.equal(originalBody.max_completion_tokens, 8192);
+assert.equal(groqBudgetRetry('https://openrouter.ai/api/v1', originalBody, 413, quotaError), null);
+assert.equal(groqBudgetRetry('https://api.groq.com/openai/v1', originalBody, 429, quotaError), null);
+assert.equal(groqBudgetRetry('https://api.groq.com/openai/v1', originalBody, 413, 'Other error'), null);
+assert.equal(groqBudgetRetry('https://api.groq.com/openai/v1', { ...originalBody, max_completion_tokens: 1200 }, 413, quotaError), null);
+const legacyReduced = groqBudgetRetry('https://api.groq.com/openai/v1', { max_tokens: 8192 }, 413, quotaError);
+assert.equal(legacyReduced.max_tokens, 5561);
+
+const take = { name: 'Prise synthétique', duration: 6, events: [[48,55,60,64],[50,57,60,65],[52,59,62,67]].flatMap((ns,i) => ns.flatMap(note => [
+  { type: 'note_on', note, time: i*2, velocity: .7, channel: 0 },
+  { type: 'note_off', note, time: i*2+1.8, velocity: 0, channel: 0 },
+])).sort((a,b) => a.time-b.time) };
+const sourceBefore = JSON.stringify(take);
+const plan = { variants: [{ title: 'Accords liés', segments: [[0,'maj7',[48,55,59,64]],[2,'m7',[50,57,60,65]],[4,'m7',[52,59,62,67]]].map(([rootPc,quality,notes],anchor) => ({ anchor, rootPc, quality, notes, reason: 'Cette couleur soutient la mélodie.' })) }] };
+store.set('piano-jazz-ai-config', JSON.stringify({ apiKey: 'fake-test', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' }));
+const harmonyParams = { message: 'Enrichis mes accords.', context: { playing: { passage: take } } };
+let requests = [];
+let finalStatus = 200;
+let finishReason = 'stop';
+global.fetch = async (_url, options) => {
+  requests.push(JSON.parse(options.body));
+  if (requests.length === 1 || finalStatus === 413) return { ok: false, status: 413, text: async () => quotaError };
+  return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify(plan) }, finish_reason: finishReason }] }) };
+};
+const recovered = await sendCopilotMessage(harmonyParams);
+assert.ok(recovered.ok && recovered.toolResult.variants?.length);
+assert.equal(requests.length, 2);
+assert.equal(requests[0].max_completion_tokens, 8192);
+assert.equal(requests[1].max_completion_tokens, 5561);
+assert.deepEqual(requests[0].messages, requests[1].messages);
+assert.equal(JSON.stringify(take), sourceBefore);
+assert.equal(recovered.toolResult.generation.engine, 'model');
+requests = []; finalStatus = 413;
+const stillTooLarge = await sendCopilotMessage(harmonyParams);
+assert.equal(requests.length, 2);
+assert.equal(stillTooLarge.error, 'AI_REQUEST_TOO_LARGE');
+assert.ok(!stillTooLarge.toolResult.variants?.length);
+requests = []; finalStatus = 200; finishReason = 'length';
+const truncated = await sendCopilotMessage(harmonyParams);
+assert.equal(requests.length, 2);
+assert.equal(truncated.error, 'AI_OUTPUT_LIMIT');
+assert.ok(!truncated.toolResult.variants?.length);
+requests = []; setCopilotTimeout(25);
+global.fetch = async (_url, options) => {
+  requests.push(JSON.parse(options.body));
+  if (requests.length === 1) return { ok: false, status: 413, text: async () => quotaError };
+  return new Promise(() => {});
+};
+const timedOut = await sendCopilotMessage(harmonyParams);
+assert.equal(requests.length, 2);
+assert.equal(timedOut.error, 'AI_TIMEOUT');
+setCopilotTimeout(90000);
+console.log('Groq 10503/8000 : réserve 8192 → 5561, prise identique, plan validé ; deux appels maximum, aucune proposition tronquée ni repli local.');

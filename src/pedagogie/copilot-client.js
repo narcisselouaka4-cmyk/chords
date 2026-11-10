@@ -28,6 +28,7 @@ import {isExplanationQuestion,explicitPlaybackRequest,proposalExplanationAnswer}
 
 import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
 import { COMPACT_COPILOT_SYSTEM_PROMPT, compactMovementsReference } from './copilot-compact-prompt.js';
+import { groqBudgetRetry } from '../ai/groq-token-budget.js';
 import { passageExample, transposeInterval, notesInRange } from './teacher-notes.js';
 import { onlySpeech, activitySummary } from './teacher-activity.js';
 import { exerciseContextLines } from './exercise-context.js';
@@ -1784,12 +1785,25 @@ async function callChatCompletionOnce(config, body) {
     }, timeoutMs);
   });
   const exchange = (async () => {
-    const response = await callChatCompletions(config.baseUrl, config.apiKey, body, { timeoutMs, signal: controller?.signal });
+    const startedAt = Date.now();
+    const send = async (request) => {
+      const remaining = timeoutMs - (Date.now() - startedAt);
+      if (remaining <= 0) throw new Error('Request timeout');
+      return callChatCompletions(config.baseUrl, config.apiKey, request, { timeoutMs: remaining, signal: controller?.signal });
+    };
+    let response = await send(body);
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      // OpenRouter relaie aussi les dépassements de contexte en HTTP 400.
-      // Les distinguer d'une incompatibilité des outils évite un second envoi identique.
-      return completionAPIError(response.status, text);
+      const adjusted = groqBudgetRetry(config.baseUrl, body, response.status, text);
+      if (adjusted) {
+        // Une seule reprise, sous la même échéance, avec notes et outils identiques.
+        response = await send(adjusted);
+        if (!response.ok) return completionAPIError(response.status, await response.text().catch(() => ''));
+      } else {
+        // OpenRouter relaie aussi les dépassements de contexte en HTTP 400.
+        // Les distinguer d'une incompatibilité des outils évite un second envoi identique.
+        return completionAPIError(response.status, text);
+      }
     }
     const data = await response.json();
     // Une erreur fournisseur peut arriver dans un corps HTTP 200 chez OpenRouter.
@@ -1897,6 +1911,7 @@ async function modelPlayingAnswer({message,messages,context,memory,preferences})
       if(!result.ok&&result.status===400&&!options.useMaxTokens&&/max_completion_tokens/i.test(result.responseText||''))
         result=await callChatCompletionOnce(config,buildChatCompletionPayload(config,payload,{...options,useMaxTokens:true}));
       if(!result.ok)return {...result,toolResult:base};
+      if(result.diagnostics?.finishReason==='length')return {ok:false,error:'AI_OUTPUT_LIMIT',toolResult:base};
       const content=result.choice?.content||'';
       const realized=realizeModelHarmony(content,source,{exclude});
       if(realized.ok){
