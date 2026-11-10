@@ -311,6 +311,7 @@ const els = {
   aiBaseUrl: document.getElementById('ai-base-url'),
   aiApiKey: document.getElementById('ai-api-key'),
   aiModel: document.getElementById('ai-model'),
+  aiModelSelect: document.getElementById('ai-model-select'),
   aiTestBtn: document.getElementById('ai-test-btn'),
   aiSaveBtn: document.getElementById('ai-save-btn'),
   aiTestResult: document.getElementById('ai-test-result'),
@@ -3477,11 +3478,74 @@ function initAISettings() {
     else window.open(url, '_blank', 'noopener');
   }
 
+  // [Claude] — 2026-11-10 — Modèle présélectionné par fournisseur (Narcisse : « je m'y connais un
+  // peu, mais des pianistes basiques ne vont pas se casser la tête » — un modèle tapé à la main,
+  // comme « Haiku 5.5 » au lieu du vrai identifiant, finit en erreur 404 incompréhensible). Pour un
+  // fournisseur connu (PRESETS), un menu déroulant liste ses vrais modèles, « Personnalisé… » en
+  // dernier ; pour un fournisseur sans préréglage (Ollama, etc., dont les noms varient trop pour
+  // être prévisibles), le champ texte reste seul, comme avant.
+  function populateModelOptions(baseUrl, selectedModel) {
+    const select = els.aiModelSelect;
+    const textInput = els.aiModel;
+    if (!select || !textInput) return;
+    const preset = PRESETS.find((p) => p.baseUrl === (baseUrl || '').trim());
+    const models = preset?.models || [];
+
+    select.innerHTML = '';
+    for (const m of models) {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      select.appendChild(opt);
+    }
+    const customOpt = document.createElement('option');
+    customOpt.value = '__custom__';
+    customOpt.textContent = 'Personnalisé…';
+    select.appendChild(customOpt);
+
+    if (!models.length) {
+      select.hidden = true;
+      textInput.hidden = false;
+      return;
+    }
+    select.hidden = false;
+    if (models.includes(selectedModel)) {
+      select.value = selectedModel;
+      textInput.value = selectedModel;
+      textInput.hidden = true;
+    } else {
+      select.value = '__custom__';
+      textInput.value = selectedModel || '';
+      textInput.hidden = false;
+    }
+  }
+
+  els.aiModelSelect?.addEventListener('change', () => {
+    const select = els.aiModelSelect;
+    const textInput = els.aiModel;
+    if (!select || !textInput) return;
+    if (select.value === '__custom__') {
+      textInput.hidden = false;
+      textInput.value = '';
+      textInput.focus();
+    } else {
+      textInput.hidden = true;
+      textInput.value = select.value;
+    }
+  });
+
+  // Adresse tapée/collée à la main (pas via une carte de préréglage) : si elle correspond à un
+  // fournisseur connu, le menu déroulant de ses modèles apparaît aussi dans ce cas.
+  els.aiBaseUrl?.addEventListener('input', () => {
+    populateModelOptions(els.aiBaseUrl.value, els.aiModel?.value || '');
+  });
+
   async function loadConfigIntoUI() {
     const cfg = await loadSecureAIConfig();
     if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
     if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
     if (els.aiModel) els.aiModel.value = cfg.model;
+    populateModelOptions(cfg.baseUrl, cfg.model);
     if (els.aiMonthlyCap) els.aiMonthlyCap.value = String(getMonthlyCap());
     if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
     if (els.aiTestResult) {
@@ -3528,6 +3592,7 @@ function initAISettings() {
       card.addEventListener('click', () => {
         if (els.aiBaseUrl) els.aiBaseUrl.value = preset.baseUrl;
         if (els.aiModel) els.aiModel.value = preset.models[0] || '';
+        populateModelOptions(preset.baseUrl, preset.models[0] || '');
         highlightActiveProvider();
         els.aiApiKey?.focus();
       });
@@ -3606,6 +3671,7 @@ function initAISettings() {
           if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
           if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
           if (els.aiModel) els.aiModel.value = cfg.model;
+          populateModelOptions(cfg.baseUrl, cfg.model);
           highlightActiveProvider();
           setNewKeyFormOpen(false);
           renderSavedKeys();

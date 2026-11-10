@@ -2033,6 +2033,14 @@
                   </label>
                   <label class="tr-form-field ai-form-field">
                     <span>Modèle</span>
+                    <!-- [Claude] — 2026-11-10 — Narcisse : un pianiste qui tape le modèle à la main
+                         (ex. « Haiku 5.5 » au lieu du vrai identifiant « claude-haiku-4-5-20251001 »)
+                         obtient une erreur 404 incompréhensible. Comme dans Cline/VS Code : la liste
+                         des modèles du fournisseur choisi est présélectionnée dans un menu déroulant ;
+                         le champ texte ne reste visible que pour « Personnalisé… » ou un fournisseur
+                         sans préréglage (ex. Ollama, dont les noms de modèles varient). Voir
+                         populateModelOptions() dans main.js. -->
+                    <select id="ai-model-select" hidden></select>
                     <input type="text" id="ai-model" placeholder="openai/gpt-oss-20b" />
                   </label>
                 </div>
