@@ -1839,6 +1839,8 @@ export function copilotErrorText(error) {
   if (code === 'AI_EMPTY_RESPONSE') return 'Je n’ai pas reçu de réponse utilisable, même après une nouvelle tentative. Ta question est conservée ; tu peux la renvoyer.';
   if (code === 'AI_OUTPUT_LIMIT') return 'La réponse a été interrompue avant d’être rédigée. Ta question est conservée ; réessaie sur un point précis.';
   if (code === 'AI_API_KEY_INVALID') return 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.';
+  if (code === 'AI_MODEL_UNAVAILABLE') return 'Ce modèle est introuvable ou inaccessible avec ce compte. Ta question est conservée. Choisis un autre modèle dans Réglages › Assistant IA.';
+  if (code === 'AI_PROVIDER_BUSY') return 'Ce modèle gratuit est temporairement saturé chez son hébergeur. Ta clé n’est pas en cause. Réessaie plus tard ou choisis un autre modèle dans Réglages › Assistant IA.';
   if (code === 'AI_NETWORK_ERROR') return 'La connexion au service d’IA a échoué. Ta prise est conservée ; vérifie la connexion puis réessaie.';
   if (code === 'AI_TIMEOUT') return 'Le service d\'IA n\'a pas répondu à temps (90 secondes). Réessaie ; s\'il est souvent aussi lent, choisis un autre modèle dans Réglages › Assistant IA.';
   if (code === 'AI_REQUEST_TOO_LARGE' || code === 'AI_API_ERROR_413') return 'La demande dépasse la taille autorisée par ce fournisseur. Ta question et ta prise sont conservées. Choisis un passage plus court ou un modèle chez un autre fournisseur dans Réglages › Assistant IA.';

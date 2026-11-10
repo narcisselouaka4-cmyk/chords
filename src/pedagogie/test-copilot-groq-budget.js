@@ -51,4 +51,15 @@ global.fetch = async () => { calls++; return { ok: true, status: 200, json: asyn
 const embeddedError = await sendCopilotMessage(params);
 assert.equal(embeddedError.error, 'AI_API_ERROR_429');
 assert.equal(calls, 1);
+for (const [status, text, error] of [
+  [404, 'model_not_found', 'AI_MODEL_UNAVAILABLE'],
+  [429, '{"error":{"metadata":{"limit_source":"upstream_provider_shared_pool"}}}', 'AI_PROVIDER_BUSY'],
+  [402, 'Add usage credits or subscribe', 'AI_API_ERROR_402'],
+]) {
+  calls = 0;
+  global.fetch = async () => { calls++; return { ok: false, status, text: async () => text }; };
+  const result = await sendCopilotMessage(params);
+  assert.equal(result.error, error);
+  assert.equal(calls, 1);
+}
 console.log(JSON.stringify({ compactSystemChars: compact.messages[0].content.length, fullSystemChars: full.messages[0].content.length, compactBodyChars: JSON.stringify(compact).length, preserved: 'historique, contexte, question, outils', oversized: 'erreur explicite sans réessai identique' }));

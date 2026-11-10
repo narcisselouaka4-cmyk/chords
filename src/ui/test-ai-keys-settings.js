@@ -207,7 +207,7 @@ await (async () => {
   check('Le nouveau modèle s’ajoute à l’historique de la clé SANS effacer le précédent',
     listSavedKeys()[0].models.includes('openai/gpt-oss-20b') && listSavedKeys()[0].models.includes('openai/gpt-oss-120b'));
 
-  const id3 = await saveNamedKey({ label: 'Ma clé OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'sk-or-test', model: 'meta-llama/llama-3.1-8b-instruct:free' });
+  const id3 = await saveNamedKey({ label: 'Ma clé OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'sk-or-test', model: 'fixture/model-a' });
   check('Un baseUrl différent crée bien une deuxième entrée', listSavedKeys().length === 2 && id3 !== id1);
 
   const activated = await activateSavedKey(id3);
@@ -219,12 +219,12 @@ await (async () => {
     activatedModel.baseUrl === 'https://api.groq.com/openai/v1' && activatedModel.apiKey === 'gsk_test_2'
     && activatedModel.model === 'openai/gpt-oss-20b');
 
-  addModelToSavedKey(id3, 'google/gemini-flash-1.5:free');
+  addModelToSavedKey(id3, 'fixture/model-b');
   check('addModelToSavedKey ajoute un modèle à une clé existante sans créer de nouvelle entrée',
-    listSavedKeys().length === 2 && listSavedKeys().find((k) => k.id === id3).models.includes('google/gemini-flash-1.5:free'));
-  addModelToSavedKey(id3, 'google/gemini-flash-1.5:free');
+    listSavedKeys().length === 2 && listSavedKeys().find((k) => k.id === id3).models.includes('fixture/model-b'));
+  addModelToSavedKey(id3, 'fixture/model-b');
   check('addModelToSavedKey n’ajoute pas de doublon si le modèle y est déjà',
-    listSavedKeys().find((k) => k.id === id3).models.filter((m) => m === 'google/gemini-flash-1.5:free').length === 1);
+    listSavedKeys().find((k) => k.id === id3).models.filter((m) => m === 'fixture/model-b').length === 1);
 
   // [Claude] — 2026-11-10 — Une clé enregistrée sur l'adresse d'un préréglage connu (Anthropic,
   // Groq…) propose tout de suite TOUS ses modèles connus, pas seulement celui utilisé au premier
@@ -238,11 +238,11 @@ await (async () => {
     && anthropicEntry.models.includes('claude-opus-5'));
 
   // [Claude] — 2026-11-10 — Narcisse : « faut qu'on puisse supprimer des modèles aussi ».
-  removeModelFromSavedKey(id3, 'google/gemini-flash-1.5:free');
+  removeModelFromSavedKey(id3, 'fixture/model-b');
   check('removeModelFromSavedKey retire un modèle ajouté manuellement (fournisseur libre)',
-    !listSavedKeys().find((k) => k.id === id3).models.includes('google/gemini-flash-1.5:free'));
+    !listSavedKeys().find((k) => k.id === id3).models.includes('fixture/model-b'));
   check('…sans retirer les autres modèles de la même clé',
-    listSavedKeys().find((k) => k.id === id3).models.includes('meta-llama/llama-3.1-8b-instruct:free'));
+    listSavedKeys().find((k) => k.id === id3).models.includes('fixture/model-a'));
   removeModelFromSavedKey(idAnthropic, 'claude-opus-5');
   check('removeModelFromSavedKey masque aussi un modèle de PRÉRÉGLAGE (sinon la fusion PRESETS.models le ferait revenir)',
     !listSavedKeys().find((k) => k.id === idAnthropic).models.includes('claude-opus-5'));

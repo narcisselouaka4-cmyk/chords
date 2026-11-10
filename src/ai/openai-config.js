@@ -260,7 +260,7 @@ export const PRESETS = [
     name: 'Groq',
     blurb: 'Gratuit, rapide',
     baseUrl: 'https://api.groq.com/openai/v1',
-    models: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile'],
+    models: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
     genUrl: 'https://console.groq.com/keys',
   },
   {

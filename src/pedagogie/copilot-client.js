@@ -1761,6 +1761,8 @@ function withTextToolCalls(choice) {
 
 function completionAPIError(status, text) {
   if (status === 401 || status === 403) return { ok: false, error: 'AI_API_KEY_INVALID', responseText: text };
+  if (status === 404) return { ok: false, error: 'AI_MODEL_UNAVAILABLE', status };
+  if (status === 429 && /upstream_provider_shared_pool/.test(text)) return { ok: false, error: 'AI_PROVIDER_BUSY', status };
   if (status === 413 || (status === 400 && /context_length_exceeded|max_tokens_exceeded|string_too_long|maximum context length/i.test(text))) {
     return { ok: false, error: 'AI_REQUEST_TOO_LARGE', status };
   }

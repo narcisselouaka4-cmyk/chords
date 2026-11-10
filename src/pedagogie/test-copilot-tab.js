@@ -150,6 +150,8 @@ function testReviewButtonState() {
 function testCopilotErrorText() {
   check('Délai dépassé : dit en clair, avec quoi faire', /n'a pas répondu à temps \(90 secondes\)/.test(copilotErrorText('AI_TIMEOUT')) && /Réglages › Assistant IA/.test(copilotErrorText('AI_TIMEOUT')));
   check('Clé refusée : message de la clé', /clé API a été refusée/.test(copilotErrorText('AI_API_KEY_INVALID')));
+  check('Modèle absent : choisir un autre modèle sans accuser la clé', /introuvable ou inaccessible/.test(copilotErrorText('AI_MODEL_UNAVAILABLE')));
+  check('Hébergeur saturé : indisponibilité temporaire distincte de la clé', /temporairement saturé/.test(copilotErrorText('AI_PROVIDER_BUSY')) && /clé n’est pas en cause/.test(copilotErrorText('AI_PROVIDER_BUSY')));
   check('Demande trop longue : une minute d’attente ne la corrige pas', /taille autorisée/.test(copilotErrorText('AI_REQUEST_TOO_LARGE')) && /passage plus court/.test(copilotErrorText('AI_API_ERROR_413')) && !/minute/.test(copilotErrorText('AI_REQUEST_TOO_LARGE')));
   check('Quota temporaire : attendre ou changer de fournisseur', /quota/.test(copilotErrorText('AI_API_ERROR_429')) && /plus tard/.test(copilotErrorText('AI_API_ERROR_429')));
   check('Panne du service (5xx) : dit en clair', /problème de son côté/.test(copilotErrorText('AI_API_ERROR_503')));

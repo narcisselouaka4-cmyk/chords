@@ -32,11 +32,25 @@ export function providerIdentity(baseUrl) {
 }
 
 export function sortProviderModels(baseUrl, models) {
-  const unique = [...new Set(models)];
+  const unique = [...new Set(models)].filter((model) => !isRetiredPublicModel(baseUrl, model));
   if (providerIdentity(baseUrl) !== 'https://api.anthropic.com') return unique;
   const rank = new Map(ANTHROPIC_MODELS.map((m, i) => [m.id, i]));
   // Ordre tarifaire du catalogue ; identifiants libres sans tarif connu à la fin.
   return unique.sort((a, b) => (rank.get(a) ?? rank.size) - (rank.get(b) ?? rank.size));
+}
+
+// Références retirées des offres publiques, vérifiées le 10/11/2026. Le filtre
+// porte aussi sur l'historique : modifier les préréglages seuls les faisait revenir.
+// Groq conserve éventuellement ces Llama pour des contrats Enterprise spécifiques.
+export function isRetiredPublicModel(baseUrl, model) {
+  const provider = providerIdentity(baseUrl);
+  if (provider === 'https://openrouter.ai/api/v1') {
+    return ['meta-llama/llama-3.1-8b-instruct:free', 'google/gemini-flash-1.5:free'].includes(model);
+  }
+  if (provider === 'https://api.groq.com/openai/v1') {
+    return ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'].includes(model);
+  }
+  return false;
 }
 
 export function modelsForProvider(baseUrl, presets, profiles) {
