@@ -129,7 +129,7 @@ function check(label, ok) {
   // (Messages API) est traduit par anthropic-adapter.js, transparent pour callChatCompletions.
   check('Le préréglage Anthropic (Claude) pointe vers api.anthropic.com avec de vrais modèles Claude',
     /name: 'Anthropic \(Claude\)',[\s\S]{0,200}?baseUrl: 'https:\/\/api\.anthropic\.com'/.test(cfg)
-    && cfg.includes('claude-haiku-4-5-20251001'));
+    && cfg.includes('models: ANTHROPIC_MODELS.map((m) => m.id)'));
   check('anthropic-adapter.js traduit requête (toAnthropicBody) et réponse (fromAnthropicResponse)',
     cfg.includes('toAnthropicBody') && cfg.includes('fromAnthropicResponse'));
 
@@ -315,9 +315,10 @@ await (async () => {
   // puis les filtre en tapant.
   check('Plus de <datalist> natif pour les modèles (remplacé par un menu maison)',
     !html.includes('id="ai-model-suggestions"') && !mainJs.includes('ai-model-suggestions'));
-  check('allKnownModels rassemble les modèles de PRESETS ET des clés déjà enregistrées',
-    mainJs.includes('function allKnownModels') && mainJs.includes('for (const preset of PRESETS)')
-    && mainJs.includes('for (const k of listSavedKeys())'));
+  check('Les suggestions sont limitées au fournisseur du champ concerné',
+    mainJs.includes('getProviderModels(getBaseUrl())') && !mainJs.includes('allKnownModels'));
+  check('Ajouter un modèle utilise le fournisseur de la clé, même si une autre clé est active',
+    mainJs.includes('attachModelCombobox(input, () => k.baseUrl)'));
   check('attachModelCombobox montre tous les modèles dès le clic (focus), pas seulement en tapant',
     /input\.addEventListener\('focus', \(\) => render\(''\)\)/.test(mainJs));
   check('Le menu se filtre en tapant, dans une boîte ancrée au champ (ai-model-suggest-box)',

@@ -7,6 +7,7 @@ import {
   isAnthropicEndpoint, anthropicRequestUrl, anthropicHeaders, toAnthropicBody, fromAnthropicResponse,
 } from './anthropic-adapter.js';
 import { incrementMonthlyUsage } from './usage-cap.js';
+import { ANTHROPIC_MODELS, providerIdentity, modelsForProvider, sortProviderModels } from './provider-models.js';
 
 const STORAGE_KEY = 'piano-jazz-ai-config';
 const ENCRYPTED_PREFIX = 'enc:';
@@ -285,9 +286,9 @@ export const PRESETS = [
   },
   {
     name: 'Anthropic (Claude)',
-    blurb: 'Payant, Haiku/Sonnet/Opus',
+    blurb: 'Haiku, Sonnet, Opus et Fable · prix croissants',
     baseUrl: 'https://api.anthropic.com',
-    models: ['claude-haiku-4-5-20251001', 'claude-sonnet-5', 'claude-opus-5'],
+    models: ANTHROPIC_MODELS.map((m) => m.id),
     genUrl: 'https://console.anthropic.com/settings/keys',
   },
 ];
@@ -361,13 +362,18 @@ function labelForBaseUrl(baseUrl) {
  */
 export function listSavedKeys() {
   return getKeysListRaw().map((entry) => {
-    const preset = PRESETS.find((p) => p.baseUrl === entry.baseUrl);
+    const preset = PRESETS.find((p) => providerIdentity(p.baseUrl) === providerIdentity(entry.baseUrl));
     const own = modelsOf(entry);
     const hidden = new Set(Array.isArray(entry.hiddenPresetModels) ? entry.hiddenPresetModels : []);
     const presetModels = preset ? preset.models.filter((m) => !hidden.has(m)) : [];
-    const models = preset ? Array.from(new Set([...presetModels, ...own])) : own;
+    const models = sortProviderModels(entry.baseUrl, [...presetModels, ...own]);
     return { id: entry.id, label: entry.label, baseUrl: entry.baseUrl, models };
   });
+}
+
+/** Suggestions limitées au fournisseur du champ ou de la clé en cours d'édition. */
+export function getProviderModels(baseUrl) {
+  return modelsForProvider(baseUrl, PRESETS, listSavedKeys());
 }
 
 /**

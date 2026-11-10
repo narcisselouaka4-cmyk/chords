@@ -73,6 +73,7 @@ import {
   PRESETS,
   EXTERNAL_PROVIDER_LINKS,
   listSavedKeys,
+  getProviderModels,
   saveNamedKey,
   activateSavedKey,
   activateSavedKeyModel,
@@ -3491,8 +3492,7 @@ function initAISettings() {
     const select = els.aiModelSelect;
     const textInput = els.aiModel;
     if (!select || !textInput) return;
-    const preset = PRESETS.find((p) => p.baseUrl === (baseUrl || '').trim());
-    const models = preset?.models || [];
+    const models = getProviderModels(baseUrl);
 
     select.innerHTML = '';
     for (const m of models) {
@@ -3733,25 +3733,15 @@ function initAISettings() {
   // ajouter une clé, c'est censé ajouter une nouvelle clé API ».
   let expandedKeyId = null;
 
-  // [Claude] — 2026-11-10 — Narcisse : « je n'ai aucun moyen de vérifier ce qui se passe, je ne
-  // peux pas tester la clé si ça marche » — un champ texte vide pour un fournisseur sans
-  // préréglage (Ollama…) n'aide en rien à deviner un identifiant valide.
-  function allKnownModels() {
-    const known = new Set();
-    for (const preset of PRESETS) for (const m of preset.models) known.add(m);
-    for (const k of listSavedKeys()) for (const m of k.models) known.add(m);
-    return Array.from(known).sort();
-  }
-
   // [Claude] — 2026-11-10 — Deuxième refonte : le <datalist> natif posait sa liste comme une
   // fenêtre à part, mal ancrée au défilement (Narcisse : « on a l'impression qu'elle est fixée
   // sur l'écran »), et ne montrait rien tant qu'on n'avait pas commencé à taper. Remplacé par un
   // menu maison : un simple <div> ajouté comme frère du champ, positionné juste en-dessous par
   // CSS (position:relative sur le parent direct, posée ici si l'habillage ne l'a pas déjà) — il
-  // suit donc le champ normalement au défilement. Tous les modèles connus s'affichent dès le
-  // clic (avant de taper quoi que ce soit), puis se filtrent en tapant ; une saisie libre reste
+  // suit donc le champ normalement au défilement. Les modèles du fournisseur concerné
+  // s'affichent dès le clic, puis se filtrent en tapant ; une saisie libre reste
   // toujours acceptée pour un modèle jamais vu.
-  function attachModelCombobox(input) {
+  function attachModelCombobox(input, getBaseUrl = () => els.aiBaseUrl?.value || '') {
     if (!input || input.dataset.comboboxAttached) return;
     input.dataset.comboboxAttached = '1';
 
@@ -3766,7 +3756,7 @@ function initAISettings() {
 
     function render(filterText) {
       const q = filterText.trim().toLowerCase();
-      const items = allKnownModels().filter((m) => !q || m.toLowerCase().includes(q));
+      const items = getProviderModels(getBaseUrl()).filter((m) => !q || m.toLowerCase().includes(q));
       box.innerHTML = '';
       if (!items.length) {
         box.hidden = true;
@@ -3919,7 +3909,7 @@ function initAISettings() {
           modelsPanel.insertBefore(input, addModelBtn);
           // attachModelCombobox a besoin d'un parent réel (position:relative posée dessus) :
           // appelé seulement une fois le champ inséré dans le DOM, pas avant.
-          attachModelCombobox(input);
+          attachModelCombobox(input, () => k.baseUrl);
           input.focus();
         });
         modelsPanel.appendChild(addModelBtn);
