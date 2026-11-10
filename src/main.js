@@ -314,6 +314,7 @@ const els = {
   aiApiKey: document.getElementById('ai-api-key'),
   aiModel: document.getElementById('ai-model'),
   aiModelSelect: document.getElementById('ai-model-select'),
+  aiModelSuggestions: document.getElementById('ai-model-suggestions'),
   aiTestBtn: document.getElementById('ai-test-btn'),
   aiSaveBtn: document.getElementById('ai-save-btn'),
   aiTestResult: document.getElementById('ai-test-result'),
@@ -3725,6 +3726,25 @@ function initAISettings() {
   // ajouter une clé, c'est censé ajouter une nouvelle clé API ».
   let expandedKeyId = null;
 
+  // [Claude] — 2026-11-10 — Narcisse : « je n'ai aucun moyen de vérifier ce qui se passe, je ne
+  // peux pas tester la clé si ça marche » — un champ texte vide pour un fournisseur sans
+  // préréglage (Ollama…) n'aide en rien à deviner un identifiant valide. Un <datalist> propose
+  // tous les modèles déjà connus (préréglages + tout ce qui a déjà été tapé sur une clé
+  // enregistrée, tous fournisseurs confondus) : le champ filtre en tapant, mais accepte toujours
+  // une saisie libre pour un modèle jamais vu.
+  function refreshModelSuggestions() {
+    if (!els.aiModelSuggestions) return;
+    const known = new Set();
+    for (const preset of PRESETS) for (const m of preset.models) known.add(m);
+    for (const k of listSavedKeys()) for (const m of k.models) known.add(m);
+    els.aiModelSuggestions.innerHTML = '';
+    for (const m of Array.from(known).sort()) {
+      const opt = document.createElement('option');
+      opt.value = m;
+      els.aiModelSuggestions.appendChild(opt);
+    }
+  }
+
   function renderSavedKeys() {
     if (!keysList) return;
     const keys = listSavedKeys();
@@ -3832,6 +3852,7 @@ function initAISettings() {
           input.type = 'text';
           input.className = 'ai-key-row-model-input';
           input.placeholder = 'Identifiant du modèle';
+          input.setAttribute('list', 'ai-model-suggestions');
           let committed = false;
           const commit = () => {
             if (committed) return;
@@ -3870,6 +3891,7 @@ function initAISettings() {
     // Premier usage (aucune clé) : le formulaire reste ouvert pour ne pas
     // cacher la seule action possible derrière un clic en plus.
     setNewKeyFormOpen(keys.length === 0);
+    refreshModelSuggestions();
   }
 
   els.aiTestBtn?.addEventListener('click', async () => {

@@ -296,6 +296,19 @@ await (async () => {
     mainJs.includes('ai-key-row-model-add') && mainJs.includes('addModelToSavedKey(k.id, value)'));
   check('Chaque modèle d’une clé a son propre bouton de retrait (removeModelFromSavedKey), distinct de la suppression de la clé',
     mainJs.includes('ai-key-row-model-remove') && mainJs.includes('removeModelFromSavedKey(k.id, m)'));
+  // [Claude] — 2026-11-10 — Narcisse : « je n'ai aucun moyen de vérifier ce qui se passe, je ne
+  // peux pas tester la clé si ça marche » — un <datalist> suggère tous les modèles déjà connus
+  // (préréglages + tout ce qui a déjà été tapé sur une clé enregistrée) sur les deux champs texte
+  // de modèle (formulaire d'ajout de clé, et « + Ajouter un modèle » sur une clé existante).
+  check('#ai-model-suggestions (datalist) existe, relié au champ Modèle du formulaire d’ajout',
+    html.includes('id="ai-model-suggestions"') && /id="ai-model"[^>]*list="ai-model-suggestions"/.test(html));
+  check('refreshModelSuggestions peuple le datalist depuis PRESETS ET les clés déjà enregistrées',
+    mainJs.includes('function refreshModelSuggestions') && mainJs.includes('for (const preset of PRESETS)')
+    && mainJs.includes('for (const k of listSavedKeys())'));
+  check('Le champ « + Ajouter un modèle » utilise aussi ce datalist',
+    mainJs.includes("input.setAttribute('list', 'ai-model-suggestions')"));
+  check('renderSavedKeys rafraîchit les suggestions à chaque changement (ajout/retrait/suppression de clé ou modèle)',
+    /setNewKeyFormOpen\(keys\.length === 0\);\s*refreshModelSuggestions\(\);\s*\}/.test(mainJs));
   check('Chaque ligne a un bouton de suppression dédié (ai-key-row-delete)',
     mainJs.includes('ai-key-row-delete') && mainJs.includes('deleteSavedKey(k.id)'));
   check('Le formulaire d’ajout s’ouvre seul quand aucune clé n’existe, se replie sinon',

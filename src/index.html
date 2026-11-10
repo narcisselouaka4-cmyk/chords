@@ -2041,9 +2041,17 @@
                          sans préréglage (ex. Ollama, dont les noms de modèles varient). Voir
                          populateModelOptions() dans main.js. -->
                     <select id="ai-model-select" hidden></select>
-                    <input type="text" id="ai-model" placeholder="openai/gpt-oss-20b" />
+                    <!-- [Claude] — 2026-11-10 — Narcisse : « je ne peux pas tester la clé si ça marche »
+                         sur un champ texte vide pour un fournisseur sans préréglage (Ollama…) — une
+                         liste qui filtre en tapant (« si j'écris un S, j'ai tous les modèles qui
+                         commencent par S »). Un <datalist> (voir refreshModelSuggestions() dans
+                         main.js) propose tous les modèles déjà connus — ceux des préréglages ET ceux
+                         déjà tapés sur n'importe quelle clé enregistrée — tout en acceptant toujours
+                         une saisie libre pour un modèle jamais vu. -->
+                    <input type="text" id="ai-model" list="ai-model-suggestions" placeholder="openai/gpt-oss-20b" />
                   </label>
                 </div>
+                <datalist id="ai-model-suggestions"></datalist>
 
                 <label class="tr-form-field ai-form-field">
                   <span>Clé API</span>
