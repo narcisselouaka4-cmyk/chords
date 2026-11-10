@@ -314,7 +314,6 @@ const els = {
   aiApiKey: document.getElementById('ai-api-key'),
   aiModel: document.getElementById('ai-model'),
   aiModelSelect: document.getElementById('ai-model-select'),
-  aiModelSuggestions: document.getElementById('ai-model-suggestions'),
   aiTestBtn: document.getElementById('ai-test-btn'),
   aiSaveBtn: document.getElementById('ai-save-btn'),
   aiTestResult: document.getElementById('ai-test-result'),
@@ -3650,11 +3649,18 @@ function initAISettings() {
       blurb.className = 'ai-provider-card-blurb';
       blurb.textContent = preset.blurb || '';
       card.append(name, blurb);
-      card.addEventListener('click', () => {
+      // [Claude] — 2026-11-10 — Narcisse : « générer une clé » renvoyait juste vers la page du
+      // fournisseur sans rien remplir — « pour un pianiste, remplir l'adresse de l'API, c'est pas
+      // à sa portée ». selectProviderPreset() fait ce que fait déjà le clic sur la carte
+      // (adresse + modèle), que la clé soit générée ou non : les deux boutons le font maintenant.
+      const selectProviderPreset = () => {
         if (els.aiBaseUrl) els.aiBaseUrl.value = preset.baseUrl;
         if (els.aiModel) els.aiModel.value = preset.models[0] || '';
         populateModelOptions(preset.baseUrl, preset.models[0] || '');
         highlightActiveProvider();
+      };
+      card.addEventListener('click', () => {
+        selectProviderPreset();
         els.aiApiKey?.focus();
       });
       if (preset.genUrl) {
@@ -3664,6 +3670,7 @@ function initAISettings() {
         genBtn.textContent = 'Générer une clé →';
         genBtn.addEventListener('click', (e) => {
           e.stopPropagation();
+          selectProviderPreset();
           openExternal(preset.genUrl);
         });
         card.appendChild(genBtn);
@@ -3728,21 +3735,65 @@ function initAISettings() {
 
   // [Claude] — 2026-11-10 — Narcisse : « je n'ai aucun moyen de vérifier ce qui se passe, je ne
   // peux pas tester la clé si ça marche » — un champ texte vide pour un fournisseur sans
-  // préréglage (Ollama…) n'aide en rien à deviner un identifiant valide. Un <datalist> propose
-  // tous les modèles déjà connus (préréglages + tout ce qui a déjà été tapé sur une clé
-  // enregistrée, tous fournisseurs confondus) : le champ filtre en tapant, mais accepte toujours
-  // une saisie libre pour un modèle jamais vu.
-  function refreshModelSuggestions() {
-    if (!els.aiModelSuggestions) return;
+  // préréglage (Ollama…) n'aide en rien à deviner un identifiant valide.
+  function allKnownModels() {
     const known = new Set();
     for (const preset of PRESETS) for (const m of preset.models) known.add(m);
     for (const k of listSavedKeys()) for (const m of k.models) known.add(m);
-    els.aiModelSuggestions.innerHTML = '';
-    for (const m of Array.from(known).sort()) {
-      const opt = document.createElement('option');
-      opt.value = m;
-      els.aiModelSuggestions.appendChild(opt);
+    return Array.from(known).sort();
+  }
+
+  // [Claude] — 2026-11-10 — Deuxième refonte : le <datalist> natif posait sa liste comme une
+  // fenêtre à part, mal ancrée au défilement (Narcisse : « on a l'impression qu'elle est fixée
+  // sur l'écran »), et ne montrait rien tant qu'on n'avait pas commencé à taper. Remplacé par un
+  // menu maison : un simple <div> ajouté comme frère du champ, positionné juste en-dessous par
+  // CSS (position:relative sur le parent direct, posée ici si l'habillage ne l'a pas déjà) — il
+  // suit donc le champ normalement au défilement. Tous les modèles connus s'affichent dès le
+  // clic (avant de taper quoi que ce soit), puis se filtrent en tapant ; une saisie libre reste
+  // toujours acceptée pour un modèle jamais vu.
+  function attachModelCombobox(input) {
+    if (!input || input.dataset.comboboxAttached) return;
+    input.dataset.comboboxAttached = '1';
+
+    const wrapper = input.parentElement;
+    if (wrapper && getComputedStyle(wrapper).position === 'static') {
+      wrapper.style.position = 'relative';
     }
+    const box = document.createElement('div');
+    box.className = 'ai-model-suggest-box';
+    box.hidden = true;
+    wrapper ? wrapper.appendChild(box) : input.insertAdjacentElement('afterend', box);
+
+    function render(filterText) {
+      const q = filterText.trim().toLowerCase();
+      const items = allKnownModels().filter((m) => !q || m.toLowerCase().includes(q));
+      box.innerHTML = '';
+      if (!items.length) {
+        box.hidden = true;
+        return;
+      }
+      for (const m of items) {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'ai-model-suggest-item';
+        row.textContent = m;
+        // mousedown (pas click) : se déclenche AVANT le blur du champ, sinon la liste se
+        // referme (et disparaît du DOM) avant que le clic sur sa ligne n'ait pu être traité.
+        row.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+          setter.call(input, m);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          box.hidden = true;
+        });
+        box.appendChild(row);
+      }
+      box.hidden = false;
+    }
+
+    input.addEventListener('focus', () => render(''));
+    input.addEventListener('input', () => render(input.value));
+    input.addEventListener('blur', () => { box.hidden = true; });
   }
 
   function renderSavedKeys() {
@@ -3852,7 +3903,6 @@ function initAISettings() {
           input.type = 'text';
           input.className = 'ai-key-row-model-input';
           input.placeholder = 'Identifiant du modèle';
-          input.setAttribute('list', 'ai-model-suggestions');
           let committed = false;
           const commit = () => {
             if (committed) return;
@@ -3867,6 +3917,9 @@ function initAISettings() {
           });
           input.addEventListener('blur', () => { if (!committed) commit(); });
           modelsPanel.insertBefore(input, addModelBtn);
+          // attachModelCombobox a besoin d'un parent réel (position:relative posée dessus) :
+          // appelé seulement une fois le champ inséré dans le DOM, pas avant.
+          attachModelCombobox(input);
           input.focus();
         });
         modelsPanel.appendChild(addModelBtn);
@@ -3891,7 +3944,6 @@ function initAISettings() {
     // Premier usage (aucune clé) : le formulaire reste ouvert pour ne pas
     // cacher la seule action possible derrière un clic en plus.
     setNewKeyFormOpen(keys.length === 0);
-    refreshModelSuggestions();
   }
 
   els.aiTestBtn?.addEventListener('click', async () => {
@@ -3927,6 +3979,7 @@ function initAISettings() {
   });
 
   renderProviders();
+  attachModelCombobox(els.aiModel);
   initSettingsAccordion('app-settings-ai-btn', 'ai-key-panel', { onExpand: loadConfigIntoUI });
 }
 

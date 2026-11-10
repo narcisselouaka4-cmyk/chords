@@ -136,8 +136,19 @@ function check(label, ok) {
   const mainJs = read('src/main.js');
   check('renderProviders() construit une carte par préréglage avec un bouton « Générer une clé »',
     mainJs.includes("genBtn.textContent = 'Générer une clé →'"));
-  check('Le clic sur une carte remplit baseUrl + model (sélection du fournisseur)',
-    /card\.addEventListener\('click', \(\) => \{[\s\S]*?els\.aiBaseUrl\.value = preset\.baseUrl/.test(mainJs));
+  // [Claude] — 2026-11-10 — selectProviderPreset() factorise le remplissage (baseUrl + modèle) :
+  // repris par le clic sur la carte ET par « Générer une clé » (voir plus bas), au lieu d'être
+  // écrit en dur dans le seul listener de la carte.
+  check('Le clic sur une carte remplit baseUrl + model (via selectProviderPreset)',
+    /const selectProviderPreset = \(\) => \{[\s\S]*?els\.aiBaseUrl\.value = preset\.baseUrl/.test(mainJs)
+    && /card\.addEventListener\('click', \(\) => \{\s*selectProviderPreset\(\);/.test(mainJs));
+  // [Claude] — 2026-11-10 — Narcisse : « j'appuie sur générer une clé, ça me renvoie à la page,
+  // mais il faudrait que l'adresse de l'API se remplisse automatiquement — pour un pianiste,
+  // remplir l'adresse, c'est pas à sa portée ». « Générer une clé » faisait AVANT seulement
+  // openExternal (e.stopPropagation() empêchait le remplissage du clic sur la carte) : il fait
+  // maintenant aussi le remplissage, via la même fonction que le clic sur la carte.
+  check('« Générer une clé » remplit aussi baseUrl + modèle (pas seulement ouvrir la page)',
+    /genBtn\.addEventListener\('click', \(e\) => \{\s*e\.stopPropagation\(\);\s*selectProviderPreset\(\);\s*openExternal\(preset\.genUrl\);/.test(mainJs));
 }
 
 // ── E. Liens externes : liste fermée côté main, pas une URL arbitraire du renderer ──
@@ -296,19 +307,23 @@ await (async () => {
     mainJs.includes('ai-key-row-model-add') && mainJs.includes('addModelToSavedKey(k.id, value)'));
   check('Chaque modèle d’une clé a son propre bouton de retrait (removeModelFromSavedKey), distinct de la suppression de la clé',
     mainJs.includes('ai-key-row-model-remove') && mainJs.includes('removeModelFromSavedKey(k.id, m)'));
-  // [Claude] — 2026-11-10 — Narcisse : « je n'ai aucun moyen de vérifier ce qui se passe, je ne
-  // peux pas tester la clé si ça marche » — un <datalist> suggère tous les modèles déjà connus
-  // (préréglages + tout ce qui a déjà été tapé sur une clé enregistrée) sur les deux champs texte
-  // de modèle (formulaire d'ajout de clé, et « + Ajouter un modèle » sur une clé existante).
-  check('#ai-model-suggestions (datalist) existe, relié au champ Modèle du formulaire d’ajout',
-    html.includes('id="ai-model-suggestions"') && /id="ai-model"[^>]*list="ai-model-suggestions"/.test(html));
-  check('refreshModelSuggestions peuple le datalist depuis PRESETS ET les clés déjà enregistrées',
-    mainJs.includes('function refreshModelSuggestions') && mainJs.includes('for (const preset of PRESETS)')
+  // [Claude] — 2026-11-10 — Deuxième refonte : le <datalist> natif posait sa liste comme une
+  // fenêtre à part mal ancrée au défilement (Narcisse : « on a l'impression qu'elle est fixée sur
+  // l'écran »), sans rien montrer tant qu'on n'avait pas commencé à taper. Remplacé par un menu
+  // maison (attachModelCombobox) : un <div> frère du champ, positionné par rapport à lui — il
+  // suit donc le champ au défilement — qui montre TOUS les modèles connus dès le clic (focus),
+  // puis les filtre en tapant.
+  check('Plus de <datalist> natif pour les modèles (remplacé par un menu maison)',
+    !html.includes('id="ai-model-suggestions"') && !mainJs.includes('ai-model-suggestions'));
+  check('allKnownModels rassemble les modèles de PRESETS ET des clés déjà enregistrées',
+    mainJs.includes('function allKnownModels') && mainJs.includes('for (const preset of PRESETS)')
     && mainJs.includes('for (const k of listSavedKeys())'));
-  check('Le champ « + Ajouter un modèle » utilise aussi ce datalist',
-    mainJs.includes("input.setAttribute('list', 'ai-model-suggestions')"));
-  check('renderSavedKeys rafraîchit les suggestions à chaque changement (ajout/retrait/suppression de clé ou modèle)',
-    /setNewKeyFormOpen\(keys\.length === 0\);\s*refreshModelSuggestions\(\);\s*\}/.test(mainJs));
+  check('attachModelCombobox montre tous les modèles dès le clic (focus), pas seulement en tapant',
+    /input\.addEventListener\('focus', \(\) => render\(''\)\)/.test(mainJs));
+  check('Le menu se filtre en tapant, dans une boîte ancrée au champ (ai-model-suggest-box)',
+    mainJs.includes('ai-model-suggest-box') && /input\.addEventListener\('input', \(\) => render\(input\.value\)\)/.test(mainJs));
+  check('Le champ Modèle du formulaire d’ajout ET « + Ajouter un modèle » utilisent ce même menu',
+    (mainJs.match(/attachModelCombobox\(/g) || []).length >= 2);
   check('Chaque ligne a un bouton de suppression dédié (ai-key-row-delete)',
     mainJs.includes('ai-key-row-delete') && mainJs.includes('deleteSavedKey(k.id)'));
   check('Le formulaire d’ajout s’ouvre seul quand aucune clé n’existe, se replie sinon',

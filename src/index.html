@@ -2041,17 +2041,17 @@
                          sans préréglage (ex. Ollama, dont les noms de modèles varient). Voir
                          populateModelOptions() dans main.js. -->
                     <select id="ai-model-select" hidden></select>
-                    <!-- [Claude] — 2026-11-10 — Narcisse : « je ne peux pas tester la clé si ça marche »
-                         sur un champ texte vide pour un fournisseur sans préréglage (Ollama…) — une
-                         liste qui filtre en tapant (« si j'écris un S, j'ai tous les modèles qui
-                         commencent par S »). Un <datalist> (voir refreshModelSuggestions() dans
-                         main.js) propose tous les modèles déjà connus — ceux des préréglages ET ceux
-                         déjà tapés sur n'importe quelle clé enregistrée — tout en acceptant toujours
-                         une saisie libre pour un modèle jamais vu. -->
-                    <input type="text" id="ai-model" list="ai-model-suggestions" placeholder="openai/gpt-oss-20b" />
+                    <!-- [Claude] — 2026-11-10 — Narcisse : le <datalist> natif posait sa liste de
+                         suggestions comme une fenêtre à part, mal ancrée (elle restait en place au
+                         lieu de suivre le champ au défilement — « on a l'impression qu'elle est
+                         fixée sur l'écran »), et ne montrait rien tant qu'on n'avait pas commencé à
+                         taper. Remplacé par un menu maison (attachModelCombobox() dans main.js) :
+                         un simple <div> ancré juste sous CE champ (position relative/absolute, donc
+                         il suit le défilement normalement), qui affiche TOUS les modèles connus dès
+                         le clic (avant de taper quoi que ce soit), puis les filtre en tapant. -->
+                    <input type="text" id="ai-model" placeholder="Identifiant du modèle" autocomplete="off" />
                   </label>
                 </div>
-                <datalist id="ai-model-suggestions"></datalist>
 
                 <label class="tr-form-field ai-form-field">
                   <span>Clé API</span>

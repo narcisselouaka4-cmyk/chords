@@ -1365,6 +1365,48 @@
    vers #ai-key-panel — c'est la même habilllage Astra qu'avant, inchangé. */
 .ai-key-actions { display: flex; justify-content: flex-end; margin-top: 20px; }
 
+/* [Claude] — 2026-11-10 — Menu de suggestions de modèles « maison » (attachModelCombobox,
+   main.js), à la place du <datalist> natif : Narcisse l'a vu se détacher du champ au
+   défilement (le natif est hors flux, mal ancré dans Electron), sans rien montrer tant qu'on
+   n'avait pas commencé à taper. Ce <div> est positionné par rapport à son parent direct
+   (position:relative posée en JS si besoin) : il suit donc le champ normalement, y compris au
+   défilement, et s'affiche dès le clic avec tous les modèles connus. */
+.ai-model-suggest-box {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin-top: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--r-border-strong, var(--panel-border));
+  border-radius: var(--r-radius-btn, 8px);
+  background: var(--r-surface, var(--surface));
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+.ai-model-suggest-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--r-text, inherit);
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-model-suggest-item:hover, .ai-model-suggest-item:focus-visible {
+  background: var(--r-accent-soft, var(--accent-soft));
+}
+.ai-model-suggest-empty {
+  padding: 7px 10px;
+  color: var(--r-text-muted, var(--muted));
+  font-size: 0.8rem;
+}
+
 /* [Claude] — 2026-10-13 — Barre de recherche des bibliothèques sans toolbar Astra (Studio, Analyse). */
 .library-search {
   width: 100%; box-sizing: border-box; margin: 0 0 10px; padding: 8px 12px; font: inherit; font-size: 0.82rem;
