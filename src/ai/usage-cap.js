@@ -31,6 +31,20 @@ export function getMonthlyUsage() {
   } catch (_) { return 0; }
 }
 
+// [Claude] — 2026-11-10 — Narcisse : le plafond ne sert à rien (jamais appliqué nulle part dans
+// le code — confirmé en le cherchant : seul ce fichier et l'écran Réglages le lisaient), et il ne
+// le regarde même pas. Ce qui l'intéresse : combien d'appels réellement faits, mois par mois, en
+// graphique. getMonthlyUsageHistory() lit le même stockage, pour tous les mois connus.
+export function getMonthlyUsageHistory() {
+  try {
+    const data = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+    return Object.entries(data)
+      .filter(([, count]) => Number.isFinite(count) && count > 0)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([month, count]) => ({ month, count }));
+  } catch (_) { return []; }
+}
+
 export function incrementMonthlyUsage() {
   try {
     const data = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');

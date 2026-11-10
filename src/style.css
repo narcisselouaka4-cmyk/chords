@@ -3671,26 +3671,78 @@ body.studio-recording-cursor * {
   color: #dc2626;
 }
 
+/* [Claude] — 2026-11-10 — Le plafond (.ai-cap-field, un <input type=number> jamais
+   appliqué nulle part dans le code) est retiré : Narcisse ne le regardait même pas.
+   Reste le vrai compte d'appels (.ai-usage) et son historique dépliable (.ai-usage-chart). */
 .ai-cap-row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
-}
-
-.ai-cap-field {
-  flex: 1 1 200px;
-  margin-bottom: 0 !important;
-}
-
-.ai-cap-field input[type='number'] {
-  width: 100%;
-  min-width: 120px;
 }
 
 .ai-usage {
   font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.ai-usage-history-toggle {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ai-usage-chart {
+  margin-bottom: 10px;
+}
+
+.ai-usage-chart-empty {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.ai-usage-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 110px;
+  padding: 8px 4px 0;
+  overflow-x: auto;
+}
+
+.ai-usage-chart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 34px;
+  height: 100%;
+}
+
+.ai-usage-chart-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ai-usage-chart-bar {
+  width: 18px;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  background: var(--accent);
+}
+
+.ai-usage-chart-label {
+  font-size: 0.62rem;
   color: var(--muted);
   white-space: nowrap;
 }

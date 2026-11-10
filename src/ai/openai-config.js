@@ -6,6 +6,7 @@
 import {
   isAnthropicEndpoint, anthropicRequestUrl, anthropicHeaders, toAnthropicBody, fromAnthropicResponse,
 } from './anthropic-adapter.js';
+import { incrementMonthlyUsage } from './usage-cap.js';
 
 const STORAGE_KEY = 'piano-jazz-ai-config';
 const ENCRYPTED_PREFIX = 'enc:';
@@ -185,6 +186,11 @@ export async function callChatCompletions(baseUrl, apiKey, body, options = {}) {
     // renvoyer son texte : rien à faire ici dans ce cas.
     const timeoutMs = options.timeoutMs || (options.signal ? 30000 : undefined);
     const { ok, status, text } = await window.electronAPI.ai.chatCompletion(baseUrl, apiKey, body, timeoutMs);
+    // [Claude] — 2026-11-10 — Seul point de passage réel de tout appel IA (Copilot,
+    // narration Pédagogie, test de connexion) : avant ce lot, incrementMonthlyUsage()
+    // existait mais n'était jamais appelée nulle part — « 0 / 50 ce mois » ne bougeait
+    // jamais. Compte maintenant un vrai appel réseau réussi, quel que soit l'appelant.
+    if (ok) incrementMonthlyUsage();
     return {
       ok,
       status,
@@ -207,7 +213,11 @@ export async function callChatCompletions(baseUrl, apiKey, body, options = {}) {
     body: JSON.stringify(anthropic ? toAnthropicBody(body) : body),
     ...(options.signal ? { signal: options.signal } : {}),
   });
-  if (!anthropic || !res.ok) return res; // erreur : le texte brut du fournisseur reste utile tel quel
+  if (!anthropic || !res.ok) {
+    if (res.ok) incrementMonthlyUsage();
+    return res; // erreur : le texte brut du fournisseur reste utile tel quel
+  }
+  incrementMonthlyUsage();
   const data = await res.json();
   const translated = fromAnthropicResponse(data);
   return { ok: true, status: res.status, json: async () => translated, text: async () => JSON.stringify(translated) };
@@ -293,10 +303,25 @@ export const EXTERNAL_PROVIDER_LINKS = [];
 // toutes les clés enregistrées et d'en sélectionner une dans la liste. C'est
 // trop long de devoir retaper une clé ». Stockage séparé de la config active
 // (STORAGE_KEY ci-dessus, inchangée) : une liste de profils {id, label,
-// baseUrl, apiKey chiffrée, model}. Activer un profil ne fait que (re)poser
-// la config active avec ses valeurs — aucun code existant (ai-client.js,
-// usage-cap.js, pedagogie-tab.js…) n'a besoin de changer.
+// baseUrl, apiKey chiffrée, models}. Activer un modèle d'un profil ne fait que
+// (re)poser la config active avec ses valeurs — aucun code existant
+// (ai-client.js, usage-cap.js, pedagogie-tab.js…) n'a besoin de changer.
+// [Claude] — 2026-11-10 — Narcisse : « quand je clique sur ma clé Ollama, rien
+// ne me permet de dérouler les modèles que j'y ai déjà mis (Nemotron, Beam,
+// GPT-OSS) — je suis obligé de tout retaper ». Une clé enregistrée porte donc
+// maintenant une LISTE de modèles déjà utilisés sous cette même adresse/clé
+// (`models`, pas un `model` singulier) : chaque nouveau modèle tapé une fois
+// s'y ajoute et reste proposable ensuite, qu'il vienne d'un préréglage connu
+// (Anthropic, Groq…) ou d'un fournisseur libre comme Ollama, dont le
+// catalogue de modèles ne peut pas être deviné à l'avance. Compatibilité :
+// une entrée plus ancienne n'a qu'un `model` (chaîne) — lue comme `models: [model]`.
 const KEYS_LIST_STORAGE_KEY = 'piano-jazz-ai-keys';
+
+function modelsOf(entry) {
+  if (Array.isArray(entry?.models) && entry.models.length) return entry.models;
+  if (typeof entry?.model === 'string' && entry.model) return [entry.model];
+  return [];
+}
 
 function getKeysListRaw() {
   if (!isBrowser()) return [];
@@ -329,26 +354,41 @@ function labelForBaseUrl(baseUrl) {
 /**
  * Liste des profils enregistrés, SANS déchiffrer les clés (un simple survol
  * de la liste n'a pas besoin du secret — il n'est lu qu'à l'activation).
+ * `models` fusionne l'historique de la clé avec les modèles connus du
+ * préréglage correspondant (si l'adresse en est un) : une clé Anthropic tout
+ * juste enregistrée propose donc tout de suite ses 3 vrais modèles, pas
+ * seulement celui utilisé au premier enregistrement.
  */
 export function listSavedKeys() {
-  return getKeysListRaw().map(({ id, label, baseUrl, model }) => ({ id, label, baseUrl, model }));
+  return getKeysListRaw().map((entry) => {
+    const preset = PRESETS.find((p) => p.baseUrl === entry.baseUrl);
+    const own = modelsOf(entry);
+    const hidden = new Set(Array.isArray(entry.hiddenPresetModels) ? entry.hiddenPresetModels : []);
+    const presetModels = preset ? preset.models.filter((m) => !hidden.has(m)) : [];
+    const models = preset ? Array.from(new Set([...presetModels, ...own])) : own;
+    return { id: entry.id, label: entry.label, baseUrl: entry.baseUrl, models };
+  });
 }
 
 /**
  * Enregistre un profil nommé. Une entrée existante avec le même baseUrl est
- * mise à jour (un profil par fournisseur) plutôt que dupliquée.
+ * mise à jour (un profil par fournisseur) plutôt que dupliquée ; son modèle
+ * s'ajoute à l'historique de la clé (`models`) au lieu de remplacer les
+ * précédents.
  */
 export async function saveNamedKey({ label, baseUrl, apiKey, model }) {
   const cleanBaseUrl = baseUrl?.trim() || DEFAULTS.baseUrl;
   const encryptedKey = await encryptApiKey(apiKey?.trim() || '');
   const list = getKeysListRaw();
   const existingIndex = list.findIndex((k) => k.baseUrl === cleanBaseUrl);
+  const cleanModel = model?.trim() || DEFAULTS.model;
+  const previousModels = existingIndex >= 0 ? modelsOf(list[existingIndex]) : [];
   const entry = {
     id: existingIndex >= 0 ? list[existingIndex].id : `key-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     label: label?.trim() || labelForBaseUrl(cleanBaseUrl),
     baseUrl: cleanBaseUrl,
     apiKey: encryptedKey,
-    model: model?.trim() || DEFAULTS.model,
+    models: previousModels.includes(cleanModel) ? previousModels : [...previousModels, cleanModel],
   };
   if (existingIndex >= 0) list[existingIndex] = entry;
   else list.push(entry);
@@ -356,12 +396,64 @@ export async function saveNamedKey({ label, baseUrl, apiKey, model }) {
   return entry.id;
 }
 
-/** Active un profil enregistré : déchiffre sa clé et la pose comme config active. */
+/** Active un profil enregistré avec son premier modèle connu : déchiffre sa clé et la pose comme config active. */
 export async function activateSavedKey(id) {
   const entry = getKeysListRaw().find((k) => k.id === id);
   if (!entry) throw new Error('Clé enregistrée introuvable.');
+  return activateSavedKeyModel(id, modelsOf(entry)[0] || DEFAULTS.model);
+}
+
+/**
+ * Active un profil enregistré avec un modèle précis parmi ceux déjà listés
+ * pour cette clé (ou un nouveau, voir addModelToSavedKey) — déroulé dans la
+ * liste des clés (Narcisse : « il doit y avoir un déploiement de ces trois
+ * modèles » au clic sur une clé déjà enregistrée, sans tout retaper).
+ */
+export async function activateSavedKeyModel(id, model) {
+  const entry = getKeysListRaw().find((k) => k.id === id);
+  if (!entry) throw new Error('Clé enregistrée introuvable.');
   const apiKey = await decryptApiKey(entry.apiKey);
-  return saveAIConfig({ baseUrl: entry.baseUrl, apiKey, model: entry.model, monthlyCap: getAIConfig().monthlyCap });
+  return saveAIConfig({ baseUrl: entry.baseUrl, apiKey, model, monthlyCap: getAIConfig().monthlyCap });
+}
+
+/**
+ * Ajoute un modèle à l'historique d'une clé déjà enregistrée, sans toucher à
+ * son adresse ni sa clé (Narcisse : « ajouter une clé » doit rester réservé à
+ * une VRAIE nouvelle clé API — ajouter un modèle à une clé existante est une
+ * action distincte).
+ */
+export function addModelToSavedKey(id, model) {
+  const clean = model?.trim();
+  if (!clean) return;
+  const list = getKeysListRaw();
+  const idx = list.findIndex((k) => k.id === id);
+  if (idx < 0) throw new Error('Clé enregistrée introuvable.');
+  const models = modelsOf(list[idx]);
+  if (!models.includes(clean)) {
+    list[idx] = { ...list[idx], models: [...models, clean] };
+    setKeysListRaw(list);
+  }
+}
+
+/**
+ * Retire un modèle de l'historique d'une clé (Narcisse : « faut qu'on puisse supprimer
+ * des modèles aussi »), sans toucher à l'adresse ni à la clé. Pour une adresse de
+ * préréglage (Anthropic, Groq…), ses modèles connus sont normalement toujours proposés
+ * (listSavedKeys fusionne avec PRESETS.models) : ce modèle précis est donc en plus
+ * gardé dans `hiddenPresetModels`, pour qu'il reste masqué malgré la fusion.
+ */
+export function removeModelFromSavedKey(id, model) {
+  const list = getKeysListRaw();
+  const idx = list.findIndex((k) => k.id === id);
+  if (idx < 0) throw new Error('Clé enregistrée introuvable.');
+  const own = modelsOf(list[idx]).filter((m) => m !== model);
+  const hiddenPresetModels = Array.isArray(list[idx].hiddenPresetModels) ? list[idx].hiddenPresetModels : [];
+  list[idx] = {
+    ...list[idx],
+    models: own,
+    hiddenPresetModels: hiddenPresetModels.includes(model) ? hiddenPresetModels : [...hiddenPresetModels, model],
+  };
+  setKeysListRaw(list);
 }
 
 export function deleteSavedKey(id) {

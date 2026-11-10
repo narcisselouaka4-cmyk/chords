@@ -174,7 +174,10 @@ await (async () => {
   };
 
   const mod = await import(`${pathToFileURL('src/ai/openai-config.js')}`);
-  const { listSavedKeys, saveNamedKey, activateSavedKey, deleteSavedKey, getAIConfig } = mod;
+  const {
+    listSavedKeys, saveNamedKey, activateSavedKey, activateSavedKeyModel, addModelToSavedKey,
+    removeModelFromSavedKey, deleteSavedKey, getAIConfig,
+  } = mod;
 
   check('Aucune clé enregistrée au départ', listSavedKeys().length === 0);
 
@@ -183,10 +186,15 @@ await (async () => {
   check('Le profil enregistré ne garde pas la clé en clair dans la liste (listSavedKeys)',
     !('apiKey' in listSavedKeys()[0]));
 
-  // Même baseUrl qu'une entrée existante : mise à jour en place, pas de doublon.
+  // [Claude] — 2026-11-10 — Narcisse : changer de modèle sur une clé déjà enregistrée ne doit
+  // PAS obliger à tout retaper, ni perdre le modèle précédent — les deux doivent rester
+  // proposables (c'est tout le problème qu'il a signalé avec sa clé Ollama : Nemotron, Beam,
+  // GPT-OSS doivent tous les trois rester choisissables, pas écrasés l'un par l'autre).
   const id2 = await saveNamedKey({ label: 'Ma clé Groq (renommée)', baseUrl: 'https://api.groq.com/openai/v1', apiKey: 'gsk_test_2', model: 'openai/gpt-oss-120b' });
   check('Un deuxième enregistrement avec le même baseUrl met à jour le profil au lieu de dupliquer',
     id2 === id1 && listSavedKeys().length === 1 && listSavedKeys()[0].label === 'Ma clé Groq (renommée)');
+  check('Le nouveau modèle s’ajoute à l’historique de la clé SANS effacer le précédent',
+    listSavedKeys()[0].models.includes('openai/gpt-oss-20b') && listSavedKeys()[0].models.includes('openai/gpt-oss-120b'));
 
   const id3 = await saveNamedKey({ label: 'Ma clé OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'sk-or-test', model: 'meta-llama/llama-3.1-8b-instruct:free' });
   check('Un baseUrl différent crée bien une deuxième entrée', listSavedKeys().length === 2 && id3 !== id1);
@@ -195,9 +203,60 @@ await (async () => {
   check('activateSavedKey pose la clé choisie comme config active', activated.apiKey === 'sk-or-test' && activated.baseUrl === 'https://openrouter.ai/api/v1');
   check('getAIConfig() reflète bien l\'activation', getAIConfig().apiKey === 'sk-or-test');
 
+  const activatedModel = await activateSavedKeyModel(id1, 'openai/gpt-oss-20b');
+  check('activateSavedKeyModel active un modèle précis de la clé, sans toucher à son adresse/sa clé',
+    activatedModel.baseUrl === 'https://api.groq.com/openai/v1' && activatedModel.apiKey === 'gsk_test_2'
+    && activatedModel.model === 'openai/gpt-oss-20b');
+
+  addModelToSavedKey(id3, 'google/gemini-flash-1.5:free');
+  check('addModelToSavedKey ajoute un modèle à une clé existante sans créer de nouvelle entrée',
+    listSavedKeys().length === 2 && listSavedKeys().find((k) => k.id === id3).models.includes('google/gemini-flash-1.5:free'));
+  addModelToSavedKey(id3, 'google/gemini-flash-1.5:free');
+  check('addModelToSavedKey n’ajoute pas de doublon si le modèle y est déjà',
+    listSavedKeys().find((k) => k.id === id3).models.filter((m) => m === 'google/gemini-flash-1.5:free').length === 1);
+
+  // [Claude] — 2026-11-10 — Une clé enregistrée sur l'adresse d'un préréglage connu (Anthropic,
+  // Groq…) propose tout de suite TOUS ses modèles connus, pas seulement celui utilisé au premier
+  // enregistrement (Narcisse : « quand je clique sur api.anthropic.com, il doit y avoir un
+  // modèle ou plusieurs »).
+  const idAnthropic = await saveNamedKey({ baseUrl: 'https://api.anthropic.com', apiKey: 'sk-ant-test', model: 'claude-haiku-4-5-20251001' });
+  const anthropicEntry = listSavedKeys().find((k) => k.id === idAnthropic);
+  check('Une clé sur l’adresse d’un préréglage connu propose directement ses 3 modèles, pas qu’un seul',
+    anthropicEntry.models.includes('claude-haiku-4-5-20251001')
+    && anthropicEntry.models.includes('claude-sonnet-5')
+    && anthropicEntry.models.includes('claude-opus-5'));
+
+  // [Claude] — 2026-11-10 — Narcisse : « faut qu'on puisse supprimer des modèles aussi ».
+  removeModelFromSavedKey(id3, 'google/gemini-flash-1.5:free');
+  check('removeModelFromSavedKey retire un modèle ajouté manuellement (fournisseur libre)',
+    !listSavedKeys().find((k) => k.id === id3).models.includes('google/gemini-flash-1.5:free'));
+  check('…sans retirer les autres modèles de la même clé',
+    listSavedKeys().find((k) => k.id === id3).models.includes('meta-llama/llama-3.1-8b-instruct:free'));
+  removeModelFromSavedKey(idAnthropic, 'claude-opus-5');
+  check('removeModelFromSavedKey masque aussi un modèle de PRÉRÉGLAGE (sinon la fusion PRESETS.models le ferait revenir)',
+    !listSavedKeys().find((k) => k.id === idAnthropic).models.includes('claude-opus-5'));
+  check('…les autres modèles du préréglage restent proposés',
+    listSavedKeys().find((k) => k.id === idAnthropic).models.includes('claude-sonnet-5'));
+
   deleteSavedKey(id1);
-  check('deleteSavedKey retire le profil visé', listSavedKeys().length === 1 && listSavedKeys()[0].id === id3);
-  check('deleteSavedKey laisse les autres profils intacts', listSavedKeys()[0].id === id3);
+  check('deleteSavedKey retire le profil visé', listSavedKeys().length === 2 && !listSavedKeys().some((k) => k.id === id1));
+  check('deleteSavedKey laisse les autres profils intacts', listSavedKeys().some((k) => k.id === id3));
+
+  // [Claude] — 2026-11-10 — Narcisse : « ça sert à rien de mettre une limite [...] ce qui
+  // pourrait être utile, ce serait de mettre combien d'appels on a fait par mois ». Le
+  // compteur existait déjà (usage-cap.js) mais incrementMonthlyUsage() n'était appelée
+  // NULLE PART dans tout le code avant ce lot — « 0 / 50 ce mois » ne bougeait jamais.
+  const usageMod = await import(`${pathToFileURL('src/ai/usage-cap.js')}`);
+  check('getMonthlyUsage commence à 0', usageMod.getMonthlyUsage() === 0);
+  usageMod.incrementMonthlyUsage();
+  usageMod.incrementMonthlyUsage();
+  check('incrementMonthlyUsage compte réellement les appels', usageMod.getMonthlyUsage() === 2);
+  check('getMonthlyUsageHistory retrouve ce même mois avec son compte',
+    usageMod.getMonthlyUsageHistory().some((h) => h.count === 2));
+
+  const cfg = read('src/ai/openai-config.js');
+  check('callChatCompletions incrémente le compteur réel sur un appel réussi (les deux chemins : IPC Electron et fetch direct)',
+    (cfg.match(/incrementMonthlyUsage\(\)/g) || []).length >= 3);
 })();
 
 // ── G. Refonte 22/10 — clés enregistrées visibles, plus de champ Nom ──
@@ -224,14 +283,27 @@ await (async () => {
   check('Plus de référence à aiKeyLabel dans main.js', !mainJs.includes('aiKeyLabel'));
   check('saveNamedKey est appelé sans label (déduit automatiquement du fournisseur)',
     /await saveNamedKey\(\{\s*baseUrl: gathered\.baseUrl/.test(mainJs));
-  check('renderSavedKeys construit une ligne par clé avec activation au clic (ai-key-row-activate)',
-    mainJs.includes('ai-key-row-activate') && mainJs.includes('activateSavedKey(k.id)'));
+  // [Claude] — 2026-11-10 — Narcisse : cliquer une clé enregistrée doit dérouler SES
+  // modèles (un par modèle déjà utilisé sous cette adresse/clé), pas l'activer
+  // silencieusement avec celui sauvé en dernier — sinon changer de modèle oblige à
+  // tout retaper. « Ajouter une clé » redevient strictement une nouvelle clé API :
+  // formulaire vierge (resetNewKeyForm), jamais une case d'ajout de modèle.
+  check('renderSavedKeys déroule les modèles d’une clé au clic (pas une activation silencieuse)',
+    mainJs.includes('ai-key-row-models') && mainJs.includes('expandedKeyId === k.id ? null : k.id'));
+  check('Chaque modèle d’une clé s’active d’un clic (activateSavedKeyModel), sans rien retaper',
+    mainJs.includes('ai-key-row-model') && mainJs.includes('activateSavedKeyModel(k.id, m)'));
+  check('« + Ajouter un modèle » ajoute un modèle à LA CLÉ existante (addModelToSavedKey), pas une nouvelle clé',
+    mainJs.includes('ai-key-row-model-add') && mainJs.includes('addModelToSavedKey(k.id, value)'));
+  check('Chaque modèle d’une clé a son propre bouton de retrait (removeModelFromSavedKey), distinct de la suppression de la clé',
+    mainJs.includes('ai-key-row-model-remove') && mainJs.includes('removeModelFromSavedKey(k.id, m)'));
   check('Chaque ligne a un bouton de suppression dédié (ai-key-row-delete)',
     mainJs.includes('ai-key-row-delete') && mainJs.includes('deleteSavedKey(k.id)'));
   check('Le formulaire d’ajout s’ouvre seul quand aucune clé n’existe, se replie sinon',
     mainJs.includes('setNewKeyFormOpen(keys.length === 0)'));
-  check('Un bouton "+ Ajouter une clé" permet de rouvrir le formulaire sans tout retaper',
-    mainJs.includes('ai-key-add-btn') && mainJs.includes("setNewKeyFormOpen(newKeyForm?.hidden !== false)"));
+  check('"+ Ajouter une clé" réinitialise le formulaire à vide avant de l’ouvrir (jamais l’adresse/modèle d’une clé active)',
+    mainJs.includes('ai-key-add-btn') && /addBtn\.addEventListener\('click', \(\) => \{[\s\S]*?resetNewKeyForm\(\)/.test(mainJs));
+  check('resetNewKeyForm vide adresse, clé API et modèle',
+    /function resetNewKeyForm\(\) \{[\s\S]*?aiBaseUrl\.value = ''[\s\S]*?aiApiKey\.value = ''[\s\S]*?aiModel\.value = ''/.test(mainJs));
 }
 
 // ── H. Refonte 23/10 — les trois sections sont le même composant ──

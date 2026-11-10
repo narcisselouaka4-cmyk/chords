@@ -2060,15 +2060,18 @@
                 </div>
               </div>
 
+              <!-- [Claude] — 2026-11-10 — Narcisse : le plafond ne sert à rien (jamais appliqué
+                   nulle part dans le code, et jamais regardé) ; ce qui l'intéresse, c'est combien
+                   d'appels ont réellement été faits, mois par mois, en graphique. Plus de champ à
+                   remplir : juste le compte réel (enfin incrémenté, voir callChatCompletions) et un
+                   historique dépliable (barres, un mois par colonne, graduées par dizaines). -->
               <div class="ai-form-section">
-                <span class="tr-eyebrow">Utilisation ce mois-ci</span>
+                <span class="tr-eyebrow">Utilisation</span>
                 <div class="ai-cap-row">
-                  <label class="tr-form-field ai-form-field ai-cap-field">
-                    <span>Plafond d'appels par mois</span>
-                    <input type="number" id="ai-monthly-cap" min="1" step="1" value="50" />
-                  </label>
-                  <span class="ai-usage" id="ai-usage">0 / 50 ce mois</span>
+                  <span class="ai-usage" id="ai-usage">0 appel ce mois-ci</span>
+                  <button type="button" id="ai-usage-history-toggle" class="ai-usage-history-toggle">Voir l'historique</button>
                 </div>
+                <div class="ai-usage-chart" id="ai-usage-chart" hidden></div>
                 <p class="ai-form-hint">Compteur interne, pas un montant réel : vos coûts sont sur le tableau de bord de votre fournisseur.</p>
               </div>
 

@@ -75,12 +75,14 @@ import {
   listSavedKeys,
   saveNamedKey,
   activateSavedKey,
+  activateSavedKeyModel,
+  addModelToSavedKey,
+  removeModelFromSavedKey,
   deleteSavedKey,
 } from './ai/openai-config.js';
 import {
-  getMonthlyCap,
-  setMonthlyCap,
   getMonthlyUsage,
+  getMonthlyUsageHistory,
 } from './ai/usage-cap.js';
 import {
   createPracticeExercise,
@@ -315,8 +317,9 @@ const els = {
   aiTestBtn: document.getElementById('ai-test-btn'),
   aiSaveBtn: document.getElementById('ai-save-btn'),
   aiTestResult: document.getElementById('ai-test-result'),
-  aiMonthlyCap: document.getElementById('ai-monthly-cap'),
   aiUsage: document.getElementById('ai-usage'),
+  aiUsageHistoryToggle: document.getElementById('ai-usage-history-toggle'),
+  aiUsageChart: document.getElementById('ai-usage-chart'),
 };
 
 function setStatus(message) {
@@ -3540,14 +3543,72 @@ function initAISettings() {
     populateModelOptions(els.aiBaseUrl.value, els.aiModel?.value || '');
   });
 
+  // [Claude] — 2026-11-10 — Narcisse : le plafond ne sert à rien (jamais appliqué nulle part,
+  // jamais regardé) ; ce qui l'intéresse, c'est le vrai compte d'appels, mois par mois, en
+  // graphique. monthKeyToLabel/renderUsageChart/renderUsage remplacent l'ancien "X / cap ce mois".
+  const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+  function monthKeyToLabel(monthKey) {
+    const [y, m] = monthKey.split('-').map(Number);
+    return `${MONTH_NAMES[(m - 1 + 12) % 12]} ${y}`;
+  }
+
+  function renderUsageChart() {
+    const container = els.aiUsageChart;
+    if (!container) return;
+    const history = getMonthlyUsageHistory();
+    container.innerHTML = '';
+    if (!history.length) {
+      const empty = document.createElement('p');
+      empty.className = 'ai-usage-chart-empty';
+      empty.textContent = 'Aucun appel enregistré pour l’instant.';
+      container.appendChild(empty);
+      return;
+    }
+    // Graduée par dizaines (Narcisse) : l'échelle monte toujours au palier de 10 au-dessus du pic.
+    const maxCount = Math.max(...history.map((h) => h.count));
+    const scaleMax = Math.max(10, Math.ceil(maxCount / 10) * 10);
+    const bars = document.createElement('div');
+    bars.className = 'ai-usage-chart-bars';
+    for (const { month, count } of history) {
+      const col = document.createElement('div');
+      col.className = 'ai-usage-chart-col';
+      const countEl = document.createElement('span');
+      countEl.className = 'ai-usage-chart-count';
+      countEl.textContent = String(count);
+      const bar = document.createElement('div');
+      bar.className = 'ai-usage-chart-bar';
+      bar.style.height = `${Math.max(2, Math.round((count / scaleMax) * 100))}%`;
+      bar.title = `${count} appel${count > 1 ? 's' : ''}`;
+      const label = document.createElement('span');
+      label.className = 'ai-usage-chart-label';
+      label.textContent = monthKeyToLabel(month);
+      col.append(countEl, bar, label);
+      bars.appendChild(col);
+    }
+    container.appendChild(bars);
+  }
+
+  function renderUsage() {
+    const count = getMonthlyUsage();
+    if (els.aiUsage) els.aiUsage.textContent = `${count} appel${count > 1 ? 's' : ''} ce mois-ci`;
+    if (els.aiUsageChart && !els.aiUsageChart.hidden) renderUsageChart();
+  }
+
+  els.aiUsageHistoryToggle?.addEventListener('click', () => {
+    if (!els.aiUsageChart || !els.aiUsageHistoryToggle) return;
+    const opening = els.aiUsageChart.hidden;
+    els.aiUsageChart.hidden = !opening;
+    els.aiUsageHistoryToggle.textContent = opening ? 'Masquer l’historique' : 'Voir l’historique';
+    if (opening) renderUsageChart();
+  });
+
   async function loadConfigIntoUI() {
     const cfg = await loadSecureAIConfig();
     if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
     if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
     if (els.aiModel) els.aiModel.value = cfg.model;
     populateModelOptions(cfg.baseUrl, cfg.model);
-    if (els.aiMonthlyCap) els.aiMonthlyCap.value = String(getMonthlyCap());
-    if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
+    renderUsage();
     if (els.aiTestResult) {
       els.aiTestResult.textContent = '';
       els.aiTestResult.className = 'ai-test-result';
@@ -3561,7 +3622,6 @@ function initAISettings() {
       baseUrl: els.aiBaseUrl?.value || '',
       apiKey: els.aiApiKey?.value || '',
       model: els.aiModel?.value || '',
-      monthlyCap: els.aiMonthlyCap?.value || '50',
     };
   }
 
@@ -3635,17 +3695,40 @@ function initAISettings() {
     newKeyForm.hidden = !open;
   }
 
+  // [Claude] — 2026-11-10 — Narcisse : « ajouter une clé, toutes les cases devraient
+  // être vides » — avant ce lot, le formulaire gardait l'adresse/le modèle de la
+  // dernière clé active ou du dernier préréglage cliqué. « + Ajouter une clé » doit
+  // toujours partir d'un formulaire vierge : aucune adresse, aucun modèle, aucune clé.
+  function resetNewKeyForm() {
+    if (els.aiBaseUrl) els.aiBaseUrl.value = '';
+    if (els.aiApiKey) els.aiApiKey.value = '';
+    if (els.aiModel) els.aiModel.value = '';
+    populateModelOptions('', '');
+    highlightActiveProvider();
+    if (els.aiTestResult) {
+      els.aiTestResult.textContent = '';
+      els.aiTestResult.className = 'ai-test-result';
+    }
+  }
+
   // ---- Clés enregistrées — « sélectionner une clé au lieu de la retaper » ----
   // [Claude] — 2026-10-22 — Refonte (Narcisse : « je ne sais absolument pas où
   // récupérer les clés enregistrées ») : une liste visible plutôt qu'un <select>
-  // qui ne s'affichait qu'une fois une clé déjà créée. Chaque ligne active sa
-  // clé au clic (activateSavedKey fait déjà tout : déchiffre, pose la config
-  // active). Le formulaire d'ajout se replie automatiquement dès qu'une clé
-  // existe ; « + Ajouter une clé » le redéplie sans retaper quoi que ce soit.
+  // qui ne s'affichait qu'une fois une clé déjà créée.
+  // [Claude] — 2026-11-10 — Deuxième refonte (Narcisse : « quand je clique sur ma clé
+  // Ollama, rien ne me permet de dérouler les modèles que j'y ai déjà mis — je suis
+  // obligé de tout retaper »). Cliquer une clé enregistrée déroule maintenant la liste
+  // de ses modèles connus (chacun l'active d'un clic, sans rien retaper) ; « + Ajouter
+  // un modèle » y ajoute un nouveau modèle à CETTE clé. « + Ajouter une clé » reste
+  // réservé à une VRAIE nouvelle clé API (adresse + clé + modèle vides, voir
+  // resetNewKeyForm) — Narcisse : « depuis tout à l'heure je te parle de modèle, mais
+  // ajouter une clé, c'est censé ajouter une nouvelle clé API ».
+  let expandedKeyId = null;
+
   function renderSavedKeys() {
     if (!keysList) return;
     const keys = listSavedKeys();
-    const activeBaseUrl = (els.aiBaseUrl?.value || '').trim();
+    const activeCfg = getAIConfig();
     keysList.innerHTML = '';
 
     if (keys.length === 0) {
@@ -3656,29 +3739,22 @@ function initAISettings() {
     }
 
     for (const k of keys) {
+      const card = document.createElement('div');
+      card.className = 'ai-key-card';
+
       const row = document.createElement('div');
       row.className = 'ai-key-row';
-      row.classList.toggle('is-active', k.baseUrl === activeBaseUrl);
+      row.classList.toggle('is-active', k.baseUrl === activeCfg.baseUrl);
 
-      const activate = document.createElement('button');
-      activate.type = 'button';
-      activate.className = 'ai-key-row-activate';
-      activate.innerHTML = `<span class="ai-key-row-dot" aria-hidden="true"></span><span class="ai-key-row-label">${k.label}</span>`;
-      activate.title = `Utiliser la clé « ${k.label} »`;
-      activate.addEventListener('click', async () => {
-        try {
-          const cfg = await activateSavedKey(k.id);
-          if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
-          if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
-          if (els.aiModel) els.aiModel.value = cfg.model;
-          populateModelOptions(cfg.baseUrl, cfg.model);
-          highlightActiveProvider();
-          setNewKeyFormOpen(false);
-          renderSavedKeys();
-          setStatus(`Clé « ${k.label} » activée`);
-        } catch (err) {
-          setStatus(err.message);
-        }
+      const header = document.createElement('button');
+      header.type = 'button';
+      header.className = 'ai-key-row-activate';
+      header.innerHTML = `<span class="ai-key-row-dot" aria-hidden="true"></span><span class="ai-key-row-label">${k.label}</span>`;
+      header.title = `Voir les modèles de « ${k.label} »`;
+      header.setAttribute('aria-expanded', String(expandedKeyId === k.id));
+      header.addEventListener('click', () => {
+        expandedKeyId = expandedKeyId === k.id ? null : k.id;
+        renderSavedKeys();
       });
 
       const del = document.createElement('button');
@@ -3689,19 +3765,106 @@ function initAISettings() {
       del.textContent = '🗑';
       del.addEventListener('click', () => {
         deleteSavedKey(k.id);
+        if (expandedKeyId === k.id) expandedKeyId = null;
         renderSavedKeys();
         setStatus('Clé enregistrée supprimée.');
       });
 
-      row.append(activate, del);
-      keysList.appendChild(row);
+      row.append(header, del);
+      card.appendChild(row);
+
+      if (expandedKeyId === k.id) {
+        const modelsPanel = document.createElement('div');
+        modelsPanel.className = 'ai-key-row-models';
+
+        for (const m of k.models) {
+          const wrap = document.createElement('span');
+          wrap.className = 'ai-key-row-model';
+          wrap.classList.toggle('is-active', k.baseUrl === activeCfg.baseUrl && m === activeCfg.model);
+
+          const select = document.createElement('button');
+          select.type = 'button';
+          select.className = 'ai-key-row-model-select';
+          select.textContent = m;
+          select.title = `Utiliser « ${k.label} » avec ${m}`;
+          select.addEventListener('click', async () => {
+            try {
+              const cfg = await activateSavedKeyModel(k.id, m);
+              if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
+              if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
+              if (els.aiModel) els.aiModel.value = cfg.model;
+              populateModelOptions(cfg.baseUrl, cfg.model);
+              highlightActiveProvider();
+              renderSavedKeys();
+              setStatus(`« ${k.label} » activée avec ${m}`);
+            } catch (err) {
+              setStatus(err.message);
+            }
+          });
+
+          // [Claude] — 2026-11-10 — Narcisse : « faut qu'on puisse supprimer des
+          // modèles aussi » — retire CE modèle de l'historique de la clé, sans
+          // toucher à l'adresse ni à la clé API (removeModelFromSavedKey).
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'ai-key-row-model-remove';
+          remove.textContent = '×';
+          remove.title = `Retirer ${m} de « ${k.label} »`;
+          remove.setAttribute('aria-label', `Retirer ${m} de « ${k.label} »`);
+          remove.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeModelFromSavedKey(k.id, m);
+            renderSavedKeys();
+            setStatus(`Modèle « ${m} » retiré de « ${k.label} ».`);
+          });
+
+          wrap.append(select, remove);
+          modelsPanel.appendChild(wrap);
+        }
+
+        const addModelBtn = document.createElement('button');
+        addModelBtn.type = 'button';
+        addModelBtn.className = 'ai-key-row-model-add';
+        addModelBtn.textContent = '+ Ajouter un modèle';
+        addModelBtn.addEventListener('click', () => {
+          addModelBtn.hidden = true;
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'ai-key-row-model-input';
+          input.placeholder = 'Identifiant du modèle';
+          let committed = false;
+          const commit = () => {
+            if (committed) return;
+            committed = true;
+            const value = input.value.trim();
+            if (value) addModelToSavedKey(k.id, value);
+            renderSavedKeys();
+          };
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            if (e.key === 'Escape') { committed = true; renderSavedKeys(); }
+          });
+          input.addEventListener('blur', () => { if (!committed) commit(); });
+          modelsPanel.insertBefore(input, addModelBtn);
+          input.focus();
+        });
+        modelsPanel.appendChild(addModelBtn);
+
+        card.appendChild(modelsPanel);
+      }
+
+      keysList.appendChild(card);
     }
 
     const addBtn = document.createElement('button');
     addBtn.type = 'button';
     addBtn.className = 'ai-key-add-btn';
     addBtn.textContent = keys.length ? '+ Ajouter une clé' : '+ Ajouter une première clé';
-    addBtn.addEventListener('click', () => setNewKeyFormOpen(newKeyForm?.hidden !== false));
+    addBtn.addEventListener('click', () => {
+      const opening = newKeyForm?.hidden !== false;
+      if (opening) resetNewKeyForm();
+      setNewKeyFormOpen(opening);
+    });
     keysList.appendChild(addBtn);
 
     // Premier usage (aucune clé) : le formulaire reste ouvert pour ne pas
@@ -3726,8 +3889,7 @@ function initAISettings() {
   els.aiSaveBtn?.addEventListener('click', async () => {
     const gathered = gatherConfigFromUI();
     const cfg = await saveAIConfig(gathered);
-    setMonthlyCap(gathered.monthlyCap);
-    if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
+    renderUsage();
     if (gathered.apiKey) {
       // [Claude] — 2026-10-22 — Plus de champ « Nom » (Narcisse : inutile) ;
       // saveNamedKey() déduit déjà un nom lisible du fournisseur/de l'adresse.

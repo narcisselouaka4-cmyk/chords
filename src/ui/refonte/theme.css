@@ -1238,6 +1238,74 @@
 .ai-key-row.is-active .ai-key-row-dot { background: var(--r-accent, var(--accent)); border-color: var(--r-accent, var(--accent)); }
 .ai-key-row-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ai-key-row-delete { flex: none; margin-right: 6px; }
+
+/* [Claude] — 2026-11-10 — Modèles d'une clé enregistrée, dépliés au clic sur la clé
+   (Narcisse : « quand je clique sur ma clé Ollama, il doit y avoir un déploiement des
+   modèles que j'y ai déjà mis »). Chaque puce active directement ce modèle sous la
+   même adresse/clé ; « + Ajouter un modèle » étend la liste sans rien retaper d'autre. */
+.ai-key-card { display: flex; flex-direction: column; }
+.ai-key-row-models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px 10px 28px;
+}
+.ai-key-row-model {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--r-border-strong, var(--panel-border));
+  border-radius: 100px;
+  background: var(--r-surface-chip, transparent);
+  overflow: hidden;
+}
+.ai-key-row-model:hover { border-color: var(--r-accent, var(--accent)); }
+.ai-key-row-model.is-active {
+  border-color: var(--r-accent, var(--accent));
+  background: var(--r-accent-soft, var(--accent-soft));
+}
+.ai-key-row-model-select {
+  padding: 5px 4px 5px 11px;
+  border: none;
+  background: none;
+  color: var(--r-text, inherit);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ai-key-row-model.is-active .ai-key-row-model-select { color: var(--r-accent, var(--accent)); }
+/* [Claude] — 2026-11-10 — Retirer un modèle de la liste d'une clé (Narcisse : « faut qu'on
+   puisse supprimer des modèles aussi »), distinct de la suppression de toute la clé (🗑). */
+.ai-key-row-model-remove {
+  padding: 5px 9px 5px 5px;
+  border: none;
+  background: none;
+  color: var(--r-text-muted, var(--muted));
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.ai-key-row-model-remove:hover { color: #dc2626; }
+.ai-key-row-model-add {
+  padding: 5px 11px;
+  border: 1px dashed var(--r-border-strong, var(--panel-border));
+  border-radius: 100px;
+  background: none;
+  color: var(--r-accent, var(--accent));
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ai-key-row-model-add:hover { background: var(--r-accent-soft, var(--accent-soft)); }
+.ai-key-row-model-input {
+  padding: 5px 11px;
+  border: 1px solid var(--r-accent, var(--accent));
+  border-radius: 100px;
+  background: var(--r-surface, var(--surface));
+  color: var(--r-text, inherit);
+  font-size: 0.76rem;
+  min-width: 160px;
+}
+
 .ai-key-add-btn {
   align-self: flex-start;
   padding: 6px 10px;
