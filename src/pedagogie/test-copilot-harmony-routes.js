@@ -70,6 +70,19 @@ mock.reset(); mock.enqueue({ text: 'Tes trois accords restent dans le même regi
 r = await send('Pourquoi ça sonne plat ?');
 check('Question sur son jeu : une réponse en texte, aucune génération', r.ok && mock.requests.length === 1 && !r.toolResult?.variants?.length);
 
+// Audit des routes locales (C3) : une question qui ne porte pas sur la prise va au modèle.
+const melodyTake = { name: 'Mélodie', duration: 4, events: [60, 64, 67, 72, 65, 69, 72, 77].flatMap((n, i) => [{ type: 'note_on', note: n, time: i * 0.5, velocity: 0.7 }, { type: 'note_off', note: n, time: i * 0.5 + 0.45, velocity: 0 }]) };
+const askAbout = (message) => quiet(() => sendCopilotMessage({ message, messages: [{ role: 'user', content: 'Qu’en penses-tu ?', take: melodyTake }, { role: 'assistant', content: 'Belle ligne.' }, { role: 'user', content: message }], context: { type: 'autonomous', playing: { passage: melodyTake } } }));
+mock.reset(); mock.enqueue({ text: 'Bill Evans voicait souvent sans fondamentale.' });
+r = await askAbout('Qu’en penses-tu de Bill Evans ?');
+check('Prise jointe + « Qu’en penses-tu de Bill Evans ? » : la question va au modèle, pas un avis sur la prise', r.ok && mock.requests.length === 1 && /Bill Evans/.test(r.content), r.content?.slice(0, 100));
+mock.reset();
+r = await askAbout('Qu’en penses-tu ?');
+check('« Qu’en penses-tu ? » seul, avec une prise : reste un avis sur la prise', r.ok && mock.requests.length === 0 && /mélodie/.test(r.content), r.content?.slice(0, 100));
+mock.reset();
+r = await askAbout('Qu’en penses-tu de ma prise ?');
+check('« Qu’en penses-tu de ma prise ? » : avis sur la prise', r.ok && mock.requests.length === 0, r.content?.slice(0, 100));
+
 // ── Aucun repli silencieux ──
 mock.reset(); mock.enqueue({ text: 'pas un plan' }, { text: 'toujours pas' });
 r = await send('Rends mes accords plus beaux.');

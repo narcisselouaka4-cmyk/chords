@@ -86,6 +86,10 @@ function testExtractBoldChordNames() {
 
   const empty = extractBoldChordNames('Pas de gras ici.');
   check('Texte sans gras retourne un tableau vide', empty.length === 0);
+  // [Claude] — 2026-11-11 — Une phrase ordinaire en gras n'est pas un accord (journal trompeur).
+  check('Phrase ordinaire en gras : aucun accord extrait', extractBoldChordNames('**Écoute surtout la basse**, puis **garde la mélodie au-dessus**. **À retenir :** la tension se résout.').length === 0);
+  check('Suite d\'accords en gras : chaque symbole extrait', JSON.stringify(extractBoldChordNames('Joue **Dm7 → G7 → Cmaj7** puis **Ab13#11**.')) === JSON.stringify(['Dm7', 'G7', 'Cmaj7', 'Ab13#11']));
+  check('Un mot qui commence par une lettre de note n\'est pas un accord', extractBoldChordNames('**Bien** joué, **Accord** suivant, **Doux** et **Encore**.').length === 0);
 }
 
 function testExtractDegreeReferences() {

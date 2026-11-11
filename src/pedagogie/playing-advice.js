@@ -173,7 +173,9 @@ export function personalPlayingAnswer({ message, messages = [], context, review 
   }
   const more = /c[' ]est tout|(?:rien|autre chose|davantage|encore|plus|d.autres?).*(?:ajout|rajout|enrich|propos)|(?:ajout|rajout|enrich|propos).*(?:plus|encore|autre|davantage)|va plus loin|encore un peu|continue|poursui/.test(text);
   const alternative = /autre (?:version|variante|proposition)|differente/.test(text);
-  const generic = /qu['’ ]en penses|ton avis|analyse mon jeu/.test(text);
+  // [Claude] — 2026-11-11 — Un avis sur la PRISE seulement : « qu'en penses-tu de Bill Evans ? » parle
+  // d'autre chose et va au modèle (audit des routes locales, mission Copilot fiable).
+  const generic = /qu['’ ]en penses[- ]tu\s*(?:[?.!]|$|de (?:ce que je|ma |mon |mes |ca|cela|cette prise|ce passage))|ton avis\s*(?:[?.!]|$|sur (?:ma |mon |mes |ca|cela|ce que))|analyse mon jeu/.test(text);
   const retry = /^(?:et )?(?:maintenant|alors|reessaie)(?:[ ?!.]*)$/.test(text);
   const historyGoal = () => lastRequest?.goal;
   const goal = requestedGoal(text) || (correction ? 'develop' : (retry || more || alternative) ? previous?.goal || historyGoal() || 'develop' : null);

@@ -29,6 +29,7 @@ import { nameMidiChord } from '../recorder/midi-chord-namer.js';
 import { formatPc } from '../chord-engine/naming.js';
 import { noteNameToPc, latinNoteNameToPc, NOTE_NAMES, formatNote } from '../chord-engine/intervals.js';
 import { Key } from 'tonal';
+import { isChordSymbolRecognized } from './chord-parser-v2.js';
 
 /**
  * L'accord que forment ces notes : `nameMidiChord` d'abord — il part des notes
@@ -85,7 +86,13 @@ export function extractBoldChordNames(text) {
   const re = /\*\*([^*]+)\*\*/g;
   let m;
   while ((m = re.exec(text)) !== null) {
-    matches.push(m[1].trim());
+    // [Claude] — 2026-11-11 — Seulement un symbole d'accord reconnu (« **Cmaj7** », « **Dm7 → G7** »).
+    // Avant, toute phrase en gras (« **Écoute la basse** ») était journalisée comme « accord
+    // extrait ». Ce relevé ne sert qu'au journal : il ne déclenche ni correction ni relance.
+    for (const raw of m[1].split(/\s*(?:→|->|–|—|,|\/\/|\s)\s*/)) {
+      const token = raw.replace(/^[^A-G]+/, '').replace(/[.:!?'’)]+$/, '');
+      if (/^[A-G]/.test(token) && token.length <= 14 && isChordSymbolRecognized(token) && !matches.includes(token)) matches.push(token);
+    }
   }
   return matches;
 }
