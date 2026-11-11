@@ -2019,7 +2019,10 @@ async function modelPlayingAnswer({message,messages,context,memory,preferences,d
       // appui ; deux si la demande en réclame plusieurs), au lieu d'un plafond fixe de 8 192 : la
       // réponse arrive plus vite et tient dans les limites de débit des offres gratuites.
       const versions=/plusieurs|deux versions|2 versions|trois versions|des versions|des propositions|variantes/i.test(message)?2:1;
-      const maxTokens=Math.min(8192,Math.max(2000,Math.round((source.anchors.length*70+600)*versions)));
+      // Mesuré le 12/11 avec Claude Haiku 5.5 sur Session_017 : 70 jetons par appui ne suffisaient pas.
+      // Le plan traite les appuis obligatoires plus six au plus ; 130 jetons par appui traité, large.
+      const treated=source.anchors.filter(a=>a.required).length+Math.min(6,source.anchors.filter(a=>!a.required).length);
+      const maxTokens=Math.min(12000,Math.max(3000,Math.round((treated*130+1000)*versions)));
       const options={includeTools:false,useMaxTokens:isOllamaCloudUrl(config.baseUrl),maxTokens,reasoningEffort:'low'};
       let result=await callChatCompletionOnce(config,buildChatCompletionPayload(config,payload,options));
       if(!result.ok&&result.status===400&&!options.useMaxTokens&&/max_completion_tokens/i.test(result.responseText||''))

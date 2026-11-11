@@ -99,9 +99,9 @@ global.fetch = async (_url, options) => {
 const recovered = await sendCopilotMessage(harmonyParams);
 assert.ok(recovered.ok && recovered.toolResult.variants?.length);
 assert.equal(requests.length, 2);
-assert.equal(requests[0].max_completion_tokens, 2000); // réserve proportionnée (3 appuis), et non 8 192
+assert.equal(requests[0].max_completion_tokens, 3000); // réserve proportionnée (3 appuis), et non 8 192
 assert.equal(requests[0].reasoning_effort, 'low'); // gpt-oss chez Groq : raisonnement bref pour un plan JSON
-assert.equal(requests[1].max_completion_tokens, 972); // 2 000 − (8 900 − 8 000) − 128
+assert.equal(requests[1].max_completion_tokens, 1972); // 3 000 − (8 900 − 8 000) − 128
 assert.deepEqual(requests[0].messages, requests[1].messages);
 assert.equal(JSON.stringify(take), sourceBefore);
 assert.equal(recovered.toolResult.generation.engine, 'model');

@@ -58,7 +58,8 @@ try {
         const last = rows.at(-1);
         return { busy, texte: (last?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 600), carte: Boolean(last?.querySelector('.copilot-example-card, [class*="example"]')), partition: Boolean(last?.querySelector('.copilot-score')) };
       });
-      if (!reply.busy && reply.texte && !/Je reprends|^Vous/.test(reply.texte.slice(0, 5))) break;
+      // La dernière bulle doit être celle du Copilote (« V » d'avatar + « Vous » = la question).
+      if (!reply.busy && reply.texte && !/^V?Vous/.test(reply.texte)) break;
     }
     const seconds = Math.round((Date.now() - started) / 1000);
     const ok = /préparée avec/.test(reply?.texte || '');
