@@ -2500,6 +2500,16 @@
 #practice-view-copilot .copilot-memory-entry { border-top: 1px solid var(--tr-border); padding: 12px 0; }
 #practice-view-copilot .copilot-memory-dialog textarea { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid var(--tr-border); border-radius: 6px; background: var(--tr-inset); color: var(--tr-text); font: inherit; resize: vertical; }
 #practice-view-copilot .copilot-memory-entry-actions { display: flex; gap: 8px; margin-top: 7px; }
+/* [Claude] — 2026-11-11 — Provenance d'un souvenir (automatique ou ajouté, date, phrase d'origine) et souvenirs remplacés. */
+#practice-view-copilot .copilot-memory-provenance { margin: 0 0 6px; color: var(--tr-muted); font-size: 12px; line-height: 1.4; }
+#practice-view-copilot .copilot-memory-superseded { border-top: 1px solid var(--tr-border); padding: 10px 0; color: var(--tr-muted); font-size: 12px; }
+#practice-view-copilot .copilot-memory-superseded summary { cursor: pointer; color: var(--tr-text); }
+/* Avis « Retenu… » sous une réponse, avec « Annuler ». */
+.copilot-memory-notice { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 10px; border: 1px solid var(--tr-border); border-radius: 8px; background: var(--tr-inset); color: var(--tr-text); font-size: 12px; line-height: 1.35; }
+.copilot-memory-notice span { flex: 1 1 auto; min-width: 0; }
+.copilot-memory-notice button { flex: 0 0 auto; padding: 3px 9px; border: 1px solid var(--tr-border); border-radius: 7px; background: var(--tr-surface); color: var(--tr-text); font: inherit; cursor: pointer; }
+.copilot-memory-notice button:hover { background: var(--tr-raised); }
+.copilot-memory-notice.is-undone { color: var(--tr-muted); }
 #practice-view-copilot .copilot-memory-add { margin-top: 16px; }
 #practice-view-copilot .copilot-memory-add button { margin-top: 8px; }
 /* [Claude] — 2026-10-03 — La barre de lecture de l'exemple qui joue (Narcisse : « revenir en

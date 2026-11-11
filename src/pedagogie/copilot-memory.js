@@ -67,44 +67,125 @@ const filePath = async () => {
   return `${base}/PedagogieCopilot/${MEMORY_FILE}`;
 };
 
-export async function loadPersonalMemories() {
-  const files=api();if(!files?.readFile)return {ok:false,entries:[],error:'Stockage indisponible'};
+// [Claude] — 2026-11-11 — Stockage des souvenirs, durci pour la mémoire automatique.
+// Le format reste celui du 05/11 ({version: 1, entries: [...]}) : champs ajoutés seulement
+// (origine, citation, source, corrections, remplacement ; traces d'oubli dans `forgotten`).
+// - Un fichier illisible n'est JAMAIS écrasé : il est mis de côté (copie .bak) et signalé.
+// - Chaque écriture relit le fichier, applique le changement, écrit, puis vérifie : deux
+//   fenêtres qui écrivent en même temps ne se détruisent pas mutuellement.
+export const MEMORY_LIMIT = 200;
+const validEntry = (e) => e && typeof e.id === 'string' && typeof e.text === 'string';
+
+async function readStore() {
+  const files=api();if(!files?.readFile)return {ok:false,error:'Stockage indisponible'};
+  let raw=null;
+  try { raw=await files.readFile(await filePath()); }
+  catch(err){
+    if(err?.code==='ENOENT'||err?.message?.includes('ENOENT'))return {ok:true,data:{version:MEMORY_VERSION,entries:[],forgotten:[]},missing:true};
+    return {ok:false,error:err.message || 'Mémoire illisible'};
+  }
+  if(!raw)return {ok:true,data:{version:MEMORY_VERSION,entries:[],forgotten:[]},missing:true};
   try {
-    const raw=await files.readFile(await filePath());
-    if(!raw)return {ok:true,entries:[]};
     const parsed=typeof raw==='string'?JSON.parse(raw):raw;
     if(parsed.version!==MEMORY_VERSION||!Array.isArray(parsed.entries))throw new Error('Fichier mémoire illisible');
-    return {ok:true,entries:parsed.entries.filter(e=>e&&typeof e.id==='string'&&typeof e.text==='string').slice(0,50)};
+    return {ok:true,data:{...parsed,entries:parsed.entries.filter(validEntry).slice(0,MEMORY_LIMIT),forgotten:Array.isArray(parsed.forgotten)?parsed.forgotten.slice(-MEMORY_LIMIT):[]}};
   } catch(err){
-    if(err?.code==='ENOENT'||err?.message?.includes('ENOENT'))return {ok:true,entries:[]};
-    return {ok:false,entries:[],error:err.message || 'Mémoire illisible'};
+    return {ok:false,corrupt:true,raw:typeof raw==='string'?raw:null,error:'Le fichier des souvenirs est illisible. Il n’a pas été modifié.'};
   }
 }
 
+let backedUp=false;
+/** Copie de sûreté d'un fichier de souvenirs illisible (suffixe .bak : jamais pris pour une conversation). */
+async function setAsideCorrupt(raw) {
+  if(backedUp||typeof raw!=='string')return null;
+  try {
+    const files=api();const path=await filePath();
+    const stamp=new Date().toISOString().replace(/[-:T]/g,'').slice(0,14);
+    const copy=`${path}.corrompu-${stamp}.bak`;
+    await files.writeFile(copy,raw);backedUp=true;return copy;
+  } catch { return null; }
+}
+
+/** Souvenirs actifs (les souvenirs remplacés par une consigne plus récente sont rendus à part). */
+export async function loadPersonalMemories() {
+  const store=await readStore();
+  if(!store.ok){
+    const backup=store.corrupt?await setAsideCorrupt(store.raw):null;
+    return {ok:false,entries:[],superseded:[],forgotten:[],error:store.error,...(store.corrupt?{corrupt:true,backup}:{})};
+  }
+  const all=store.data.entries;
+  return {ok:true,entries:all.filter(e=>!e.supersededBy).slice(0,MEMORY_LIMIT),superseded:all.filter(e=>e.supersededBy),forgotten:store.data.forgotten};
+}
+
 let writes=Promise.resolve();
-/** Lecture fraîche et écritures séquentielles : ne pas perdre un souvenir concurrent. */
-export function updatePersonalMemory({id = null,text = '',reference = null,remove = false,clear = false} = {}) {
+/**
+ * Lecture fraîche, changement, écriture, vérification ; une à la fois dans cette fenêtre.
+ * `change(data)` rend {data, result} ou {error}. Si une autre fenêtre a écrit entre-temps et que
+ * notre changement n'est plus là (`present(data)` faux), on recommence sur l'état frais.
+ */
+export function mutatePersonalMemories(change,{present = null} = {}) {
   const run=async()=>{
-    const current=await loadPersonalMemories();if(!current.ok)return current;
-    let entries=current.entries;
-    if(clear)entries=[];
-    else if(remove)entries=entries.filter(e=>e.id!==id);
-    else {
-      const value=String(text).trim();if(!value||value.length>500)return {ok:false,error:'Écris un souvenir de 1 à 500 caractères.'};
-      if(!id&&entries.some(e=>plain(e.text)===plain(value)))return current;
-      if(!id&&entries.length>=50)return {ok:false,error:'La mémoire contient déjà 50 souvenirs. Modifie ou retire une entrée.'};
-      if(id&&!entries.some(e=>e.id===id))return {ok:false,error:'Ce souvenir n’existe plus.'};
-      const now=new Date().toISOString();
-      entries=id?entries.map(e=>e.id===id?{...e,text:value,updatedAt:now}:e):[...entries,{id:`memo_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,text:value,createdAt:now,updatedAt:now,...(reference?{reference}:{})}];
+    for(let attempt=0;attempt<3;attempt++){
+      const store=await readStore();
+      if(!store.ok){if(store.corrupt)await setAsideCorrupt(store.raw);return {ok:false,error:store.error,...(store.corrupt?{corrupt:true}:{})};}
+      const out=change({...store.data,entries:[...store.data.entries],forgotten:[...store.data.forgotten]});
+      if(out?.error)return {ok:false,error:out.error};
+      if(!out?.data)return {ok:true,unchanged:true,entries:store.data.entries.filter(e=>!e.supersededBy),...(out?.result||{})};
+      try {
+        const files=api();if(!files?.writeFile||!files.ensureDir)throw new Error('Stockage indisponible');
+        const path=await filePath();await files.ensureDir(path.slice(0,path.lastIndexOf('/')));
+        await files.writeFile(path,{...out.data,version:MEMORY_VERSION});
+      } catch(err){return {ok:false,error:err.message || 'Enregistrement impossible'};}
+      if(present){
+        const check=await readStore();
+        if(check.ok&&!present(check.data))continue;
+      }
+      return {ok:true,entries:out.data.entries.filter(e=>!e.supersededBy),...(out.result||{})};
     }
-    try {
-      const files=api();if(!files?.writeFile||!files.ensureDir)throw new Error('Stockage indisponible');
-      const path=await filePath();await files.ensureDir(path.slice(0,path.lastIndexOf('/')));
-      await files.writeFile(path,{version:MEMORY_VERSION,entries});
-      return {ok:true,entries};
-    } catch(err){return {ok:false,error:err.message || 'Enregistrement impossible'};}
+    return {ok:false,error:'Enregistrement impossible : la mémoire est modifiée ailleurs en même temps. Réessaie.'};
   };
   const result=writes.then(run,run);writes=result.catch(()=>{});return result;
+}
+
+/** Empreinte d'un texte, pour reconnaître un souvenir oublié sans garder son contenu. */
+export function memoryPrint(text) {
+  const value=plain(text).replace(/[^a-z0-9#]+/g,' ').trim();
+  let h=5381;for(let i=0;i<value.length;i++)h=((h<<5)+h+value.charCodeAt(i))|0;
+  return `${value.length}:${(h>>>0).toString(36)}`;
+}
+const tombstone=(e,now)=>({print:memoryPrint(e.text),...(e.quote?{quotePrint:memoryPrint(e.quote)}:{}),kind:e.kind||null,origin:e.origin||'explicite',...(e.source?{source:e.source}:{}),forgottenAt:now});
+
+/** Souvenirs explicites (Mémoire, « Retiens que… ») : ajout, correction, oubli. */
+export function updatePersonalMemory({id = null,text = '',reference = null,remove = false,clear = false} = {}) {
+  let touched=null;
+  return mutatePersonalMemories((data)=>{
+    const now=new Date().toISOString();
+    const active=data.entries.filter(e=>!e.supersededBy);
+    if(clear){
+      // Tout oublier laisse une trace par souvenir : aucun ne revient à l'insu du pianiste.
+      return {data:{...data,entries:[],forgotten:[...data.forgotten,...data.entries.map(e=>tombstone(e,now))].slice(-MEMORY_LIMIT)}};
+    }
+    if(remove){
+      const gone=data.entries.find(e=>e.id===id);
+      if(!gone)return {};
+      touched={id,removed:true};
+      // Un souvenir remplacé par celui qu'on oublie n'est pas réactivé : il reste remplacé.
+      return {data:{...data,entries:data.entries.filter(e=>e.id!==id),forgotten:[...data.forgotten,tombstone(gone,now)].slice(-MEMORY_LIMIT)}};
+    }
+    const value=String(text).trim();if(!value||value.length>500)return {error:'Écris un souvenir de 1 à 500 caractères.'};
+    if(!id&&active.some(e=>plain(e.text)===plain(value)))return {};
+    if(!id&&data.entries.length>=MEMORY_LIMIT)return {error:`La mémoire contient déjà ${MEMORY_LIMIT} souvenirs. Modifie ou retire une entrée.`};
+    if(id&&!data.entries.some(e=>e.id===id))return {error:'Ce souvenir n’existe plus.'};
+    if(id){
+      touched={id};
+      // La correction garde l'ancien texte : on peut voir ce qui a été changé, et quand.
+      return {data:{...data,entries:data.entries.map(e=>e.id===id&&e.text!==value?{...e,text:value,updatedAt:now,corrections:[...(e.corrections||[]),{at:now,previous:e.text}].slice(-10)}:e)}};
+    }
+    const entry={id:`memo_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,text:value,origin:'explicite',createdAt:now,updatedAt:now,...(reference?{reference}:{})};
+    touched={id:entry.id};
+    // Le pianiste le redit lui-même : une ancienne trace d'oubli du même texte ne s'y oppose plus.
+    return {data:{...data,entries:[...data.entries,entry],forgotten:data.forgotten.filter(f=>f.print!==memoryPrint(value))}};
+  },{present:(data)=>!touched||(touched.removed?!data.entries.some(e=>e.id===touched.id):data.entries.some(e=>e.id===touched.id))});
 }
 
 export function personalMemoryContext(entries = [],question = '') {

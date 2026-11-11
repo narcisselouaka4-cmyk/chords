@@ -605,6 +605,19 @@ function setupFileSystemIPC() {
     } else if (typeof content === 'object' && content !== null && !(content instanceof Uint8Array)) {
       data = JSON.stringify(content);
     }
+    // [Claude] — 2026-11-11 — Les fichiers JSON (conversations, souvenirs, réglages de travail) sont
+    // écrits à côté puis renommés : une coupure pendant l'écriture ne laisse plus un fichier tronqué.
+    if (/\.json$/i.test(safePath)) {
+      const tmp = `${safePath}.tmp-${process.pid}-${Date.now()}`;
+      try {
+        await fs.writeFile(tmp, data);
+        await fs.rename(tmp, safePath);
+      } catch (err) {
+        await fs.unlink(tmp).catch(() => {});
+        throw err;
+      }
+      return true;
+    }
     await fs.writeFile(safePath, data);
     return true;
   });
