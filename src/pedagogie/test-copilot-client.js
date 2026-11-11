@@ -141,6 +141,9 @@ function check(name, condition, detail = '') {
   }
 }
 
+// [Claude] — 2026-11-11 — Fournisseur qui reçoit les consignes complètes (ni Groq ni OpenRouter).
+const FULL_PROMPT_CONFIG = () => ({ 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.example.test/v1', model: 'test-model', monthlyCap: 50 }) });
+
 function testToolCalls() {
   const result = executeToolCalls([
     { function: { name: 'play_note', arguments: JSON.stringify({ midi: 60, durationMs: 500 }) } },
@@ -1344,7 +1347,9 @@ async function testTutorialContextInPrompt() {
     if (!body) body = bodies[bodies.length - 1];
     return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Réponse.' } }] }) };
   };
-  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  // Adapté le 11/11 : depuis 035e414, Groq et OpenRouter reçoivent les consignes compactes ; les règles
+  // numérotées vérifiées ici sont celles des consignes complètes (tout autre fournisseur).
+  global.localStorage.store = FULL_PROMPT_CONFIG();
   const context = {
     type: 'tutorial', path: '/t/cours.mp4', name: 'Cours de gospel', key: 'C', sourceLabel: 'lu à l\'image (clavier dessiné)',
     summary: 'Le professeur enchaîne Dm9 et G13 puis joue un lick chromatique.',
@@ -1498,7 +1503,9 @@ async function testTutorialStructureInPrompt() {
     bodies.push(JSON.parse(options.body));
     return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Une boucle de 4 accords.' } }] }) };
   };
-  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  // Adapté le 11/11 : depuis 035e414, Groq et OpenRouter reçoivent les consignes compactes ; les règles
+  // numérotées vérifiées ici sont celles des consignes complètes (tout autre fournisseur).
+  global.localStorage.store = FULL_PROMPT_CONFIG();
   const chords = [];
   for (let k = 0; k < 6; k += 1) {
     chords.push(...[['G', 1.5], ['B7', 0.5], ['Em', 2], ['C', 2], ['D', 2]].map(([label, d], i, all) => {
@@ -1615,7 +1622,9 @@ async function testExerciseContextInPrompt() {
     if (!body) body = JSON.parse(options.body);
     return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Réponse.' } }] }) };
   };
-  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  // Adapté le 11/11 : depuis 035e414, Groq et OpenRouter reçoivent les consignes compactes ; les règles
+  // numérotées vérifiées ici sont celles des consignes complètes (tout autre fournisseur).
+  global.localStorage.store = FULL_PROMPT_CONFIG();
   await sendCopilotMessage({ message: 'Explique-moi le voicing de la carte.', messages: [], context: EXERCISE });
   const system = body?.messages?.[0]?.content || '';
   const tools = (body?.tools || []).map((t) => t.function?.name);
@@ -1696,7 +1705,7 @@ function testMyPlayingRequest() {
 
 async function testMyPlayingInSend() {
   const originalFetch = global.fetch;
-  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  global.localStorage.store = FULL_PROMPT_CONFIG();
   let body = null;
   // Le modèle répond sans appeler d'outil.
   global.fetch = async (url, options) => {
@@ -1710,10 +1719,14 @@ async function testMyPlayingInSend() {
     playing: { session: { events: sessionEvents(), key: null, offset: 0 } },
   };
   const res = await sendCopilotMessage({ message: 'Rejoue ma mélodie', messages: [], context });
+  // Adapté le 11/11 : depuis 3c13d1a (05/11) et l'ADR-071, le rejeu exact est local, sans appel au
+  // modèle. L'outil et le paragraphe des consignes se vérifient sur une question qui l'atteint.
+  check('« Rejoue ma mélodie » : rejeu local, aucun appel au modèle', body === null);
+  await sendCopilotMessage({ message: 'Ma main gauche est-elle trop chargée ?', messages: [], context });
   const system = body?.messages?.[0]?.content || '';
   const tools = (body?.tools || []).map((t) => t.function?.name);
   check('Session confiée : outil play_my_playing proposé, paragraphe du prompt présent', tools.includes('play_my_playing') && /Ne recompose jamais son jeu/.test(system) && /play_my_playing \(source « session »\)/.test(system), tools.join(','));
-  check('Les évènements exacts ne partent jamais dans le texte envoyé', !/note_on|"velocity"/.test(system) && system.length < 60000, String(system.length));
+  check('Les évènements exacts ne partent jamais dans le texte envoyé', body !== null && !/note_on|"velocity"/.test(system) && system.length < 60000, String(system.length));
   const ons = (res.toolResult?.example?.events || []).filter((e) => e.type === 'noteOn').map((e) => e.note).join(',');
   check('« Rejoue ma mélodie » sans outil appelé : sa mélodie rejouée à l\'identique, jamais un lick', res.ok && res.toolResult?.example?.kind === 'playing' && ons === '69,67,65,76', `${res.toolResult?.example?.kind} ${ons}`);
   check('« Rejoue ma mélodie » : l\'exemple démarre tout seul', res.autoplay === true);
@@ -1783,7 +1796,7 @@ function testMelodyChordsRequest() {
 
 async function testMelodyChordsInSend() {
   const originalFetch = global.fetch;
-  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  global.localStorage.store = FULL_PROMPT_CONFIG();
   let calls = 0;
   let body = null;
   global.fetch = async (url, options) => {
@@ -1792,16 +1805,27 @@ async function testMelodyChordsInSend() {
     return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Chaque note de ta mélodie devient le dessus d\'un accord ; la basse descend par quintes.' } }] }) };
   };
   const context = { type: 'session', sessionId: 's1', name: 'Ma session', key: 'C', playing: { session: { events: sessionEvents(), key: 'C', offset: 0 } } };
-  const res = await sendCopilotMessage({ message: 'Harmonise ma mélodie en melody chords', messages: [], context });
+  // Adapté le 11/11 : depuis 84d008c (ADR-071), harmoniser SON jeu avec un modèle connecté passe
+  // par le modèle, qui fournit ses hauteurs ; les melody chords de l'application ne répondent plus
+  // à sa place. Elles restent le parcours d'une mélodie tapée (ci-dessous).
+  const typed = await sendCopilotMessage({ message: 'Harmonise Mi4 Ré4 Do4:2 en melody chords', messages: [], context: null });
   const system = body?.messages?.[0]?.content || '';
   const tools = (body?.tools || []).map((t) => t.function?.name);
   check('Melody chords : outil toujours proposé, paragraphe du prompt présent', tools.includes('play_melody_chords') && /Melody chords \(harmoniser une mélodie/.test(system), tools.join(','));
-  check('« Harmonise ma mélodie » sans outil appelé : les accords de l\'application sur sa mélodie, un seul appel',
-    res.ok && res.toolResult?.example?.kind === 'melody-chords' && topsOf(res.toolResult.example) === '69,67,65,76' && /\*\*Melody chords\*\*/.test(res.content) && calls === 1, `${res.toolResult?.example?.kind} ${topsOf(res.toolResult?.example)} calls=${calls}`);
+  check('« Harmonise Mi4 Ré4 Do4 » sans outil appelé : les accords de l\'application sur la mélodie tapée, un seul appel',
+    typed.ok && typed.toolResult?.example?.kind === 'melody-chords' && topsOf(typed.toolResult.example) === '64,62,60' && /\*\*Melody chords\*\*/.test(typed.content) && calls === 1, `${typed.toolResult?.example?.kind} ${topsOf(typed.toolResult?.example)} calls=${calls}`);
+  check('Mélodie tapée : exemple marqué comme exemple nommé, pas comme une proposition sur son jeu', typed.toolResult?.example?.source?.kind === 'exemple nommé', JSON.stringify(typed.toolResult?.example?.source));
+  calls = 0;
+  const res = await sendCopilotMessage({ message: 'Harmonise ma mélodie en melody chords', messages: [], context });
+  check('« Harmonise ma mélodie » avec un modèle connecté : le modèle décide (une correction au plus), aucun repli local',
+    res.ok && calls === 2 && !res.toolResult?.example && res.toolResult?.generation?.engine === 'model' && res.toolResult.generation.rejected === true
+    && res.toolResult.originalTake?.events?.length > 0 && /Ta prise est conservée/.test(res.content), `${res.toolResult?.example?.kind} calls=${calls} ${res.content}`);
   calls = 0;
   body = null;
   const both = await sendCopilotMessage({ message: 'Joue-moi ma mélodie en melody chords', messages: [], context });
-  check('« Joue-moi ma mélodie en melody chords » : des accords, pas la relecture', both.toolResult?.example?.kind === 'melody-chords' && calls === 1, `${both.toolResult?.example?.kind} calls=${calls}`);
+  // Avant : rejeu de la prise (3c13d1a), puis refus « version melody chords » (lu comme un style).
+  check('« Joue-moi ma mélodie en melody chords » : des accords demandés au modèle, pas la relecture ni un refus de style',
+    both.toolResult?.example?.kind !== 'playing' && !both.toolResult?.styleCapability && both.toolResult?.generation?.engine === 'model' && calls >= 1, `${both.toolResult?.example?.kind} calls=${calls} ${both.content}`);
   const progression = await sendCopilotMessage({ message: 'Explique-moi l\'harmonisation de Dm7 G7 Cmaj7 avec un exemple', messages: [], context });
   check('« L\'harmonisation de Dm7 G7 Cmaj7 » en session : l\'exemple de la progression, pas sa mélodie', progression.toolResult?.example && progression.toolResult.example.kind !== 'melody-chords', progression.toolResult?.example?.kind);
   global.fetch = originalFetch;
@@ -1950,6 +1974,8 @@ async function testPersonalPlayingGuard() {
     { type: 'note_on', note: 60, velocity: .7, channel: 0, time: 0 },
     { type: 'note_off', note: 60, velocity: 0, channel: 0, time: 2 },
   ], duration: 2 } } };
+  // Les consignes complètes (ce test héritait du fournisseur du test précédent).
+  global.localStorage.store = FULL_PROMPT_CONFIG();
   let calls = 0;
   let system = '';
   global.fetch = async (_url, init) => {
@@ -1966,7 +1992,9 @@ async function testPersonalPlayingGuard() {
     check('Prise sans objectif : aucun appel IA ni bilan inventé', calls === 0 && /intention/.test(neutral.content) && !neutral.toolResult.example);
     const guarded = await sendCopilotMessage({ message: 'Ajoute une appoggiature à mon jeu', messages: [], context, review: true });
     check('Une démonstration générique ne remplace jamais une transformation personnelle', calls === 1 && !guarded.toolResult.example && /vérifiable/.test(guarded.content));
-    check('Consignes simples : aucune liste de compliments/corrections imposée', /une seule suggestion/i.test(system) && /aucun.*compliment/i.test(system) && !/Commence par un ou deux points qui marchent/.test(system));
+    // Adapté le 11/11 : 50fad60 (06/11) a réécrit cette consigne (« sans juger », « une seule piste
+    // de travail », « aucune liste de diagnostics ») ; même exigence, nouveaux mots.
+    check('Consignes simples : aucune liste de compliments/corrections imposée', /sans juger/i.test(system) && /une seule piste de travail/i.test(system) && /aucune liste de diagnostics/i.test(system) && !/Commence par un ou deux points qui marchent/.test(system));
     const replayed = await sendCopilotMessage({ message: 'Rejoue mon jeu', messages: [], context });
     check('Même si le modèle appelle un autre outil, le rejeu garde les notes de la prise', replayed.toolResult.example?.events.filter((e) => e.type === 'noteOn').every((e) => e.note === 60));
   } finally { global.fetch = originalFetch; }
@@ -2026,12 +2054,18 @@ async function testResponseRecoveryAndPlans() {
     const context = { playing: { passage: take } };
     let calls = 0;
     global.fetch = async () => { calls++; throw new Error('Aucun appel nécessaire pour ce plan'); };
-    const first = await sendCopilotMessage({ message: 'Ajoute des mouvements ou des accords enrichis à ma progression et fais-moi une démonstration', context, messages: [] });
-    const next = await sendCopilotMessage({ message: "c'est tout ? tu peut rien ajouter de plus ?", context, messages: [{ role: 'assistant', content: first.content, toolResult: first.toolResult }] });
+    // Adapté le 11/11 : depuis 84d008c (ADR-071), le moteur local est un mode explicite
+    // (generationMode « local ») ; avec un modèle connecté, la même demande va au modèle.
+    const first = await sendCopilotMessage({ message: 'Ajoute des mouvements ou des accords enrichis à ma progression et fais-moi une démonstration', context, messages: [], generationMode: 'local' });
+    const next = await sendCopilotMessage({ message: "c'est tout ? tu peut rien ajouter de plus ?", context, messages: [{ role: 'assistant', content: first.content, toolResult: first.toolResult }], generationMode: 'local' });
     const shown = new Set((first.toolResult.variants || []).map(v => JSON.stringify(v.example.events)));
     check('Progression réelle : intentions personnelles, relance distincte et aucun appel fournisseur', first.ok && next.ok && calls === 0
       && first.toolResult.phraseHarmony && first.toolResult.variants?.length > 0 && first.toolResult.originalTake === take
       && next.toolResult.phraseHarmony && (next.toolResult.variants || []).every(v => !shown.has(JSON.stringify(v.example.events))));
+    check('Mode local : annoncé comme tel, jamais présenté comme le choix du modèle', first.toolResult.generation?.engine === 'local' && /moteur local/.test(first.content));
+    const online = await sendCopilotMessage({ message: 'Ajoute des mouvements ou des accords enrichis à ma progression et fais-moi une démonstration', context, messages: [] });
+    check('Modèle connecté : la même demande part au modèle ; son échec ne devient pas une recette locale',
+      calls > 0 && !online.toolResult?.variants?.length && !online.toolResult?.example && online.toolResult?.originalTake === take, `calls=${calls} ok=${online.ok} ${online.error || online.content}`);
   } finally { global.fetch = originalFetch; }
 }
 

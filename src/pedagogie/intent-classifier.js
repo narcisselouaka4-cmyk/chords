@@ -133,6 +133,39 @@ function normalizeChordToken(token) {
   return String(token).replace(/^[a-g](?=[#b]?(?:maj|min|m|dim|aug|sus|add|[0-9]|[+°øΔ]|$))/, (c) => c.toUpperCase());
 }
 
+// [Claude] — 2026-11-11 — Accord nommé en toutes lettres : « Do majeur 7 », « la mineur 7 »,
+// « sol septième », « un ré mineur », « accord de Fa ». Un débutant n'écrit pas « Cmaj7 ».
+// Une tonalité (« en Do majeur », « gamme de ré mineur ») n'est pas un accord : il faut une
+// extension (7, 9…), ou un mot qui désigne l'accord (« accord de », « un », « le »).
+const FR_QUALITY = { majeur: 'M', majeure: 'M', maj: 'M', mineur: 'm', mineure: 'm', min: 'm' };
+const FR_EXTENSION = { 6: '6', 7: '7', 9: '9', 11: '11', 13: '13', sixte: '6', septieme: '7', sept: '7', '7e': '7', '7eme': '7', neuvieme: '9', '9e': '9', '9eme': '9' };
+const FR_CHORD = /(?:\b(accords?|renversements?|voicings?|positions?|arpeges?)\s+(?:de|du|d un|en)\s+|\b(un|le|ce|du)\s+)?\b(do|re|mi|fa|sol|la|si)(?:\s?(#|b|diese|bemol)(?![a-z]))?(?![a-z])((?:\s*(?:majeure?|mineure?|maj|min|6|7|9|11|13|sixte|septieme|sept|7e|7eme|neuvieme|9e|9eme)(?![a-z0-9])){0,3})/g;
+
+/**
+ * Symbole de l'accord nommé en français dans un texte, ou null.
+ * @param {string} text
+ * @returns {string|null}
+ */
+export function frenchChordSymbol(text) {
+  const folded = String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’']/g, ' ').replace(/♯/g, '#').replace(/♭/g, 'b').toLowerCase();
+  for (const m of folded.matchAll(FR_CHORD)) {
+    const [, noun, article, name, accidental = '', tail = ''] = m;
+    const words = tail.trim().split(/\s+/).filter(Boolean);
+    const quality = words.map((w) => FR_QUALITY[w]).find(Boolean) || '';
+    const extension = words.map((w) => FR_EXTENSION[w]).find(Boolean) || '';
+    // « en la mineur » (tonalité), « la » (article), « si » (conjonction) : pas un accord.
+    if (!extension && !noun && !(article && quality)) continue;
+    if (!noun && !article && !quality && AMBIGUOUS_KEY_WORDS.has(name)) continue;
+    const before = folded.slice(Math.max(0, m.index - 14), m.index);
+    if (!noun && /(?:gamme|tonalite|ton|mode)\s+(?:de\s+)?$|\b(?:en|in)\s+$/.test(before)) continue;
+    const root = `${SOLFEGE_LETTERS[name]}${accidental === 'diese' ? '#' : accidental === 'bemol' ? 'b' : accidental}`;
+    const suffix = quality === 'M' ? (extension === '7' ? 'maj7' : extension === '9' ? 'maj9' : extension) : `${quality}${extension}`;
+    const symbol = `${root}${suffix}`;
+    if (isChordSymbolRecognized(symbol)) return symbol;
+  }
+  return null;
+}
+
 /**
  * Détecte les paramètres musicaux dans le texte.
  * @param {string} text
@@ -150,7 +183,11 @@ function normalizeChordToken(token) {
  */
 function extractParams(text) {
   const params = {};
-  const chord = extractChordSymbol(text);
+  // [Claude] — 2026-11-11 — « II–V–I » tapé avec des tirets typographiques (clavier de téléphone,
+  // copier-coller) n'était pas lu : aucune progression, donc aucun exemple.
+  text = String(text || '').replace(/[‐‑‒–—−]/g, '-');
+  // « Do majeur 7 », « un la mineur », « accord de Fa » : le nom français vaut le symbole.
+  const chord = extractChordSymbol(text) || frenchChordSymbol(text);
   if (chord) params.chordSymbol = chord;
 
   // Extraction d'une liste d'accords pour play_progression.
@@ -379,6 +416,44 @@ export function chordSymbolsInText(text) {
     if (!found.includes(token)) found.push(token);
   }
   return found;
+}
+
+// [Claude] — 2026-11-11 — Objet musical nommé dans une demande (accord, progression, gamme,
+// intervalle, notes) : ce qui distingue « fais-moi entendre un Cmaj7 » de « fais-moi entendre
+// un exemple ». Vocabulaire de l'objet lui-même (ses noms, ses qualités, la façon de le jouer) ;
+// tout autre mot du message est rendu dans `rest`, pour que l'appelant sache si la demande dit
+// autre chose que cet objet (« … à la fin », « … à la place »).
+const OBJECT_WORDS = new Set(`do re mi fa sol la si a b c d e f g diese bemol majeur majeure mineur mineure maj min
+ septieme neuvieme onzieme treizieme sixte diminue diminuee augmente augmentee suspendu sus dominante juste
+ accord accords gamme gammes pentatonique arpege arpeges voicing voicings renversement renversements position positions
+ intervalle intervalles seconde tierce quarte quinte octave triton progression cadence enchainement tonalite degre
+ rootless drop quartal close shell ouvert ouverte ferme fermee gospel jazz worship neo soul blues
+ plaque plaques arpegee lent lente lentement doucement vite rapide main mains gauche droite deux`.split(/\s+/));
+const INTERVAL_WORD = /\b(?:tierce|quarte|quinte|sixte|septieme|neuvieme|octave|triton|seconde (?:majeure|mineure))\b/;
+const NOTE_WORD = '(?:do|re|mi|fa|sol|la|si)(?:#|b)?\\d?';
+
+/**
+ * @param {string} text
+ * @returns {{kind: 'progression'|'chord'|'scale'|'degree'|'interval'|'notes', label: string, rest: string[]}|null}
+ */
+export function namedMusicalObject(text) {
+  const raw = String(text || '').replace(/[‐‑‒–—−]/g, '-');
+  const folded = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/♯/g, '#').replace(/♭/g, 'b').toLowerCase();
+  const params = extractParams(raw);
+  let found = null;
+  if (params.chords?.length >= 2) found = { kind: 'progression', label: params.chords.join(' → ') };
+  else if (params.chordSymbol) found = { kind: 'chord', label: params.chordSymbol };
+  else if (/\b(?:gamme|pentatonique)\b/.test(folded) && (extractKey(raw) || new RegExp(`\\b(?:de|en)\\s+${NOTE_WORD}\\b`).test(folded))) found = { kind: 'scale', label: 'gamme' };
+  else if (/\b(?:le|un|du|au)\s+(?:i|ii|iii|iv|v|vi|vii)\b/.test(folded) && extractKey(raw)) found = { kind: 'degree', label: 'degré' };
+  else if (INTERVAL_WORD.test(folded)) found = { kind: 'interval', label: folded.match(INTERVAL_WORD)[0] };
+  else if (new RegExp(`\\b${NOTE_WORD}(?:[\\s,-]+${NOTE_WORD}\\b){1,}`).test(folded) && !/\bsi\s+(?:la|le|tu|je|on)\b/.test(folded)) found = { kind: 'notes', label: 'notes' };
+  if (!found) return null;
+  const rest = folded.replace(/[’']/g, ' ').split(/[^a-z0-9#]+/).filter(Boolean).filter((word) => {
+    if (OBJECT_WORDS.has(word) || /^\d+$/.test(word) || /^(?:i|ii|iii|iv|v|vi|vii)$/.test(word) || /^(?:do|re|mi|fa|sol|la|si)[#b]?\d?$/.test(word)) return false;
+    const token = normalizeChordToken(word);
+    return !(token && isChordSymbolRecognized(token));
+  });
+  return { ...found, rest };
 }
 
 function romanDegreeToPc(degree, scalePcs) {

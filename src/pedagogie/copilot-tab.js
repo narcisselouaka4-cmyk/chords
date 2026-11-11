@@ -30,6 +30,7 @@ import {
 } from './conversation-continuity.js';
 import { sendCopilotMessage, extractTextToolCalls, wantsToHear, cancelCopilotRequest } from './copilot-client.js';
 import { copilotErrorText } from './copilot-errors.js';
+import { undoAutoMemory, memoryNoticeText } from './auto-memory.js';
 import { hasAIKey } from '../ai/openai-config.js';
 import { liveTake } from '../recorder/live-take.js';
 import { reviewTake } from '../recorder/take-review.js';
@@ -979,7 +980,13 @@ const exportedExamples = new Map();
  * l'exemple, en grille Perso) et « Ajouter aux Favoris » (ses voicings exacts), envoyés
  * à Exercices (main.js) par évènement. null : rien à envoyer (une note, un lick seul).
  */
+// Provenance d'un exemple calculé par l'application pour un accord, une progression ou une gamme
+// que le pianiste a nommé (copilot-client.js). Ce n'est pas une proposition sur son jeu.
+const NAMED_EXAMPLE = 'exemple nommé';
+
 function renderExampleExport(example, id) {
+  // Narcisse (05/11) a rejeté les boutons « Ma grille » / Favoris sur les exemples de bibliothèque.
+  if (example?.source?.kind === NAMED_EXAMPLE) return null;
   const tutorial = example.kind === 'tutorial-transfer';
   const grid = gridFromExample(example, { prefix: tutorial ? 'Tuto' : 'Copilote' });
   const favorites = favoritesFromExample(example, { technique: tutorial ? 'Voicing du prof' : '' });
@@ -1416,7 +1423,9 @@ function renderOneMessage(msg, { last = false } = {}) {
     if(msg.toolResult.harmonyBriefPreview&&msg.toolResult.originalTake)content.append(createTakePlayer(msg.toolResult.originalTake,{id:`${exampleIdOf(msg)}-brief`,title:'Ta prise à vérifier'}));
     const lines=harmonyBriefLines(msg.toolResult.harmonyBrief);
     if(lines.length){const details=renderNotesDetails(lines.join('\n'));details.querySelector('summary').textContent='Voir tous les changements d’accords';content.append(details);}
-  } else if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || msg.toolResult.example.source?.kind === 'passage vidéo')) {
+  } else if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || ['passage vidéo', NAMED_EXAMPLE].includes(msg.toolResult.example.source?.kind))) {
+    // [Claude] — 2026-11-11 — Un objet musical NOMMÉ et demandé à l'écoute (« fais-moi entendre un
+    // Do majeur 7 ») a de nouveau son exemple, clairement distinct d'une proposition sur le jeu.
     if (msg.toolResult.originalTake) content.append(createTakePlayer(msg.toolResult.originalTake, { id: `${exampleIdOf(msg)}-original`, title: 'Ton jeu original' }));
     for(const variant of variantMessages(msg)) content.appendChild(renderExampleCard(variant));
     const grid=renderProposalChordGrid(msg.toolResult,{notation:document.getElementById('notation-select')?.value || 'english',id:exampleIdOf(msg),originalId:`${exampleIdOf(msg)}-original`,variantIds:variantMessages(msg).map(exampleIdOf)});
@@ -1432,6 +1441,10 @@ function renderOneMessage(msg, { last = false } = {}) {
     content.appendChild(played);
   }
 
+  // [Claude] — 2026-11-11 — Mémoire automatique (ADR-073) : ce qui vient d'être retenu est dit sous
+  // la réponse, avec « Annuler ». Rien n'est mémorisé à l'insu du pianiste.
+  for (const notice of msg.toolResult?.memoryNotices || []) content.appendChild(renderMemoryNotice(msg, notice));
+
   // [Claude] — 2026-10-04 — « Plus de détails » sous la dernière réponse, puis les suggestions.
   const asked = last ? messages[messages.length - 2] : null;
   const source = getSessionContext()?.events?.length ? 'session' : lastTake?.events?.length ? 'passage' : null;
@@ -1443,6 +1456,30 @@ function renderOneMessage(msg, { last = false } = {}) {
 
   row.appendChild(content);
   els.messages.appendChild(row);
+}
+
+function renderMemoryNotice(msg, notice) {
+  const box = el('div', { className: `copilot-memory-notice${notice.undone ? ' is-undone' : ''}`, role: 'status' });
+  box.append(el('span', { text: notice.undone ? `Souvenir annulé : « ${notice.text} »` : memoryNoticeText(notice) }));
+  if (!notice.undone) {
+    const undo = el('button', {
+      type: 'button',
+      text: 'Annuler',
+      title: 'Ne pas retenir ce souvenir',
+      onClick: async () => {
+        undo.disabled = true;
+        const result = await undoAutoMemory(notice.id);
+        if (!result.ok) { undo.disabled = false; notify({ id: 'copilot-memory', tone: 'error', title: 'Le souvenir n’a pas pu être annulé', message: 'Tu peux l’oublier depuis Mémoire.' }); return; }
+        notice.undone = true;
+        box.replaceWith(renderMemoryNotice(msg, notice));
+        // L'annulation reste écrite avec l'échange.
+        const entry = keeper.current();
+        if (entry?.messages.includes(msg)) keeper.save(entry).catch(() => {});
+      },
+    });
+    box.append(undo);
+  }
+  return box;
 }
 
 function addTypingIndicator(list = messages) {
