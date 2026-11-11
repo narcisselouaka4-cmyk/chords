@@ -7,7 +7,7 @@ import { buildDemo } from './practice-demo.js';
 
 const entries = catalogue.movements.filter((m) => m.category === 'Latino');
 const motifs = entries.filter((m) => m.provenance.adaptedFrom);
-assert.equal(entries.length, 10);
+assert.deepEqual(entries.map(m => m.id).sort(), ['latin-montuno-guajeo', 'latin-riff-salsa'], 'Latino conserve uniquement les deux motifs demandés par Narcisse');
 assert.equal(motifs.length, 2);
 let transpositions = 0;
 const engine = () => { const e = createPracticeExercise(); e.setMode('movement'); return e; };
