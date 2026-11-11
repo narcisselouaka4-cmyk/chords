@@ -2504,6 +2504,23 @@
 #practice-view-copilot .copilot-memory-provenance { margin: 0 0 6px; color: var(--tr-muted); font-size: 12px; line-height: 1.4; }
 #practice-view-copilot .copilot-memory-superseded { border-top: 1px solid var(--tr-border); padding: 10px 0; color: var(--tr-muted); font-size: 12px; }
 #practice-view-copilot .copilot-memory-superseded summary { cursor: pointer; color: var(--tr-text); }
+/* [Claude] — 2026-11-11 — « Partition » sous une prise, une proposition ou un exemple. Le papier
+   reste clair dans les deux thèmes : la gravure (VexFlow) trace en noir. */
+.copilot-score { margin-top: 8px; border: 1px solid var(--tr-border); border-radius: 10px; background: var(--tr-inset); }
+.copilot-score > summary { padding: 6px 12px; cursor: pointer; color: var(--tr-text); font-size: 12px; font-weight: 600; }
+.copilot-score-body { padding: 0 10px 10px; }
+.copilot-score-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.copilot-score-tabs[hidden] { display: none; }
+.copilot-score-tab { padding: 4px 10px; border: 1px solid var(--tr-border); border-radius: 7px; background: var(--tr-surface); color: var(--tr-text); font: inherit; font-size: 12px; cursor: pointer; }
+.copilot-score-tab.is-active { border-color: var(--tr-text); font-weight: 600; }
+.copilot-score-sheet { max-height: 420px; overflow: auto; border-radius: 8px; background: #fbfaf6; }
+.copilot-score-system { padding: 2px 4px; }
+.copilot-score-system + .copilot-score-system { border-top: 1px solid #e7e3d8; }
+.copilot-score-chord { font: 600 13px var(--tr-mono, monospace); fill: #1b1b1f; }
+.copilot-score-current, .copilot-score-current * { fill: #b4541a !important; stroke: #b4541a !important; }
+.copilot-score-caption { margin: 8px 2px 0; color: var(--tr-muted); font-size: 11.5px; line-height: 1.45; }
+.copilot-score-caption.is-uncertain { color: var(--tr-text); }
+.copilot-score button:focus-visible, .copilot-score > summary:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
 /* Avis « Retenu… » sous une réponse, avec « Annuler ». */
 .copilot-memory-notice { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 10px; border: 1px solid var(--tr-border); border-radius: 8px; background: var(--tr-inset); color: var(--tr-text); font-size: 12px; line-height: 1.35; }
 .copilot-memory-notice span { flex: 1 1 auto; min-width: 0; }

@@ -3,6 +3,7 @@ import {samePlayingSource} from './personal-source.js';
 import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
 import {PROPOSAL_POLICY} from './proposal-policy.js';
 import {renderProposalChordGrid,refreshProposalChordGrids} from './proposal-chord-grid.js';
+import {renderProposalScore,refreshProposalScores} from './proposal-score-view.js';
 import {mountMemoryPanel} from './memory-panel.js';
 import {conversationSourceForTurn} from './copilot-memory.js';
 import {harmonyBriefLines} from './harmony-brief.js';
@@ -1430,6 +1431,10 @@ function renderOneMessage(msg, { last = false } = {}) {
     for(const variant of variantMessages(msg)) content.appendChild(renderExampleCard(variant));
     const grid=renderProposalChordGrid(msg.toolResult,{notation:document.getElementById('notation-select')?.value || 'english',id:exampleIdOf(msg),originalId:`${exampleIdOf(msg)}-original`,variantIds:variantMessages(msg).map(exampleIdOf)});
     if(grid){content.appendChild(grid);refreshProposalChordGrids(content,playingExampleId,exampleProgress);}
+    // [Claude] — 2026-11-11 — Partition (deux portées, accords au-dessus) pour les lecteurs : le jeu
+    // d'origine, chaque proposition, ou l'exemple nommé. Repliée ; ce qui est estimé y est dit.
+    const sheet=renderProposalScore(msg.toolResult,{notation:document.getElementById('notation-select')?.value || 'english',id:exampleIdOf(msg),originalId:`${exampleIdOf(msg)}-original`,variantIds:variantMessages(msg).map(exampleIdOf)});
+    if(sheet)content.appendChild(sheet);
   } else if (msg.toolResult?.played?.length) {
     // Anciennes conversations : notes jouées à l'époque, pour mémoire.
     const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
@@ -2306,11 +2311,13 @@ export async function initCopilotTab() {
     refreshTakePlayers(els.root?.ownerDocument, playingExampleId, exampleProgress, examplePaused);
     refreshExampleTransport();
     refreshProposalChordGrids(els.messages,playingExampleId,exampleProgress);
+    refreshProposalScores(els.messages,playingExampleId,exampleProgress);
   });
   document.addEventListener('copilot-example-frame', (e) => {
     if (e.detail?.id !== playingExampleId) return;
     refreshTakeCursor(els.root?.ownerDocument, e.detail.id, e.detail.position);
     refreshProposalChordGrids(els.messages,playingExampleId,{...exampleProgress,position:e.detail.position});
+    refreshProposalScores(els.messages,playingExampleId,{...exampleProgress,position:e.detail.position});
   });
 
   document.addEventListener('copilot-send-message', async (e) => {
