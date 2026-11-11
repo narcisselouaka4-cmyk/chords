@@ -875,3 +875,31 @@ export function composeConversationRecall(messages, question, { mode = 'full', b
     stats: { mode, total, recent: recent.length, grouped: timeline.grouped, timelineOverBudget: timeline.overBudget, excerpts: excerptNumbers.sort((x, y) => x - y), versions: a.versions.length, pending: Boolean(pending), contextChars: context.length, messagesChars, totalChars: context.length + messagesChars },
   };
 }
+
+
+// ── Choix numérotés ─────────────────────────────────────────────────────────────
+
+const ORDINAL_WORDS = { premiere: 1, premier: 1, deuxieme: 2, seconde: 2, second: 2, troisieme: 3, quatrieme: 4, cinquieme: 5 };
+
+/**
+ * [Claude] — 2026-11-12 — « Fait la 2 alors », « la deuxième », « option 1 » : le pianiste choisit
+ * une option numérotée de la DERNIÈRE réponse. Narcisse a reçu « pas de réponse utilisable » à
+ * « fait la 2 alors ». On retrouve le texte de l'option pour le rendre explicite au modèle.
+ * @returns {{number: number, text: string}|null}
+ */
+export function numberedChoice(message, messages = []) {
+  const t = plain(message).replace(/[!.?]+$/, '').trim();
+  if (t.length > 60) return null;
+  const match = /^(?:(?:ok|oui|d'accord|alors|bon)[ ,]*)?(?:(?:fais|fait|faites|prends|je prends|va pour|on fait|choisis|je choisis|plutot)\s+)?(?:la|le|l'|l |option|choix|proposition|solution|numero)?\s*(?:n[o°]\s*)?(\d|premiere|premier|deuxieme|seconde|second|troisieme|quatrieme|cinquieme)(?:\s+(?:option|choix|proposition|solution))?(?:\s+(?:alors|stp|svp|s'il te plait|merci|ok|donc))*$/.exec(t);
+  if (!match) return null;
+  const number = /^\d$/.test(match[1]) ? Number(match[1]) : ORDINAL_WORDS[match[1]];
+  const last = [...(Array.isArray(messages) ? messages : [])].reverse().find((m) => m?.role === 'assistant' && !m.isTyping && !m.isError && typeof m.content === 'string');
+  if (!last || !number) return null;
+  const options = new Map();
+  for (const line of last.content.split('\n')) {
+    const item = /^\s*(?:[-*]\s*)?(?:\*\*)?(?:option\s*)?(\d)\s*(?:[.)]|\*\*|:|\s-\s)\s*(.+)$/i.exec(line);
+    if (item && !options.has(Number(item[1]))) options.set(Number(item[1]), item[2].replace(/\*\*/g, '').trim());
+  }
+  const text = options.get(number);
+  return text ? { number, text: text.slice(0, 300) } : null;
+}

@@ -5,6 +5,7 @@ export const TEACHING_GUIDANCE = `Écris comme un professeur de piano qui aide s
 Pour « pourquoi cet accord ? », explique son rôle : préparer l'accord suivant, relier les basses, garder la mélodie ou changer la couleur. Ne récite pas seulement son nom ou les notes. Un mot comme voicing signifie la disposition des notes de l'accord ; explique le terme avant de l'employer. Par défaut, évite les sigles et l'empilement des degrés, tensions et techniques.
 N'affiche jamais de vélocité, de millisecondes, de scores ou de pourcentages d'analyse, même dans les détails : ces mesures sont internes. Un tempo en BPM et un moment mm:ss sont utiles et restent autorisés. Si les notes sont trop fortes, propose de jouer plus doucement ; n'invente pas de défaut à partir d'un chiffre isolé.
 Ne justifie pas un accord par « les pianistes font ça » sans en expliquer l'effet ici. Ne cite un morceau, un artiste ou une technique particulière comme origine du choix que si le plan ou une source identifiée le confirme. Sinon, dis simplement ce que les notes permettent de vérifier. Une explication n'est pas une nouvelle démonstration.
+Ne propose jamais une écoute que tes outils ne réalisent pas (par exemple un accompagnement autour d'une étude, un tempo de style). Quand le pianiste accepte ta proposition (« oui », « la 2 »), réalise-la tout de suite ou dis franchement ce que tu ne peux pas faire ; ne réponds pas par une nouvelle question. Ne cite jamais le nom technique d'une fonction.
 Exemple de ton : « Cet accord prépare celui qui suit. La basse descend d'un demi-ton : cela relie les deux accords. Écoute surtout cette liaison. » Adapte cette formulation au vrai passage ; ne la copie pas si les notes ne la justifient pas.`;
 
 // [Claude] — 2026-11-11 — Trois niveaux, sans parler aux adultes comme à des enfants. La progression
@@ -23,10 +24,28 @@ export const LEVEL_GUIDANCE_COMPACT = `Niveau : fie-toi à ce que dit le pianist
 
 const INTERNAL = /v[eé]locit[eé]s?|\bvelocity\b|millisecondes?|\b\d+(?:[.,]\d+)?\s*ms\b|\b(?:score|confiance|pr[eé]cision)\b[^.!?\n]{0,35}\d+(?:[.,]\d+)?\s*%/i;
 
+// [Claude] — 2026-11-12 — Narcisse a reçu « L'outil `play_exercise` joue l'exercice… ». Un nom
+// interne d'outil ne s'affiche jamais : il est remplacé par ce que l'action fait, en mots simples.
+const TOOL_WORDS = {
+  play_exercise: 'la lecture de l’exercice', play_progression: 'l’écoute d’une grille d’accords', play_lick: 'la création d’un lick',
+  play_voicing: 'l’écoute d’un accord', play_scale: 'l’écoute d’une gamme', play_note: 'l’écoute de quelques notes',
+  play_my_playing: 'le rejeu de ton jeu', play_tutorial_passage: 'l’écoute du passage de la vidéo', apply_tutorial_passage: 'l’adaptation du passage',
+  play_melody_chords: 'l’harmonisation de la mélodie', harmonize_my_playing: 'la transformation de ton jeu', consult_conversation: 'la relecture de notre échange',
+  remember: 'la mémoire', suggest_actions: 'les suggestions',
+};
+const TOOL_NAME = new RegExp(`(?:(?:[lL]['’]|[cC]et |[uU]n )?(?:[oO]util|[fF]onction)\\s+)?\`?\\b(${Object.keys(TOOL_WORDS).filter((k) => k.includes('_')).join('|')})\\b\`?(?:\\s*\\(\\))?`, 'g'); // sensible à la casse : la balise [PLAY_NOTE: …] du mode sans outils reste intacte
+export function withoutToolNames(value) {
+  return String(value || '').replace(TOOL_NAME, (match, name, offset, whole) => {
+    const words = TOOL_WORDS[name.toLowerCase()] || 'cette fonction';
+    const before = whole.slice(0, offset);
+    return !before.trim() || /[.!?:\n]\s*$/.test(before) ? words.charAt(0).toUpperCase() + words.slice(1) : words;
+  });
+}
+
 /** Dernier garde-fou de texte : ne change ni les notes ni les événements joués.
  * Une phrase d'analyse interne est retirée plutôt que convertie en faux conseil. */
 export function readableTeachingText(value) {
-  const text=String(value||'');
+  const text=withoutToolNames(value);
   if(!INTERNAL.test(text))return text;
   const withoutBrackets=text.replace(/\([^()]*\)/g,part=>INTERNAL.test(part)?'':part);
   const paragraphs=withoutBrackets.split(/\n\s*\n/).map(paragraph=>paragraph

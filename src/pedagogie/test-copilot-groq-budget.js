@@ -109,7 +109,10 @@ assert.equal(stillTooLarge.error, 'AI_REQUEST_TOO_LARGE');
 assert.ok(!stillTooLarge.toolResult.variants?.length);
 requests = []; finalStatus = 200; finishReason = 'length';
 const truncated = await sendCopilotMessage(harmonyParams);
-assert.equal(requests.length, 2);
+// [Claude] — 2026-11-12 — Contrat changé volontairement : un plan coupé reçoit UNE nouvelle demande
+// plus courte (une version) avant l'échec ; toujours borné, jamais de plan partiel joué.
+assert.equal(requests.length, 3);
+assert.match(requests[2].messages.at(-1).content, /UNE seule version/);
 assert.equal(truncated.error, 'AI_OUTPUT_LIMIT');
 assert.ok(!truncated.toolResult.variants?.length);
 // [Claude] — 2026-11-11 — 400 ms et non 25 : sur une machine chargée, 25 ms s'écoulaient avant même

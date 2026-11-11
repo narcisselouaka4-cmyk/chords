@@ -1604,7 +1604,7 @@ function testExerciseTool() {
   check('play_exercise : l\'accord en cours avec le voicing EXACT de la carte', ons(current.example) === '48,58,64,69' && current.example.kind === 'exercise', ons(current.example));
   const all = executeToolCalls([call({ chords: 'all', title: 'Le II-V-I de la carte' })], '', { exercise: EXERCISE });
   const at = (ex, t) => (ex?.events || []).filter((e) => e.type === 'noteOn' && Math.abs(e.time - t) < 1e-6).map((e) => e.note).join(',');
-  check('play_exercise « all » : les trois accords enchaînés (un toutes les 1,6 s)', at(all.example, 0) === '43,58,62,65,69' && at(all.example, 1.6) === '48,58,64,69' && at(all.example, 3.2) === '41,57,60,64,67' && all.example.title === 'Le II-V-I de la carte', `${at(all.example, 0)} | ${at(all.example, 1.6)} | ${at(all.example, 3.2)}`);
+  check('play_exercise « all » : les trois accords enchaînés (un toutes les 1,6 s)', at(all.example, 0) === '43,58,62,65,69' && at(all.example, 1.6) === '48,58,64,69' && at(all.example, 3.2) === '41,57,60,64,67' && all.example.title === 'Gm9 → C13 → Fmaj9 — voicings de la carte' /* 12/11 : titre d'après le contenu joué, celui du modèle est ignoré (il annonçait « lent », « contexte »… sans que le son change) */, `${at(all.example, 0)} | ${at(all.example, 1.6)} | ${at(all.example, 3.2)}`);
   const bass = (all.example.events || []).find((e) => e.type === 'noteOn' && e.note === 43);
   check('play_exercise : la main gauche de la carte reste à la main gauche', bass?.hand === 'lh' && all.example.steps === undefined, JSON.stringify(bass));
   const named = executeToolCalls([call({ chords: 'Fmaj9 Gm9' })], '', { exercise: EXERCISE });

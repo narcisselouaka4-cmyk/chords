@@ -30,11 +30,12 @@ import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
 import { COMPACT_COPILOT_SYSTEM_PROMPT, compactMovementsReference } from './copilot-compact-prompt.js';
 import { groqBudgetRetry } from '../ai/groq-token-budget.js';
 import { classifyProviderFailure, embeddedProviderError, classifyTransportError, repairRejectedParameter } from '../ai/provider-errors.js';
-import { composeConversationRecall, pendingOperation, isResumeRequest, CONSULT_CONVERSATION_TOOL, runConsultConversation } from './conversation-recall.js';
+import { composeConversationRecall, pendingOperation, isResumeRequest, numberedChoice, CONSULT_CONVERSATION_TOOL, runConsultConversation } from './conversation-recall.js';
 import { REMEMBER_TOOL, REMEMBER_GUIDANCE, proposeAutoMemory, saveAutoMemory } from './auto-memory.js';
 import { passageExample, transposeInterval, notesInRange } from './teacher-notes.js';
 import { onlySpeech, activitySummary } from './teacher-activity.js';
 import { exerciseContextLines } from './exercise-context.js';
+import { buildStudyDemo } from '../practice-demo.js';
 import movementsLibrary from '../exercise-catalogue.js';
 import {
   generateCopilotVoicing,
@@ -222,13 +223,14 @@ const PLAY_EXERCISE_TOOL = {
   type: 'function',
   function: {
     name: 'play_exercise',
-    description: 'Fait entendre les accords de l\'exercice affiché avec les voicings EXACTS de la carte (main gauche et main droite), enchaînés comme à l\'exercice. Prépare un exemple sous ta réponse (Écouter). Pour l\'exercice en cours, utilise cet outil plutôt que play_voicing ou play_progression, qui choisiraient d\'autres voicings.',
+    description: 'Fait entendre l\'exercice affiché. Pour une étude écrite (lick, motif, relevé) : SES notes exactes et son rythme écrit, les deux mains, comme le bouton Écouter des Exercices ; sinon les accords avec les voicings EXACTS de la carte (main gauche et main droite). Peut ralentir ou accélérer (speed). Ne peut RIEN ajouter : ni accompagnement, ni tumbao, ni contexte autour, ni autre style ; ne propose jamais au pianiste une écoute que cet outil ne réalise pas. Prépare un exemple sous ta réponse (Écouter). Pour l\'exercice en cours, utilise cet outil plutôt que play_voicing ou play_progression, qui choisiraient d\'autres voicings.',
     parameters: {
       type: 'object',
       additionalProperties: false,
       properties: {
         chords: { type: 'string', description: '« current » (l\'accord à jouer maintenant, par défaut), « all » (tous les accords de la tonalité en cours), ou des noms d\'accords de la carte séparés par des espaces (ex. « Dm9 G13 »).' },
-        title: { type: 'string', description: 'Titre court de l\'exemple.' },
+        title: { type: 'string', description: 'Ignoré : l\'application titre l\'exemple d\'après ce qui est réellement joué.' },
+        speed: { type: 'number', description: 'Vitesse : 1 = tempo écrit de l\'étude ; 0.7 = plus lent ; 1.3 = plus vite. Entre 0.5 et 1.5.' },
       },
     },
   },
@@ -289,7 +291,29 @@ const PLAY_MELODY_CHORDS_TOOL = {
  * @param {object} exercise - contexte de l'exercice (exercise-context.js)
  * @param {{chords?: string, title?: string}} args
  */
-export function exerciseExample(exercise, { chords = 'current', title = '' } = {}) {
+// [Claude] — 2026-11-12 — Le titre de l'exemple d'exercice décrit ce qui est réellement joué :
+// le modèle l'intitulait « lent », « au tempo », « dans son contexte (tumbao + phrase) » sans que
+// le son change. `title` est donc ignoré ; la vitesse demandée est vraiment appliquée.
+const speedOf = (value) => { const n = Number(value); return Number.isFinite(n) && n > 0 ? Math.min(1.5, Math.max(0.5, Math.round(n * 100) / 100)) : 1; };
+const speedLabel = (speed) => (speed === 1 ? '' : `, ${speed < 1 ? 'ralenti' : 'accéléré'} (×${String(speed).replace('.', ',')})`);
+
+export function exerciseExample(exercise, { chords = 'current', title = '', speed = 1 } = {}) {
+  const pace = speedOf(speed);
+  // Étude écrite : ses notes et son rythme, les deux mains, à son tempo (ou à la vitesse demandée).
+  if (exercise?.study?.chords?.length) {
+    try {
+      const demo = buildStudyDemo(exercise.study.chords);
+      const events = (demo?.events || []).filter((e) => e.type === 'noteOn' || e.type === 'noteOff');
+      if (events.some((e) => e.type === 'noteOn')) {
+        const tempo = Math.round(exercise.study.tempo * pace);
+        return {
+          kind: 'exercise', title: `${exercise.study.name || exercise.title} — étude écrite${speedLabel(pace)}`,
+          subtitle: `Notes et rythme de l’étude, les deux mains · ${tempo} à la noire`, style: null, tempo, events,
+          beats: demo.beats || Math.max(...events.map((e) => e.time)), chords: [], source: { kind: 'étude écrite' },
+        };
+      }
+    } catch (err) { console.warn('[CopilotClient] Étude non jouable, voicings de la carte à la place :', err?.message); }
+  }
   const list = exercise?.chords || [];
   if (!list.length) return null;
   const want = String(chords || 'current').trim();
@@ -301,14 +325,15 @@ export function exerciseExample(exercise, { chords = 'current', title = '' } = {
     picked = names.map((n) => list.find((c) => c.name === n)).filter(Boolean);
   }
   if (!picked.length) picked = list.filter((c) => c.current).length ? list.filter((c) => c.current) : list.slice(0, 1);
+  const step = 1600 / pace;
   const notes = picked.flatMap((c, i) => [
-    ...c.lh.map((midi) => ({ midi, hand: 'LH', chord: c.name, startOffsetMs: i * 1600, durationMs: 1500, velocity: 0.7 })),
-    ...c.rh.map((midi) => ({ midi, hand: 'RH', chord: c.name, startOffsetMs: i * 1600, durationMs: 1500, velocity: 0.72 })),
+    ...c.lh.map((midi) => ({ midi, hand: 'LH', chord: c.name, startOffsetMs: i * step, durationMs: step - 100, velocity: 0.7 })),
+    ...c.rh.map((midi) => ({ midi, hand: 'RH', chord: c.name, startOffsetMs: i * step, durationMs: step - 100, velocity: 0.72 })),
   ]);
   const example = buildNotesExample(notes, {
     kind: 'exercise',
-    title: title || picked.map((c) => c.name).join(' → '),
-    subtitle: `Voicings de la carte · ${exercise.title}`,
+    title: `${picked.map((c) => c.name).join(' → ')} — voicings de la carte${speedLabel(pace)}`,
+    subtitle: `Accords plaqués, un par temps long · ${exercise.title}`,
   });
   return example;
 }
@@ -1156,7 +1181,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
     } else if (fn === 'play_exercise') {
       if (example) { ignored += 1; continue; }
       const args = parseArgs(call) || {};
-      example = exercise ? exerciseExample(exercise, { chords: args.chords, title: args.title ? String(args.title) : '' }) : null;
+      example = exercise ? exerciseExample(exercise, { chords: args.chords, speed: args.speed }) : null;
       if (!example) {
         ignored += 1;
         addNote('_(Aucun exercice n\'est affiché : ouvre l\'onglet Exercices pour que je fasse entendre ses voicings.)_');
@@ -1812,7 +1837,9 @@ const retryAfterOf = (response) => { try { return response?.headers?.get?.('retr
 
 async function callChatCompletionOnce(config, body) {
   if (activeTurn.cancelled) return { ok: false, error: 'AI_CANCELLED' };
-  const timeoutMs = Math.min(copilotTimeoutMs, config.copilotDeadline ? config.copilotDeadline - Date.now() : copilotTimeoutMs);
+  // Un parcours lourd (harmonisation) peut demander plus que le délai d'un échange ordinaire.
+  const cap = config.callTimeoutMs || copilotTimeoutMs;
+  const timeoutMs = Math.min(cap, config.copilotDeadline ? config.copilotDeadline - Date.now() : cap);
   if (timeoutMs <= 0) return { ok: false, error: 'AI_TIMEOUT' };
   // Une seule minuterie pour tout l'échange (envoi, attente, lecture de la
   // réponse), quel que soit le chemin : fetch (navigateur) ou processus principal
@@ -1963,7 +1990,12 @@ export async function sendCopilotMessage(params) {
 async function modelPlayingAnswer({message,messages,context,memory,preferences,deadline=null}){
   // Revue indépendante : appelée depuis la conversation (outil harmonize_my_playing), elle garde
   // l'échéance du tour au lieu d'en prendre une neuve (un tour pouvait durer deux fois le délai).
-  const config={...getAIConfig(),copilotDeadline:deadline||Date.now()+copilotTimeoutMs};
+  // [Claude] — 2026-11-12 — Conversation de Narcisse du 11/11 : « version enrichie » → délai dépassé
+  // (90 s), puis « limite de longueur » à chaque relance. Écrire un plan complet prend plus de temps
+  // qu'une réponse : le parcours a le double du délai ordinaire, annoncé tel quel en cas d'échec.
+  const heavy=copilotTimeoutMs*2;
+  const config={...getAIConfig(),callTimeoutMs:heavy,copilotDeadline:deadline||Date.now()+heavy};
+  const failDetails=(result)=>({...(result.details||{}),stage:'harmony',timeoutSeconds:Math.round(heavy/1000)});
   const source=modelHarmonySource(context.playing.passage,context.harmonyConstraints);
   const generation={engine:'model',model:config.model,version:1};
   const base={played:[],ignored:0,suggestions:[],voicing:null,originalTake:context.playing.passage,generation,proposalPolicy:PROPOSAL_POLICY,proposalDiversity:PROPOSAL_DIVERSITY};
@@ -1983,8 +2015,16 @@ async function modelPlayingAnswer({message,messages,context,memory,preferences,d
       let result=await callChatCompletionOnce(config,buildChatCompletionPayload(config,payload,options));
       if(!result.ok&&result.status===400&&!options.useMaxTokens&&/max_completion_tokens/i.test(result.responseText||''))
         result=await callChatCompletionOnce(config,buildChatCompletionPayload(config,payload,{...options,useMaxTokens:true}));
-      if(!result.ok)return {...result,toolResult:base};
-      if(result.diagnostics?.finishReason==='length')return {ok:false,error:'AI_OUTPUT_LIMIT',toolResult:base};
+      if(!result.ok)return {...result,details:failDetails(result),toolResult:base};
+      if(result.diagnostics?.finishReason==='length'){
+        // Plan coupé faute de place : une seule nouvelle demande, plus courte (une version, raisons
+        // brèves), sous la même échéance ; jamais un plan partiel joué.
+        if(attempt===0){
+          payload.push({role:'user',content:'Ta réponse a été coupée faute de place. Renvoie UNE seule version, avec des raisons de huit mots au plus, et seulement les appuis principaux. Le JSON complet, rien d’autre.'});
+          continue;
+        }
+        return {ok:false,error:'AI_OUTPUT_LIMIT',details:failDetails(result),toolResult:base};
+      }
       const content=result.choice?.content||'';
       const realized=realizeModelHarmony(content,source,{exclude});
       if(realized.ok){
@@ -2000,7 +2040,7 @@ async function modelPlayingAnswer({message,messages,context,memory,preferences,d
       payload.push({role:'assistant',content:content.slice(0,36000)},
         {role:'user',content:`Le plan a été refusé : ${reason} Corrige le JSON complet, en respectant les autres contraintes. Pas de commentaire hors JSON.`});
     }
-  }catch(err){return {ok:false,error:activeTurn.cancelled?'AI_CANCELLED':classifyTransportError(err),toolResult:base};}
+  }catch(err){return {ok:false,error:activeTurn.cancelled?'AI_CANCELLED':classifyTransportError(err),details:failDetails({}),toolResult:base};}
   return {ok:true,content:'Le modèle choisi n’a pas fourni de plan d’accords jouable, même après une correction. Ta prise est conservée. Tu peux réessayer ou essayer un autre modèle.',
     toolResult:{...base,generation:{...generation,rejected:true,validation:reason}},suggestedActions:[],autoplay:false};
 }
@@ -2014,7 +2054,10 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     if (pending?.question?.text && pending.followUp?.resume !== false) {
       const again = await sendCopilotMessageRaw({ message: pending.question.text, messages, context, conversationId, copilotStyleId, review, skipHarmonyBrief, generationMode, resumed: true });
       const asked = pending.question.text.length > 120 ? `${pending.question.text.slice(0, 120)}…` : pending.question.text;
-      return again.ok ? { ...again, content: `Je reprends ta demande restée sans réponse : « ${asked} »\n\n${again.content}`, toolResult: { ...(again.toolResult || {}), resumedRequest: pending.question.number } } : again;
+      // Un nouvel échec de la même demande le dit : réessayer à l'identique n'aide plus (Narcisse a
+      // relancé quatre fois « c'est bon ? », « et là ? », « ? » et reçu chaque fois le même message).
+      return again.ok ? { ...again, content: `Je reprends ta demande restée sans réponse : « ${asked} »\n\n${again.content}`, toolResult: { ...(again.toolResult || {}), resumedRequest: pending.question.number } }
+        : { ...again, details: { ...(again.details || {}), attempts: (pending.attempts || 1) + 1, question: asked } };
     }
   }
   context = personalContext(restoreConversationPlaying(context,messages));
@@ -2225,7 +2268,11 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     const focus = context?.type === 'tutorial' && !review && isStructureQuestion(message)
       ? `\n\n${structureFocus(context.structure || null, { hear: asksForExample(message) })}`
       : '';
-    payloadMessages.push({ role: 'user', content: `${message}${focus}` });
+    // « Fait la 2 alors » : l'option choisie est rendue explicite (le modèle ne la retrouvait pas).
+    const choice = numberedChoice(message, messages);
+    // (Même résolution plus bas pour décider si l'écoute préparée est due.)
+    const chosen = choice ? `\n\n(Le pianiste choisit l’option ${choice.number} de ta réponse précédente : « ${choice.text} ». Réalise-la maintenant, ou dis simplement pourquoi tu ne peux pas.)` : '';
+    payloadMessages.push({ role: 'user', content: `${message}${focus}${chosen}` });
   }
 
   try {
@@ -2410,7 +2457,14 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
         suggestedActions: [{ label: 'Enrichis mes accords', message: 'Enrichis mes accords' }, { label: 'Allège mes accords', message: 'Allège mes accords' }], autoplay: false };
     }
     let exampleHeldBack = false;
-    if (toolsMode && message && !review && !forcedToolCalls && !mine && !chordsAsked && !asksForExample(message) && Array.isArray(effectiveToolCalls)) {
+    // [Claude] — 2026-11-12 — Deux cas où l'écoute préparée par le modèle n'est PAS retenue :
+    //  - le pianiste vient de choisir une option d'écoute (« fait la 2 alors » → « Générer un lick… ») ;
+    //  - la réponse n'a pas de texte : retenir l'exemple laissait une bulle vide, affichée comme
+    //    « pas de réponse utilisable » (conversation de Narcisse du 11/11 sur le Lick 3).
+    const pickedChoice = numberedChoice(message, messages);
+    const choiceToHear = Boolean(pickedChoice && /jou|entend|[ée]cout|g[ée]n[ée]r|ralent|tempo|rejou/i.test(pickedChoice.text));
+    const nothingElseToShow = !String(content || '').trim();
+    if (toolsMode && message && !review && !forcedToolCalls && !mine && !chordsAsked && !asksForExample(message) && !choiceToHear && !nothingElseToShow && Array.isArray(effectiveToolCalls)) {
       const kept = effectiveToolCalls.filter((c) => !AUDIO_TOOLS.includes(c?.function?.name));
       exampleHeldBack = kept.length !== effectiveToolCalls.length;
       effectiveToolCalls = kept;

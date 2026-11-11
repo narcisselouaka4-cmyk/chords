@@ -108,9 +108,17 @@ export function exerciseContext(state, attempts = []) {
     .filter((a) => a && known.has(a.expected) && Array.isArray(a.notes) && a.notes.length)
     .slice(-3)
     .map((a) => ({ expected: a.expected, notes: [...a.notes].sort((x, y) => x - y), heard: a.heard || null }));
+  // [Claude] — 2026-11-12 — Une étude écrite (lick, motif relevé) : le Copilote doit pouvoir faire
+  // entendre SES notes et son rythme, comme le bouton Écouter des Exercices, et pas seulement les
+  // voicings de la carte. Narcisse : « tu n'as pas fait le lick », « pourquoi c'est lent ? ».
+  // Les objets ne partent pas au modèle : seul le texte d'exerciseContextLines lui est envoyé.
+  const study = prog?.movement?.score && prog.chords.length && prog.chords.every((c) => c.studyStep)
+    ? { tempo: Number(prog.movement.score.tempo) || 84, chords: prog.chords, name: prog.name }
+    : null;
   return {
     type: 'exercise',
     ...base,
+    ...(study ? { study } : {}),
     technique: techniqueLabel,
     harmonicColor: state.mode === 'movement' && !prog?.movement?.preserveQualities ? HARMONIC_COLOR_LABELS[state.difficulty] || null : null,
     attempts: tries,
