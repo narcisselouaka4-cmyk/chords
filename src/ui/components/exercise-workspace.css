@@ -1061,12 +1061,8 @@
   justify-content: center;
 }
 
-/* [Claude] — 2026-11-08 — Suite du fond transparent demandé ci-dessus : en
-   Accord cible, .chord-explorer-left (gauche) reste une vraie carte (fond,
-   bordure, rayon 14px) — Narcisse n'a rien annoté dessus. « Même logique »
-   ici veut dire que le panneau de droite doit être « le même type de
-   panneau » que celui de gauche, pas transparent comme lui : il reprend
-   donc la carte de l'Explorer plutôt que de rester nu. */
+/* Accord cible : les deux panneaux latéraux laissent apparaître le décor,
+   comme ceux de Parcours harmonique, dans tous les habillages. */
 :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-exercise-progress.is-chord-side {
   grid-column: 3;
   grid-row: 1;
@@ -1074,7 +1070,7 @@
   height: 100%;
   border: 1px solid var(--tr-border);
   border-radius: 14px;
-  background: var(--tr-surface);
+  background: transparent;
 }
 
 /* ---------------------------------------------------------- Colonne de gauche : Explorer */
@@ -1088,7 +1084,7 @@
   height: 100%;
   border: 1px solid var(--tr-border);
   border-radius: 14px;
-  background: var(--tr-surface);
+  background: transparent;
   overflow: hidden;
 }
 
