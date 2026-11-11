@@ -384,6 +384,27 @@ async function testDeleteDuringTurn() {
   check('Son brouillon est oublié aussi', keeper.draft(entry) === '');
 }
 
+/** Revue indépendante : suppression pendant une écriture en vol — le fichier ne revient pas. */
+async function testDeleteDuringWrite() {
+  const api = mockFilesApi();
+  global.window = { electronAPI: { files: api } };
+  const realWrite = api.writeFile;
+  api.writeFile = async (path, content) => { await new Promise((resolve) => setTimeout(resolve, 40)); await realWrite(path, content); };
+  const keeper = keeperOn(fakeStorage());
+  await keeper.restoreLast();
+  const entry = keeper.current();
+  entry.messages.push({ role: 'user', content: 'Question en cours d’écriture' });
+  keeper.save(entry); // écriture lancée, non attendue (comme à l'envoi d'une question)
+  // Ce que fait maintenant la suppression : oublier, attendre l'écriture en vol, puis supprimer.
+  const inFlight = keeper.pendingWrite(entry.id);
+  keeper.forget(entry.id);
+  await inFlight;
+  api.store.delete(`${DIR}/${entry.id}.json`);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  check('Supprimée pendant une écriture : le fichier ne réapparaît pas', !api.store.has(`${DIR}/${entry.id}.json`));
+  check('… et une nouvelle écriture de cet échange est refusée', (await keeper.save(entry)) === false && !api.store.has(`${DIR}/${entry.id}.json`));
+}
+
 /** Sans dossier d'historique (hors Electron) : la conversation vit en mémoire, sans erreur. */
 async function testWithoutFiles() {
   delete global.window;
@@ -407,6 +428,7 @@ async function run() {
   await testSlowAndFailedLoads();
   await testSessionResume();
   await testDeleteDuringTurn();
+  await testDeleteDuringWrite();
   await testWithoutFiles();
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

@@ -186,7 +186,20 @@ export async function callChatCompletions(baseUrl, apiKey, body, options = {}) {
     // processus principal traduit déjà Anthropic vers la forme OpenAI avant de
     // renvoyer son texte : rien à faire ici dans ce cas.
     const timeoutMs = options.timeoutMs || (options.signal ? 30000 : undefined);
-    const { ok, status, text, retryAfter = null } = await window.electronAPI.ai.chatCompletion(baseUrl, apiKey, body, timeoutMs);
+    // [Claude] — 2026-11-11 — Un signal d'arrêt est relayé au processus principal par un identifiant.
+    const requestId = options.signal ? `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}` : undefined;
+    const stop = () => { window.electronAPI.ai.abort?.(requestId)?.catch?.(() => {}); };
+    if (requestId) {
+      if (options.signal.aborted) stop();
+      else options.signal.addEventListener('abort', stop, { once: true });
+    }
+    let reply;
+    try {
+      reply = await window.electronAPI.ai.chatCompletion(baseUrl, apiKey, body, timeoutMs, requestId);
+    } finally {
+      if (requestId) options.signal.removeEventListener('abort', stop);
+    }
+    const { ok, status, text, retryAfter = null } = reply;
     // [Claude] — 2026-11-10 — Seul point de passage réel de tout appel IA (Copilot,
     // narration Pédagogie, test de connexion) : avant ce lot, incrementMonthlyUsage()
     // existait mais n'était jamais appelée nulle part — « 0 / 50 ce mois » ne bougeait

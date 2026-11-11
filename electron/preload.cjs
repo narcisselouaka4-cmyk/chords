@@ -147,6 +147,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // [OpenCode] — 2026-09-08 — Passerelle IA pour contourner CORS du renderer.
   ai: {
-    chatCompletion: (baseUrl, apiKey, body, timeoutMs) => ipcRenderer.invoke('ai:chat-completion', { baseUrl, apiKey, body, timeoutMs }),
+    chatCompletion: (baseUrl, apiKey, body, timeoutMs, requestId) => ipcRenderer.invoke('ai:chat-completion', { baseUrl, apiKey, body, timeoutMs, requestId }),
+    // [Claude] — 2026-11-11 — « Arrêter » coupe aussi la requête du processus principal.
+    abort: (requestId) => ipcRenderer.invoke('ai:abort', requestId),
   },
 });

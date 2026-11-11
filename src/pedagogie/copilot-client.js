@@ -1886,7 +1886,7 @@ function normalizePayloadMessages(messages) {
     .filter((m) => m.role === 'system' || m.role === 'user' || m.role === 'assistant');
 }
 
-async function retryWithInternalReminder(config, payloadMessages, originalAssistantContent, reminderText, { includeTools = true, tutorialTools = false, exerciseTools = false, playingTools = false, maxTokens = 1200 } = {}) {
+async function retryWithInternalReminder(config, payloadMessages, originalAssistantContent, reminderText, { includeTools = true, tutorialTools = false, exerciseTools = false, playingTools = false, consultTool = false, rememberTool = false, harmonizeTool = false, maxTokens = 1200 } = {}) {
   const retryMessages = normalizePayloadMessages([
     ...payloadMessages,
     { role: 'assistant', content: originalAssistantContent },
@@ -1894,7 +1894,7 @@ async function retryWithInternalReminder(config, payloadMessages, originalAssist
   ]);
   const ollamaCloud = !includeTools && isOllamaCloudUrl(config.baseUrl);
   // [Claude] — 2026-09-25 — La relance garde les outils du tutoriel (rejouer un passage du professeur).
-  const result = await callChatCompletionOnce(config, buildChatCompletionPayload(config, retryMessages, { includeTools, useMaxTokens: ollamaCloud, maxTokens, tutorialTools: includeTools && tutorialTools, exerciseTools: includeTools && exerciseTools, playingTools: includeTools && playingTools }));
+  const result = await callChatCompletionOnce(config, buildChatCompletionPayload(config, retryMessages, { includeTools, useMaxTokens: ollamaCloud, maxTokens, tutorialTools: includeTools && tutorialTools, exerciseTools: includeTools && exerciseTools, playingTools: includeTools && playingTools, consultTool: includeTools && consultTool, rememberTool: includeTools && rememberTool, harmonizeTool: includeTools && harmonizeTool }));
   // Un contrôle de validation ne doit pas effacer une réponse existante si sa relance est vide.
   return result.ok && !hasCompletionOutput(result.choice) ? completionFailure(result, 'retry') : result;
 }
@@ -1946,7 +1946,11 @@ function namedExample(toolResult) {
  */
 export async function sendCopilotMessage(params) {
   activeTurn = { cancelled: false, controllers: new Set() };
-  const reply=await sendCopilotMessageRaw(params);
+  const turn = activeTurn;
+  let reply=await sendCopilotMessageRaw(params);
+  // Revue indépendante : un arrêt demandé pendant le traitement local (après la réponse du réseau)
+  // vaut aussi ; la réponse n'est pas affichée.
+  if (turn.cancelled && reply.ok) reply = { ok: false, error: 'AI_CANCELLED', toolResult: reply.toolResult?.originalTake ? { originalTake: reply.toolResult.originalTake } : undefined };
   // Les évaluations hors réseau restent disponibles, sans les présenter comme
   // une décision du modèle sélectionné dans les réglages.
   if(reply.toolResult?.variants?.length&&!reply.toolResult.generation){
@@ -1956,8 +1960,10 @@ export async function sendCopilotMessage(params) {
   return reply.ok && !reply.toolResult?.memoryCommand ? {...reply,content:readableTeachingText(reply.content)} : reply;
 }
 
-async function modelPlayingAnswer({message,messages,context,memory,preferences}){
-  const config={...getAIConfig(),copilotDeadline:Date.now()+copilotTimeoutMs};
+async function modelPlayingAnswer({message,messages,context,memory,preferences,deadline=null}){
+  // Revue indépendante : appelée depuis la conversation (outil harmonize_my_playing), elle garde
+  // l'échéance du tour au lieu d'en prendre une neuve (un tour pouvait durer deux fois le délai).
+  const config={...getAIConfig(),copilotDeadline:deadline||Date.now()+copilotTimeoutMs};
   const source=modelHarmonySource(context.playing.passage,context.harmonyConstraints);
   const generation={engine:'model',model:config.model,version:1};
   const base={played:[],ignored:0,suggestions:[],voicing:null,originalTake:context.playing.passage,generation,proposalPolicy:PROPOSAL_POLICY,proposalDiversity:PROPOSAL_DIVERSITY};
@@ -2273,7 +2279,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       let wanted = '';
       try { wanted = String(JSON.parse(harmonizeCall.function.arguments || '{}').request || '').slice(0, 400); } catch (_) { wanted = ''; }
       // La phrase du pianiste reste la demande ; la reformulation du modèle la précise seulement.
-      return modelPlayingAnswer({ message: wanted && wanted !== message ? `${message}\n(Précision : ${wanted})` : message, messages, context, memory, preferences });
+      return modelPlayingAnswer({ message: wanted && wanted !== message ? `${message}\n(Précision : ${wanted})` : message, messages, context, memory, preferences, deadline: config.copilotDeadline });
     }
     // Souvenirs proposés par le modèle : gardés de côté ; ils ne sont validés et écrits qu'au moment
     // de rendre la réponse, pour que l'avis « Retenu… » accompagne toujours l'enregistrement.
@@ -2712,7 +2718,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // L'application valide chaque souvenir (phrase du pianiste exigée, pas de circonstance du jour,
     // pas de secret, oubli respecté) avant d'écrire quoi que ce soit.
     const memoryNotices = [];
-    for (const call of rememberCalls) {
+    for (const call of activeTurn.cancelled ? [] : rememberCalls) {
       const proposal = proposeAutoMemory(call.function.arguments, { messages: Array.isArray(messages) ? messages : [], conversationId, existing: [...remembered.entries, ...(remembered.superseded || [])], forgotten: remembered.forgotten || [] });
       if (!proposal.ok) { console.log('[CopilotMemory] souvenir non retenu :', proposal.reason); continue; }
       const stored = await saveAutoMemory(proposal);

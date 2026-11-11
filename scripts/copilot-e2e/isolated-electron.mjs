@@ -26,7 +26,11 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Refuse tout dossier qui pourrait être, contenir ou toucher les données réelles. */
 export function assertIsolatedRoot(root) {
-  const resolved = path.resolve(root);
+  // Chemin réel (revue indépendante) : un lien symbolique vers les données réelles est détecté.
+  let resolved = path.resolve(root);
+  let existing = resolved;
+  while (!fs.existsSync(existing) && path.dirname(existing) !== existing) existing = path.dirname(existing);
+  try { resolved = path.join(fs.realpathSync(existing), path.relative(existing, resolved)); } catch (_) { /* chemin tel quel */ }
   const forbidden = [
     REAL_HOME,
     path.join(REAL_HOME, 'PianoJazzChords'),
@@ -147,6 +151,8 @@ export async function launchIsolatedApp({ root, debugPort = 9357, headless = tru
     if (storedConfig && !fs.existsSync(path.join(base, '.config-ecrite-par-essai'))) {
       throw new Error('ARRÊT : ce profil contient déjà une configuration d\'IA que l\'essai n\'a pas écrite.');
     }
+    // Des clés enregistrées dans un profil d'essai ne viennent jamais de l'essai : on s'arrête.
+    if (storedKeys) throw new Error('ARRÊT : ce profil d\'essai contient des clés enregistrées ; il ne vient pas de l\'essai.');
     await page.setViewport({ width, height }).catch(() => {});
     return { browser, page, child, home, profile, root: base, stop, hadKeys: Boolean(storedKeys) };
   } catch (err) {

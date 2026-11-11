@@ -61,6 +61,13 @@ check('Formulation libre : comprise par le modèle, réalisée par le parcours d
 check('L\'outil de transformation n\'est proposé que lorsqu\'une prise est là', mock.requests[0].body.tools.some((t) => t.function.name === 'harmonize_my_playing'));
 check('La demande du pianiste reste la demande ; la reformulation du modèle la précise', harmonyRequest(1)?.request.startsWith('Tu peux me faire quelque chose de plus riche avec ça ?') && /Précision : Enrichir/.test(harmonyRequest(1).request));
 check('Aucun nom d\'outil ni JSON dans la réponse affichée', !/harmonize_my_playing|\{"variants"|segments/.test(r.content));
+// Revue indépendante : la relance après une consultation de l'échange gardait seulement une partie
+// des outils ; une demande d'harmonisation passée par une consultation n'atteignait jamais le modèle.
+mock.reset();
+mock.enqueue({ text: '', toolCalls: [{ name: 'consult_conversation', arguments: { query: 'accords' } }] }, { text: '', toolCalls: [{ name: 'harmonize_my_playing', arguments: { request: 'Plus de couleur.' } }] }, { text: plan(true) });
+const longHistory = [{ role: 'user', content: 'Voici ma prise.', take }, ...Array.from({ length: 30 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `Échange ${i}` }))];
+r = await quiet(() => sendCopilotMessage({ message: 'Tu peux faire quelque chose avec ça ?', messages: [...longHistory, { role: 'user', content: 'Tu peux faire quelque chose avec ça ?' }], context: context() }));
+check('Consultation de l\'échange PUIS demande d\'harmonisation : le parcours du modèle est atteint', r.ok && engine(r) === 'model' && mock.requests.length === 3 && (mock.requests[1].body.tools || []).some((t) => t.function.name === 'harmonize_my_playing'), JSON.stringify({ n: mock.requests.length, engine: engine(r), c: r.content?.slice(0, 80) }));
 mock.reset(); mock.enqueue({ text: 'Bonjour.' });
 await quiet(() => sendCopilotMessage({ message: 'Bonjour', messages: [{ role: 'user', content: 'Bonjour' }], context: null }));
 check('Sans prise : l\'outil de transformation n\'est pas proposé', !mock.requests[0].body.tools.some((t) => t.function.name === 'harmonize_my_playing'));

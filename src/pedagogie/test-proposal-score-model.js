@@ -86,6 +86,10 @@ const writtenExample = buildProposalScore({ events: [{ type: 'noteOn', note: 48,
 check('Exemple écrit : tempo connu, mesure certaine, aucune mention d\'estimation', writtenExample.meter.certain && writtenExample.meter.bpm === 72 && /écrit par l’application, à 72 à la noire/.test(writtenExample.limits[0]) && !writtenExample.limits.some((l) => /supposées|estimée/.test(l)));
 check('Exemple écrit : Do3 en clé de fa ; Do4, Mi4, Sol4, Si4 arpégés puis tenus en clé de sol', line(writtenExample.bars[0].bass) === 'C3:w' && /^C4:8 C4\+E4:8 C4\+E4\+G4:8 C4\+E4\+G4\+B4:8 C4\+E4\+G4\+B4:h$/.test(line(writtenExample.bars[0].treble)), `${line(writtenExample.bars[0].bass)} | ${line(writtenExample.bars[0].treble)}`);
 
+// Revue indépendante : deux attaques de la même touche à 30 ms d'écart ne font pas « Do4+Do4 ».
+const doubled = buildProposalScore({ events: [{ type: 'noteOn', note: 60, time: 0, velocity: 0.7 }, { type: 'noteOff', note: 60, time: 0.02 }, { type: 'noteOn', note: 60, time: 0.03, velocity: 0.7 }, { type: 'noteOn', note: 64, time: 0, velocity: 0.7 }, { type: 'noteOff', note: 60, time: 2 }, { type: 'noteOff', note: 64, time: 2 }], writtenTempo: 60 });
+check('Une même note n\'est jamais écrite deux fois dans un accord', doubled.bars[0].treble.every((e) => new Set(e.keys.map((k) => k.midi)).size === e.keys.length), line(doubled.bars[0].treble));
+
 // ── Synchronisation : le temps RÉEL du lecteur, pas le temps arrondi ──
 check('La lecture suit les secondes réelles (mesure 2 à 2 s)', scorePositionAt(score, 2.01).bar === 1 && scorePositionAt(score, 0.6).unit === 4 && scorePositionAt(score, 4.5).bar === 2);
 check('Avant la première note : aucune position', scorePositionAt(score, -1) === null);

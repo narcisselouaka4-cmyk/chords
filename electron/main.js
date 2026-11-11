@@ -608,7 +608,9 @@ function setupFileSystemIPC() {
     // [Claude] — 2026-11-11 — Les fichiers JSON (conversations, souvenirs, réglages de travail) sont
     // écrits à côté puis renommés : une coupure pendant l'écriture ne laisse plus un fichier tronqué.
     if (/\.json$/i.test(safePath)) {
-      const tmp = `${safePath}.tmp-${process.pid}-${Date.now()}`;
+      // Suffixe aléatoire : deux écritures dans la même milliseconde ne partagent pas le fichier temporaire
+      // (revue indépendante). `safePath` est déjà résolu en chemin réel : rename vise la vraie cible.
+      const tmp = `${safePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       try {
         await fs.writeFile(tmp, data);
         await fs.rename(tmp, safePath);
@@ -2677,11 +2679,22 @@ function isAllowedAIEndpoint(rawUrl) {
 // (en particulier Ollama Cloud qui ne déclare pas Authorization dans
 // Access-Control-Allow-Headers). Le renderer continue de bénéficier du
 // repli fetch() direct dans les environnements sans electronAPI (tests Node).
-ipcMain.handle('ai:chat-completion', async (event, { baseUrl, apiKey, body, timeoutMs }) => {
+// [Claude] — 2026-11-11 — Requêtes en vol, par identifiant, pour que « Arrêter » les coupe vraiment
+// (revue indépendante : l'arrêt ne traversait pas l'IPC ; la requête continuait, facturée).
+const aiRequests = new Map();
+ipcMain.handle('ai:abort', (event, requestId) => {
+  const controller = typeof requestId === 'string' ? aiRequests.get(requestId) : null;
+  if (!controller) return false;
+  controller.abort();
+  return true;
+});
+ipcMain.handle('ai:chat-completion', async (event, { baseUrl, apiKey, body, timeoutMs, requestId }) => {
   if (!isAllowedAIEndpoint(baseUrl)) {
     throw new Error("Fournisseur IA non autorisé : utilisez une adresse HTTPS, ou HTTP vers un serveur local (localhost).");
   }
   const controller = new AbortController();
+  const trackedId = typeof requestId === 'string' && requestId.length <= 80 ? requestId : null;
+  if (trackedId) aiRequests.set(trackedId, controller);
   const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : null;
   const timer = effectiveTimeout ? setTimeout(() => controller.abort(), effectiveTimeout) : null;
 
@@ -2722,6 +2735,7 @@ ipcMain.handle('ai:chat-completion', async (event, { baseUrl, apiKey, body, time
     throw err;
   } finally {
     if (timer) clearTimeout(timer);
+    if (trackedId) aiRequests.delete(trackedId);
   }
 });
 

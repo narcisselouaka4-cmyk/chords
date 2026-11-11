@@ -21,7 +21,8 @@ export function normalizeChatResponse(data) {
 }
 
 export function hasCompletionOutput(choice) {
-  return Boolean(choice?.content?.trim()) || (choice?.tool_calls || []).some((c) => c?.function?.name?.startsWith('play_') || c?.function?.name === 'apply_tutorial_passage');
+  // Une réponse qui ne fait que demander l'harmonisation du jeu n'est pas vide : l'application la réalise.
+  return Boolean(choice?.content?.trim()) || (choice?.tool_calls || []).some((c) => c?.function?.name?.startsWith('play_') || ['apply_tutorial_passage', 'harmonize_my_playing'].includes(c?.function?.name));
 }
 
 export function completionFailure(result, stage) {

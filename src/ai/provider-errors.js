@@ -68,7 +68,11 @@ const PARAMETERS = ['temperature', 'max_completion_tokens', 'max_tokens', 'tool_
 /** Le paramètre que le fournisseur dit refuser, s'il le nomme. */
 export function rejectedParameter(bodyText) {
   const { error, haystack } = parseBody(bodyText);
-  if (!/unsupported|not supported|unknown|unrecognized|unexpected|invalid|deprecated|not allowed|extra inputs/.test(haystack)) return null;
+  // [Claude] — 2026-11-11 — Revue indépendante : « invalid » figure dans presque toutes les erreurs
+  // OpenAI (invalid_request_error). Seul un paramètre REFUSÉ en tant que tel se retire ; une valeur
+  // trop grande ou invalide (« max_tokens is too large », « Invalid value for temperature ») non.
+  if (/too large|too small|out of range|must be (?:less|greater|between|at most|at least)|invalid value|invalid type|exceeds/.test(haystack)) return null;
+  if (!/unsupported|not supported|unknown (?:parameter|field|argument)|unrecognized|deprecated|not allowed|extra inputs|is not permitted/.test(haystack)) return null;
   const named = String(error?.param || '').toLowerCase();
   if (PARAMETERS.includes(named)) return named;
   // Le plus long d'abord : « max_completion_tokens » contient « max_tokens » par endroits.

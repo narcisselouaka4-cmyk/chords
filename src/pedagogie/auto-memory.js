@@ -49,6 +49,25 @@ const MOMENT = /\b(aujourd'hui|ce (?:soir|matin|midi)|cet(?:te)? (?:apres-midi|f
 // Ce qui ne doit jamais entrer dans la mémoire.
 const SECRET = /\b(sk-[a-z0-9_-]{8,}|gsk_[a-z0-9]{8,}|api[_ -]?key|cle (?:api|secrete)|mot de passe|password|passwd|token|bearer\s+[a-z0-9._-]{8,}|iban|numero de carte)\b|[a-z0-9_-]{32,}|(?:\/home\/|\/users\/|[a-z]:\\)/i;
 
+// Mots de reformulation permis dans le texte d'un souvenir sans figurer dans la phrase du pianiste
+// (« Niveau intermédiaire », « Joue sur… », « Préfère… ») : ils disent la NATURE, pas le contenu.
+const FRAMING = new Set(['pianiste', 'niveau', 'joue', 'jouer', 'prefere', 'preferer', 'aime', 'souhaite', 'veut', 'objectif',
+  'prepare', 'travaille', 'travailler', 'utilise', 'possede', 'depuis', 'style', 'repertoire', 'clavier', 'piano', 'garder',
+  'toujours', 'plutot', 'mieux', 'souvent', 'habitude', 'avec', 'pour', 'dans', 'sans', 'sous', 'plus', 'moins', 'apprend', 'debute']);
+const contentWords = (value) => (plain(value).match(/[a-z0-9#]{4,}/g) || []).map((w) => w.replace(/s$/, ''));
+
+/**
+ * Le texte du souvenir reprend-il les mots du pianiste ? Au moins 70 % de ses mots de contenu
+ * doivent se trouver dans son message, et au moins un. Sinon le modèle pourrait faire passer
+ * n'importe quelle consigne pour une « déclaration du pianiste » en citant un bout de phrase réel.
+ */
+function textMatchesPianist(text, sourceText) {
+  const said = new Set(contentWords(sourceText));
+  const words = contentWords(text).filter((w) => !FRAMING.has(w));
+  if (!words.length) return contentWords(text).some((w) => said.has(w));
+  return words.filter((w) => said.has(w)).length / words.length >= 0.7;
+}
+
 /**
  * Valide un souvenir proposé par le modèle.
  * @param {object|string} candidate arguments de l'outil `remember`
@@ -82,6 +101,9 @@ export function proposeAutoMemory(candidate, { messages = [], conversationId = n
     const fromAssistant = list.some((m) => m.role === 'assistant' && typeof m.content === 'string' && plain(m.content).includes(wanted));
     return refuse(fromAssistant ? 'assistant' : 'citation', fromAssistant ? 'Cette phrase vient de l’assistant, pas du pianiste.' : 'Citation introuvable dans les messages du pianiste.');
   }
+  // [Claude] — 2026-11-11 — Revue indépendante : la citation seule ne suffit pas, le TEXTE retenu doit
+  // dire ce que le pianiste a dit (sinon une consigne injectée passerait pour une de ses déclarations).
+  if (!textMatchesPianist(text, source.content)) return refuse('texte', 'Le souvenir ne reprend pas ce que le pianiste a dit.');
   // Une circonstance du moment n'est pas généralisée, quoi qu'en dise le modèle.
   if (input.scope === 'session' || MOMENT.test(wanted) || MOMENT.test(plain(text))) return refuse('ponctuel', 'Cela ne vaut que pour maintenant : rien n’est retenu durablement.');
 

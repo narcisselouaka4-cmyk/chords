@@ -156,7 +156,8 @@ function staffSlices(notes, barStart) {
   for (let i = 0; i < points.length - 1; i += 1) {
     const a = points[i];
     const b = points[i + 1];
-    const sounding = inside.filter((n) => n.from <= a && n.to > a).sort((x, y) => x.midi - y.midi);
+    // Une même touche attaquée deux fois dans la même double croche ne s'écrit qu'une fois (revue indépendante).
+    const sounding = [...new Map(inside.filter((n) => n.from <= a && n.to > a).sort((x, y) => x.from - y.from).map((n) => [n.midi, n])).values()].sort((x, y) => x.midi - y.midi);
     for (const piece of splitDuration(a - barStart, b - barStart)) {
       const from = barStart + piece.from;
       const to = barStart + piece.to;

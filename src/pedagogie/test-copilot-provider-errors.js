@@ -60,6 +60,8 @@ check('Erreur dans un HTTP 200 (choix)', embeddedProviderError({ choices: [{ err
 check('Réponse normale : pas d\'erreur embarquée', embeddedProviderError(completionBody({ text: 'ok' })) === null);
 const repaired = repairRejectedParameter({ model: 'm', messages: [{ role: 'user', content: 'notes exactes' }], temperature: 0.4, max_completion_tokens: 1200 }, JSON.stringify(ERROR_SCENARIOS.badParam400.body));
 check('Réparation : seul le paramètre refusé est retiré', repaired && !('temperature' in repaired) && repaired.max_completion_tokens === 1200 && repaired.messages[0].content === 'notes exactes');
+check('Valeur trop grande (pas un paramètre refusé) : rien n\'est retiré ni renommé', repairRejectedParameter({ max_tokens: 8192, temperature: 0.4 }, JSON.stringify({ error: { message: 'max_tokens is too large: 8192. This model supports at most 4096 completion tokens', type: 'invalid_request_error', param: 'max_tokens' } })) === null);
+check('Valeur invalide de température : la température n\'est pas supprimée en silence', repairRejectedParameter({ temperature: 0.4 }, JSON.stringify({ error: { message: "Invalid value for 'temperature': must be between 0 and 1.", type: 'invalid_request_error', param: 'temperature' } })) === null);
 check('Réparation impossible quand rien n\'est nommé', repairRejectedParameter({ temperature: 0.4 }, '{"error":{"message":"Bad request"}}') === null);
 check('Exception réseau → catégorie, jamais son texte', classifyTransportError(new TypeError('fetch failed')) === 'AI_NETWORK_ERROR' && classifyTransportError(new SyntaxError('Unexpected token')) === 'AI_INVALID_RESPONSE' && classifyTransportError(new Error('x'), { cancelled: true }) === 'AI_CANCELLED');
 

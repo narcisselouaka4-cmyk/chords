@@ -323,6 +323,12 @@ export function createConversationKeeper({ history, storage = null, lastTakeOf =
     } else draftTakes.delete(entry.id);
   }
 
+  /** L'écriture en cours de cette conversation (à attendre avant de supprimer son fichier). */
+  function pendingWrite(id) {
+    const entry = live.get(id) || (current?.id === id ? current : null);
+    return (entry?.saving || Promise.resolve()).catch(() => {});
+  }
+
   /** La conversation a été supprimée : son brouillon aussi ; une réponse tardive ne la recrée pas. */
   function forget(id) {
     const entry = live.get(id);
@@ -344,6 +350,7 @@ export function createConversationKeeper({ history, storage = null, lastTakeOf =
     restoreLast,
     save,
     forget,
+    pendingWrite,
     setDraft,
     draft: (entry = current) => (entry ? persisted.drafts[entry.id]?.text || '' : ''),
     setDraftTake,

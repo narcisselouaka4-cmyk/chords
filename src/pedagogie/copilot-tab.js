@@ -1707,6 +1707,13 @@ async function deleteHistoryItem(conversationId, label, btn) {
     btn.dataset.originalHtml = btn.innerHTML;
     btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h5"/></svg>';
   }
+  // [Claude] — 2026-11-11 — Revue indépendante : la conversation est oubliée AVANT de supprimer son
+  // fichier, et l'écriture déjà lancée (question ou réponse) se termine d'abord. Avant, une écriture
+  // en vol pouvait recréer le fichier juste après sa suppression.
+  const wasCurrent = conversationId === currentConversationId;
+  const inFlight = keeper.pendingWrite(conversationId);
+  keeper.forget(conversationId);
+  await inFlight;
   const ok = await deleteConversation(conversationId);
   if (btn) {
     btn.disabled = false;
@@ -1717,9 +1724,7 @@ async function deleteHistoryItem(conversationId, label, btn) {
     notify({ id: 'copilot-delete', tone: 'error', title: 'La suppression a échoué', message: 'Vérifiez que le fichier n\'est pas ouvert ailleurs.' });
     return;
   }
-  const wasCurrent = conversationId === currentConversationId;
-  // Oubliée aussi par le gardien : brouillon effacé, et une réponse tardive ne la recrée pas.
-  keeper.forget(conversationId);
+  // Oubliée par le gardien (plus haut) : brouillon effacé, et une réponse tardive ne la recrée pas.
   if (wasCurrent) {
     adoptConversation(await keeper.startNew(sourceFromKey(AUTONOMOUS_HISTORY_KEY)));
     refreshConversationView();
