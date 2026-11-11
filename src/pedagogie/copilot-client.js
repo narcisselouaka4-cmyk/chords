@@ -3,7 +3,7 @@ import {modelHarmonyRequest,modelHarmonySource,modelHarmonyData,MODEL_HARMONY_IN
 import {PROPOSAL_POLICY} from './proposal-policy.js';
 import {PROPOSAL_DIVERSITY} from './proposal-diversity.js';
 import {harmonyBriefTurn} from './harmony-brief.js';
-import {TEACHING_GUIDANCE,readableTeachingText} from './teaching-language.js';
+import {TEACHING_GUIDANCE,LEVEL_GUIDANCE,LEVEL_GUIDANCE_COMPACT,readableTeachingText} from './teaching-language.js';
 import {personalStyleCapabilityAnswer} from './style-capabilities.js';
 import {playingHarmonyFacts} from './playing-harmony-facts.js';
 import {sessionAdjustmentAnswer} from './session-adjustments.js';
@@ -93,6 +93,7 @@ import { takeExample } from './take-attachment.js';
 const COPILOT_SYSTEM_PROMPT = `Tu es l'assistant musical intégré à l'application Piano Jazz Chords : un assistant de piano et de pédagogie musicale, qui s'adresse aussi bien aux débutants qu'aux pianistes confirmés. Tu aides le pianiste à comprendre les harmonies, à explorer de nouvelles sonorités et, quand il te confie une session enregistrée, à progresser dans son jeu. Reste factuel et précis ; tes explications sont claires et concises.
 
 ${TEACHING_GUIDANCE}
+${LEVEL_GUIDANCE}
 
 Capacités : une couleur harmonique jazz ou gospel ne prouve pas que le rythme du style est réalisé. Ne promets pas de convertir un jeu personnel dans un genre si aucun arrangeur dédié ne le réalise. Une limite de cette application n’est pas une impossibilité musicale.
 
@@ -2011,6 +2012,17 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   // nommé, ou une demande libre. Les parcours du jeu personnel ne reçoivent que la première :
   // « fais-moi entendre un Do majeur 7 » va au modèle, avec ou sans prise dans l'échange.
   const scope=demoScope({message,messages,context});
+  // [Claude] — 2026-11-11 — Du plus simple au plus étendu : un accord simplement NOMMÉ (« fais-moi
+  // entendre un Cmaj7 ») s'entend d'abord tel qu'il est nommé (position fermée, ses seules notes).
+  // Avant, l'exemple ajoutait une neuvième et retirait la fondamentale de la main droite alors que
+  // le texte disait « Do, Mi, Sol, Si ». Un voicing ou un style demandé en toutes lettres reste libre.
+  const asksEnrichedVoicing=(text)=>/\b(?:voicings?|rootless|drop\s?[23]|quartal|coquille|shell|enrichi\w*|riche|ouvert\w*|couleurs?|extensions?|sans fondamentale|jazz|gospel|neo ?soul|worship|bossa|blues)\b/i.test(String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+  const plainVoicing=(call,askedText)=>{
+    if(call?.function?.name!=='play_voicing'||asksEnrichedVoicing(askedText))return call;
+    let args={};try{args=typeof call.function.arguments==='string'?JSON.parse(call.function.arguments||'{}'):(call.function.arguments||{});}catch{return call;}
+    if(args.technique||(args.styleId&&args.styleId!=='auto'))return call;
+    return {...call,function:{...call.function,arguments:JSON.stringify({...args,technique:'close'})}};
+  };
   const personalScope=review||scope.kind==='personal';
   // « Joue-moi un Cmaj7 en position fermée », « … ma mélodie en melody chords » : ni l'un ni
   // l'autre ne demande de convertir la prise dans un style (« en <mots> » était lu comme tel).
@@ -2159,7 +2171,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   const knownScale = scaleRequest ? buildScaleNotes(scaleRequest) : null;
   const scaleFacts = knownScale ? `\n\nRéférence calculée par l'application pour cette question : ${knownScale.title}, ${knownScale.names.join(' – ')}. Ces notes priment sur toute supposition. Pour une gamme demandée, utiliser play_scale, pas play_lick.` : '';
   const payloadMessages = normalizePayloadMessages([
-    { role: 'system', content: `${usesCompactPrompt(config.baseUrl) ? COMPACT_COPILOT_SYSTEM_PROMPT : COPILOT_SYSTEM_PROMPT}\n\nInstrument de cette application : PIANO. Décris le clavier et les touches, pas un manche, des frettes ou des positions de guitare. Ne propose pas de doigté précis sans données pour le justifier. Ne recopie aucune instruction de génération de suggestions dans ta réponse.\n\n## Bibliothèque de mouvements de référence\n${usesCompactPrompt(config.baseUrl) ? compactMovementsReference(movementsLibrary.movements) : MOVEMENTS_REFERENCE}\n\n${contextText}${scaleFacts}` },
+    { role: 'system', content: `${usesCompactPrompt(config.baseUrl) ? COMPACT_COPILOT_SYSTEM_PROMPT : COPILOT_SYSTEM_PROMPT}\n\nInstrument de cette application : PIANO. Décris le clavier et les touches, pas un manche, des frettes ou des positions de guitare. Ne propose pas de doigté précis sans données pour le justifier. Ne recopie aucune instruction de génération de suggestions dans ta réponse.${usesCompactPrompt(config.baseUrl) ? `\n\n${LEVEL_GUIDANCE_COMPACT}` : ''}\n\n## Bibliothèque de mouvements de référence\n${usesCompactPrompt(config.baseUrl) ? compactMovementsReference(movementsLibrary.movements) : MOVEMENTS_REFERENCE}\n\n${contextText}${scaleFacts}` },
     ...sanitized,
   ]);
   // [Claude] — 2026-10-09 — « Fais-le-moi entendre » renvoie à la question et à la réponse d'avant.
@@ -2337,6 +2349,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // passage joué (review) aussi.
     const AUDIO_TOOLS = ['play_voicing', 'play_lick', 'play_scale', 'play_progression', 'play_note', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords'];
     let effectiveToolCalls = forcedToolCalls || rawToolCalls;
+    if (Array.isArray(effectiveToolCalls) && scope.kind !== 'personal') effectiveToolCalls = effectiveToolCalls.map((call) => plainVoicing(call, hearIt ? previousQuestion : message));
     const personalFocus = Boolean(playingData?.passage && (review || /\b(?:mon jeu|ma prise|mon passage|mes accords|mes arp[eè]ges|mes voicings|ma fa[çc]on)\b/i.test(message || '')));
     const proposedAudio = [...(effectiveToolCalls || []), ...extractTextToolCalls(content).calls];
     if (personalFocus && !chordsAsked && proposedAudio.some((c) => AUDIO_TOOLS.includes(c?.function?.name) && c.function.name !== 'play_my_playing')) {

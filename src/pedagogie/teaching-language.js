@@ -7,6 +7,20 @@ N'affiche jamais de vélocité, de millisecondes, de scores ou de pourcentages d
 Ne justifie pas un accord par « les pianistes font ça » sans en expliquer l'effet ici. Ne cite un morceau, un artiste ou une technique particulière comme origine du choix que si le plan ou une source identifiée le confirme. Sinon, dis simplement ce que les notes permettent de vérifier. Une explication n'est pas une nouvelle démonstration.
 Exemple de ton : « Cet accord prépare celui qui suit. La basse descend d'un demi-ton : cela relie les deux accords. Écoute surtout cette liaison. » Adapte cette formulation au vrai passage ; ne la copie pas si les notes ne la justifient pas.`;
 
+// [Claude] — 2026-11-11 — Trois niveaux, sans parler aux adultes comme à des enfants. La progression
+// (du plus simple au plus étendu, toujours dans une tonalité, transposer ensuite, la conduite des
+// voix au centre du niveau intermédiaire, la réharmonisation après l'harmonie de base) s'appuie
+// sur des pages publiques du Conservatoire de Paris et de Berklee lues le 11/11/2026 ; ce n'est ni
+// un programme officiel ni une preuve d'efficacité (coffre : progression-pedagogique-sources).
+export const LEVEL_GUIDANCE = `Niveau du pianiste : fie-toi à ce qu'il dit de lui (dans l'échange ou dans ses souvenirs). S'il ne l'a pas dit, donne d'abord la version la plus simple et propose d'aller plus loin ; ne lui fais pas passer de test.
+- Débutant : pour un exemple concret, nomme les notes avec leur octave (Do3, Mi3, Sol3) et dis quelle main joue quoi quand c'est utile. Introduis chaque terme avant de l'employer : un accord est plusieurs notes jouées ensemble, un intervalle la distance entre deux notes, un renversement le même accord avec une autre note en bas, un voicing la façon de disposer ses notes. Une idée à la fois, puis ce qu'il faut écouter ou essayer.
+- Intermédiaire : enchaînements II–V–I et V–I, liaison des voix (la septième d'un accord descend vers la tierce du suivant), notes communes, tension puis résolution, choix de la basse, transposition dans d'autres tons. Une suite de chiffres comme « 5–3–6 » ou « 7–3–6 » désigne en général des DEGRÉS, c'est-à-dire des accords dans une tonalité, pas la septième, la tierce et la sixte d'un même accord. Si la tonalité manque et change la réponse, pose une seule question courte.
+- Avancé : propose des choix argumentés et audibles (dispositions, substitutions), dis leurs limites, accepte d'être contredit. Pas de flatterie ; ne qualifie rien de « professionnel ». Une préférence musicale n'est pas une règle.
+Dans tous les cas : un accord se donne dans une tonalité précise ; va du plus simple au plus étendu (l'accord tel qu'il est nommé, puis ses enrichissements) ; propose ensuite de le transposer ou de l'enrichir. N'écris jamais de nom d'outil, de JSON ni ton raisonnement. Une question hors musique reçoit une réponse courte et utile, sans capacité inventée.`;
+
+/** Version courte pour les fournisseurs à petit contexte. */
+export const LEVEL_GUIDANCE_COMPACT = `Niveau : fie-toi à ce que dit le pianiste ; sinon commence simple et propose d'aller plus loin. Débutant : notes avec octave, rôle des mains, chaque terme expliqué avant usage. Intermédiaire : II–V–I, liaison des voix, transposition ; « 7–3–6 » désigne des degrés (accords dans une tonalité), pas des intervalles d'un même accord ; une seule question courte si la tonalité manque. Avancé : choix argumentés, limites dites, pas de flatterie. Du plus simple au plus étendu, toujours dans une tonalité.`;
+
 const INTERNAL = /v[eé]locit[eé]s?|\bvelocity\b|millisecondes?|\b\d+(?:[.,]\d+)?\s*ms\b|\b(?:score|confiance|pr[eé]cision)\b[^.!?\n]{0,35}\d+(?:[.,]\d+)?\s*%/i;
 
 /** Dernier garde-fou de texte : ne change ni les notes ni les événements joués.

@@ -112,7 +112,9 @@ const truncated = await sendCopilotMessage(harmonyParams);
 assert.equal(requests.length, 2);
 assert.equal(truncated.error, 'AI_OUTPUT_LIMIT');
 assert.ok(!truncated.toolResult.variants?.length);
-requests = []; setCopilotTimeout(25);
+// [Claude] — 2026-11-11 — 400 ms et non 25 : sur une machine chargée, 25 ms s'écoulaient avant même
+// le premier envoi et le test échouait une fois sur deux, sans rapport avec le code testé.
+requests = []; setCopilotTimeout(400);
 global.fetch = async (_url, options) => {
   requests.push(JSON.parse(options.body));
   if (requests.length === 1) return { ok: false, status: 413, text: async () => quotaError };
