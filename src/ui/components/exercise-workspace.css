@@ -739,77 +739,27 @@
 #exercise-library .exercise-library-player .is-danger { border-color: var(--tr-border); }
 #exercise-library .exercise-library-player .is-danger.is-armed { border-color: var(--tr-accent); }
 
-/* ---- Les accords de l'étude, chacun sur son clavier ----
-   « On peut rajouter des cartes d'accord. Tu peux rajouter des
-   mini-keyboardings à chaque fois, pour illustrer les accords montrés. »
-   Ils remplissent la colonne avec ce qui sert : ce qu'on va jouer. */
-
-#exercise-library .exercise-library-chords {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 10px;
-  align-content: start;
-}
-
-#exercise-library .exercise-library-chord {
-  display: grid;
-  gap: 5px;
-  margin: 0;
-  padding: 10px 11px;
-  border: 1px solid var(--tr-border);
-  border-radius: 10px;
-  background: var(--tr-surface);
-}
-
-#exercise-library .exercise-library-chord figcaption {
-  font-size: .92rem;
-  font-weight: 600;
-  color: var(--tr-text);
-}
-
-#exercise-library .exercise-library-chord-kb {
-  display: block;
-  width: 100%;
-}
-
-#exercise-library .exercise-library-chord-kb svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 58px;
-}
-
-#exercise-library .exercise-library-chord-notes {
-  font-family: var(--tr-mono, ui-monospace, monospace);
-  font-size: .72rem;
-  line-height: 1.4;
-  color: var(--tr-secondary);
-  overflow-wrap: anywhere;
-}
-
-#exercise-library .exercise-library-noschords {
-  margin: 0;
-  font-size: .82rem;
-  color: var(--tr-secondary);
-}
-
-/* Fenêtre étroite : la liste passe au-dessus de l'étude regardée plutôt que
-   d'écraser le texte dans une colonne de 250 px. */
+/* La fiche décrit le contenu ; les positions se choisissent dans l'exercice.
+   Garder liste et fiche visibles côte à côte dès 960 px évite que la liste
+   repousse « Écouter / Travailler » sous le clavier persistant. */
 @media (max-width: 1195px) {
-  /* Une seule colonne, et c'est la PAGE qui défile. Mesuré à 1195×892 avec des
-     rangées contraintes : la liste gardait 482 px et il ne restait que 31 px au
-     panneau de droite — la description devenait illisible. Sur un écran étroit,
-     empiler et défiler vaut mieux que de comprimer. */
+  #exercise-library .exercise-library-box {
+    grid-template-columns: minmax(240px, 30%) minmax(0, 1fr);
+    column-gap: 22px;
+  }
+  #exercise-library .exercise-library-what { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+@media (max-width: 959px) {
   #exercise-library .exercise-library-box {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
-    height: auto;
-    min-height: 100%;
-    overflow-y: auto;
+    grid-template-rows: auto minmax(160px, 1fr) minmax(170px, 1fr);
+    overflow: hidden;
   }
-  #exercise-library .exercise-library-grid { flex: none; max-height: 46vh; }
-  #exercise-library .exercise-library-detail { overflow: visible; }
-  #exercise-library .exercise-library-what { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  #exercise-library .exercise-library-detail {
+    border-top: 1px solid var(--tr-border);
+    padding-top: 12px;
+  }
 }
 
 

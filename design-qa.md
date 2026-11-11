@@ -1,3 +1,100 @@
+# Exercices — bibliothèque et classement — 11/11/2026
+
+final result: passed
+
+## Référence et périmètre
+
+Référence visuelle : l’application existante avant modification, capturée dans
+`audit-output/library-2026-11-11/01-blues-before.png` et `03-archives-before.png`.
+Implémentation : `http://localhost:5173/`, capture finale
+`audit-output/library-2026-11-11/10-blues-final-matched.png`.
+La demande autorise deux écarts intentionnels : retirer les claviers d’accords des
+fiches et ranger les anciennes grilles dans les catégories musicales existantes.
+Il ne s’agit pas d’une reproduction d’une maquette externe.
+
+Comparaison réunie et inspectée : `comparison-full.png` (2194 × 926) et
+`comparison-detail.png` (2112 × 264), dans ce même dossier. Captures source et
+finale : **1089 × 892 pixels, viewport CSS 1089 × 892, DPR 1**, sans remise à
+l’échelle des images de comparaison. Même application, thème sombre, skin global
+avec fond Velours, bibliothèque ouverte, même blues. Seul état secondaire différent :
+le menu final est sur « Accords seuls », préférence d’écoute en cours ; le contenu
+et la disposition de la fiche ne dépendent pas de ce choix.
+
+## Constats initiaux et corrections
+
+- [P1, corrigé] Douze vignettes de clavier répétaient une position particulière
+  pour le blues. La fiche conserve titre, nature, définition et actions ; les
+  voicings restent dans l’exercice. Le DOM final ne contient aucune figure d’accord.
+- [P1, corrigé] 61 grilles étaient isolées dans Archives, toutes étiquetées
+  Ancienne grille. Affectation explicite : 41 progressions, 16 passages, 4 gestes.
+  Formats Étude écrite / Grille libre visibles, sans nouveau niveau ni partition.
+- [P2, corrigé] À 1089 px, la liste poussait la fiche sous le clavier persistant
+  (`01-blues-before.png`). Deux colonnes dès 960 px ; en dessous, liste et fiche
+  partagent la hauteur disponible et défilent séparément.
+- [P2, corrigé] La première fiche apparaissait sans sélection et les boutons
+  reconstruits perdaient le focus. Sélection calculée avant rendu et focus restauré
+  sur catégories, cartes et aperçu. Vérification par Entrée : catégorie et fiche
+  gardent le focus et leur état aria-pressed.
+
+## Historique des comparaisons
+
+1. État initial bloqué : encombrement, classement et fiche inaccessible à largeur
+   moyenne. Preuves source ci-dessus ; le DOM expose bien les douze accords du blues.
+2. Après correction : comparaison complète et détail réunis, fiche et actions
+   visibles ; `04-blues-after.png`, `05-blues-grid-after.png`, puis capture stable
+   `10-blues-final-matched.png`. Les écarts de composition sont intentionnels.
+3. Contrôle final : `06-blues-light-after.png` en clair et
+   `11-narrow-final.png` à 850 × 892, DPR 1. À 850 px, le lecteur est à y=627–685,
+   au-dessus du clavier (y=746) ; aucun débordement horizontal du document.
+   Les essais de capture 1920 px et les captures transitoires 08/11 initiales
+   recadrées ou vides ont été rejetés, pas utilisés comme preuve de fidélité.
+
+## Cinq surfaces de fidélité
+
+- **Typographie** : Fraunces Variable pour le titre, DM Sans et ses replis pour le
+  corps ; graisses, corps et interlignages existants conservés. Libellés de nature
+  courts, noms longs autorisés à se replier, aucune nouvelle police.
+- **Espacement / rythme** : marges et jetons existants ; deux colonnes lisibles à
+  1089 px, disposition empilée à 850 px. Liste défilante, actions visibles.
+- **Couleurs / jetons** : surfaces, textes, bordures et accent existants conservés,
+  contrôlés en clair/sombre. Aucune couleur fixe ajoutée. Le contour de sélection
+  clair demeure discret comme dans le système existant (raffinement P3 possible).
+- **Images / icônes** : fond Velours, icônes et clavier global inchangés, aucun
+  nouvel asset décoratif ni remplacement approximatif. Retrait intentionnel des
+  claviers de la fiche uniquement.
+- **Texte / contenu** : fonction et format séparés ; Tout compte 84 contenus,
+  puis 46 Progressions, 22 Mouvements, 6 Gestes & voix, 10 Latino et Perso.
+  Quatre intitulés incohérents avec les degrés stockés corrigés ; anciens noms
+  cherchables. Les grilles restent libres, sans revendication de transcription.
+
+## Parcours et limites
+
+1. Ouvrir et filtrer la bibliothèque — bon : catégories cohérentes et sélection visible.
+2. Chercher le blues / un geste — bon : étude et grille distinguées, pas de mosaïque.
+3. Écouter / arrêter — bon : état Arrêter visible et barre avancée ; pas de certification sonore.
+4. Travailler une ancienne grille — bon : II–V vers le IV chargé dans Parcours harmonique,
+   accords Fmaj7, Cm7, F7, Bbmaj7 dans la tonalité observée, voicings disponibles.
+5. Afficher clair/sombre et fenêtre étroite — bon dans les états capturés ; pas de
+   certification de tous les skins ni d’accessibilité complète.
+
+Console de l’onglet de contrôle isolé : aucune erreur recueillie. La recherche vide
+et l’état sans résultat ont été observés. Un seul bouton de fiche sélectionné.
+Onglet de test séparé pour terminer les captures ; viewport rétabli ensuite.
+
+Contrats : 23 études / 276 transpositions ; 61 grilles / 732 comparaisons avant-après
+sur noms, notes et passages écrits. Exercices 562/562, démos 136/136, accords 98/98,
+régressions Parties 1 et 3 et build réussis. Avertissement habituel des gros chunks.
+La qualité musicale humaine, Electron natif, sortie VST/piano et MIDI physique
+restent hors de cette vérification. Aucun P0/P1/P2 restant dans le périmètre contrôlé.
+
+## Rapports demandés
+
+`docs/reports/2026-11-11-exercise-library/design-report.docx` et `system-design.docx` :
+copies des modèles retenus, rendues et inspectées page par page. Six pages chacune ;
+styles, sections et parties non éditables conservés. Détails dans le README voisin.
+
+---
+
 # Analyse — vraies cases par temps et suivi visible — 29/10/2026
 
 final result: passed

@@ -1,7 +1,9 @@
 // Contrat musical du catalogue actif : harmonie fixée, réalisation propre,
 // transposition exacte, carte fidèle à l'écoute et provenance explicite.
 import assert from 'node:assert/strict';
-import catalogue, { archivedMovements, findCatalogueEntry } from './exercise-catalogue.js';
+import catalogue, { libraryGrids, findCatalogueEntry } from './exercise-catalogue.js';
+import legacy from './data/movements-library.json' with { type: 'json' };
+import gridKinds from './data/exercise-grid-kinds.json' with { type: 'json' };
 import { createPracticeExercise as createEngine, listMovementNames, movementChordNames, spellChordTone } from './practice-exercise.js';
 // [Claude] — 2026-11-08 — doubling par défaut passé à 'full' dans l'app (Narcisse) ;
 // useWritten (practice-exercise.js) exige doubling === 'none' pour afficher la
@@ -92,10 +94,35 @@ for (const entry of catalogue.movements) {
   }
 }
 assert.equal(signatures.size,catalogue.movements.length,'chaque étude a une partition rythmique distincte');
-assert.equal(archivedMovements.length,61);
+assert.equal(libraryGrids.length,61);
+assert.equal(new Set(libraryGrids.map((m) => m.id)).size,61);
+assert.deepEqual(Object.keys(gridKinds).sort(),legacy.movements.map((m) => m.id).sort(), 'chaque grille a un classement explicite, sans oubli');
+let gridCases = 0;
+for (const original of legacy.movements) {
+  const entry = findCatalogueEntry(original.id);
+  assert.ok(['progression','passage','study'].includes(entry.kind));
+  assert.equal(entry.category, { progression:'Progressions',passage:'Mouvements',study:'Gestes & voix' }[entry.kind]);
+  assert.ok(!entry.score, 'une grille ne devient pas une étude écrite par son classement');
+  assert.deepEqual(entry.passing,original.passing, 'conserver les passages explicitement écrits');
+  assert.ok(entry.tags.includes(original.category), 'la famille musicale reste cherchable');
+  assert.ok(entry.aliases.includes(original.name), 'les anciens noms restent cherchables');
+  for (let key=0;key<12;key++) {
+    const before = createEngine({ library:{ movements:[{...original,preserveQualities:true,noAutoPassing:true}] } });
+    const after = createPracticeExercise();
+    for (const engine of [before,after]) {
+      engine.setDoubling('none'); engine.setMode('movement'); engine.setKeyChoice(key); engine.setContentChoice(original.id);
+    }
+    const harmony = (engine) => engine.getState().progression.chords.map((c) => ({name:c.name, notes:c.notes, passing:c.passingChord && {name:c.passingChord.name,notes:c.passingChord.notes}}));
+    assert.deepEqual(harmony(after),harmony(before), `${original.id} : classement sans changement musical en tonalité ${key}`);
+    gridCases++;
+  }
+}
+assert.equal(findCatalogueEntry('jazz-blues-1').kind,'progression');
+assert.equal(findCatalogueEntry('ii-v-to-iv-1').kind,'passage');
+assert.equal(findCatalogueEntry('minor-line-cliche-1').kind,'study');
 assert.ok(listMovementNames().every(name=>findCatalogueEntry(name).score));
 const archive=createPracticeExercise(); archive.setMode('movement');archive.setKeyChoice(0);archive.setContentChoice('basic-ii-v-i-major-1');
-assert.equal(archive.getState().progression.movement.kind,'archive');
+assert.equal(archive.getState().progression.movement.kind,'progression');
 assert.equal(archive.getState().progression.chords.map(c=>c.name).join(' '),'Dm7 G7 Cmaj7');
 assert.ok(archive.getState().progression.chords.every(c=>!c.passingChord));
 assert.equal(findCatalogueEntry('Cadence II-V-I majeur').id,'study-ii-v-i-major');
@@ -113,3 +140,4 @@ let stored=''; const storage={setItem:(_k,v)=>{stored=v;},getItem:()=>stored};
 saveGrids(storage,saved.grids);
 assert.equal(loadGrids(storage)[0].chords[1].role,'passing');
 console.log(`${catalogue.movements.length} études · ${cases} transpositions : harmonie, notes, phrasé, mains, provenance et absence d'ajouts vérifiés.`);
+console.log(`${libraryGrids.length} grilles classées · ${gridCases} transpositions : accords, notes et passages écrits inchangés.`);

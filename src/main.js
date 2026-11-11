@@ -104,9 +104,8 @@ import {
   movementChordNames,
 } from './practice-exercise.js';
 import { loadGrids, saveGrids, upsertGrid, removeGrid, defaultGridName } from './practice-grids.js';
-import movementsLibrary, { archivedMovements, EXERCISE_KIND_LABELS } from './exercise-catalogue.js';
+import movementsLibrary, { libraryGrids, EXERCISE_KIND_LABELS } from './exercise-catalogue.js';
 import { keyLabel } from './practice-key-spelling.js';
-import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
 import {
   loadFavorites,
   saveFavorites,
@@ -2151,7 +2150,6 @@ function initPracticeExercise() {
   // [Claude] — 2026-09-24 — Catégorie Perso : grilles enregistrées depuis « Ma
   // grille » (Narcisse : « une nouvelle catégorie Perso pour y stocker toutes nos grilles »).
   const PERSO_CATEGORY = 'Perso';
-  const ARCHIVE_CATEGORY = 'Archives · grilles seules';
   // [Claude] — 2026-11-04 — Une seule case Latino, par demande explicite.
   const LATIN_CATEGORY = 'Latino';
   /** Résumé d'une grille enregistrée : accords, passages entre parenthèses, notes du dessus (« Dm11 ♪ C → (D7b9) → G13 »). */
@@ -2166,7 +2164,7 @@ function initPracticeExercise() {
   };
 
   function getLibraryItems() {
-    const movements = [...(movementsLibrary?.movements || []), ...archivedMovements].map((m) => ({
+    const movements = [...(movementsLibrary?.movements || []), ...libraryGrids].map((m) => ({
       id: m.id,
       kind: m.kind,
       route: m.route,
@@ -2177,16 +2175,15 @@ function initPracticeExercise() {
       category: m.category || 'Mouvements 12 tons',
       level: m.level,
       description: m.description || '',
-      // [Claude] — 2026-10-16 — Ce qu'il manquait sur les cartes (Narcisse : « sur cadence éolienne,
-      // il n'y a pas assez d'informations ; on ne sait pas ce que c'est ») : à quoi ça sert, l'effet
-      // à l'oreille, quand s'en servir, et surtout LES ACCORDS — calculés par le moteur de jeu
-      // (movementChordNames), donc exactement ceux que l'exercice jouera.
+      // Les symboles servent encore à la recherche et au moteur, sans figer
+      // une position de clavier dans la fiche de découverte.
       context: m.context || '',
       sound: m.sound || '',
       use: m.use || '',
       chords: movementChordNames(m),
       tags: m.tags || [],
       style: m.style,
+      aliases: m.aliases || [],
     }));
     const perso = customGrids.map((g) => ({
       id: g.id,
@@ -2205,21 +2202,14 @@ function initPracticeExercise() {
     return [...movements, ...perso];
   }
 
-  /**
-   * [Claude] — 2026-11-04 — Les « panneaux » : une seconde rangée de filtres,
-   * À L'INTÉRIEUR de la catégorie choisie (Narcisse : « dans cette case-là,
-   * ensuite après, tu rajoutes des sortes de panneaux débutant, avancé, etc.
-   * Montuno, Tumbao »). Les panneaux sortent des `tags` des fiches montrées :
-   * rien à tenir à jour ici quand une étude arrive. Les niveaux passent en
-   * premier, le reste suit par ordre alphabétique.
-   */
-
   function renderLibrary() {
+    // Les listes sont reconstruites : garder le contrôle actif permet de
+    // poursuivre au clavier après un filtre, une sélection ou une écoute.
+    const focused = els.exerciseLibrary?.contains(document.activeElement) ? document.activeElement : null;
+    const focusAttribute = ['data-category', 'data-id', 'data-preview'].find((attr) => focused?.hasAttribute(attr));
+    const focusValue = focusAttribute && focused.getAttribute(focusAttribute);
     const all = getLibraryItems();
-    const active = all.filter((i) => i.kind !== 'archive');
-    const libraryStyle = document.getElementById('exercise-library-style');
-    if (libraryStyle) renderDemoStyleMenu(libraryStyle, ![ARCHIVE_CATEGORY, PERSO_CATEGORY].includes(libraryCategory));
-    let items = libraryCategory === ARCHIVE_CATEGORY ? all : active;
+    let items = all;
     const q = librarySearch.trim().toLowerCase();
     if (q) {
       items = items.filter((item) =>
@@ -2230,19 +2220,15 @@ function initPracticeExercise() {
         || (item.sound || '').toLowerCase().includes(q)
         || (item.use || '').toLowerCase().includes(q)
         || (item.chords || []).some((c) => c.toLowerCase().includes(q))
+        || (item.aliases || []).some((alias) => alias.toLowerCase().includes(q))
         || item.tags.some((tag) => tag.toLowerCase().includes(q)));
     }
-    // Catégories de la bibliothèque, Perso (vos grilles) puis les archives en dernier.
-    // [Claude] — 2026-11-04 — « Latino » est UNE case (Narcisse : « autant tout mettre
-    // dans une même case »). Ce qui distinguait les trois anciennes catégories —
-    // Débutant/Avancé, Montuno, Tumbao — devient un panneau à l'intérieur (voir
-    // plus bas). Les Archives marchent pareil : leurs familles musicales, qu'on
-    // écrasait, redeviennent des panneaux.
+    // Les grilles libres partagent les catégories musicales des études écrites.
     const categoryOrder = ['Progressions', 'Mouvements', 'Gestes & voix',
-      LATIN_CATEGORY, PERSO_CATEGORY, ARCHIVE_CATEGORY];
+      LATIN_CATEGORY, PERSO_CATEGORY];
     const categories = categoryOrder;
     if (els.exerciseLibraryCategories) {
-      els.exerciseLibraryCategories.innerHTML = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="" aria-pressed="${!libraryCategory}">Études<span class="exercise-library-count">${active.length}</span></button>`]
+      els.exerciseLibraryCategories.innerHTML = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="" aria-pressed="${!libraryCategory}">Tout<span class="exercise-library-count">${all.length}</span></button>`]
         .concat(categories.map((cat) => {
           const count = all.filter((i) => i.category === cat).length;
           const active = libraryCategory === cat;
@@ -2257,20 +2243,22 @@ function initPracticeExercise() {
     // étiquettes. » Et surtout ils trompaient : affichés sous « Études », ils
     // ne montraient que les tags de Latino sans dire d'où ils venaient. Les
     // catégories suffisent ; les tags restent dans le JSON et dans la recherche.
-    items.sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category) || a.name.localeCompare(b.name));
+    items.sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category)
+      || Number(Boolean(b.score)) - Number(Boolean(a.score)) || a.name.localeCompare(b.name));
     if (!els.exerciseLibraryGrid) return;
     const current = practiceExercise.getState().progression?.name;
     const empty = libraryCategory === PERSO_CATEGORY && !q
       ? 'Aucune grille perso pour l\'instant : composez une grille dans « Ma grille », donnez-lui un nom puis « Enregistrer ».'
-      : 'Aucune étude ne correspond à votre recherche.';
+      : 'Aucun exercice ne correspond à votre recherche.';
+    if (!items.some((i) => i.id === librarySelected)) librarySelected = items[0]?.id || null;
     els.exerciseLibraryGrid.innerHTML = items.length === 0
       ? `<div class="exercise-library-empty">${empty}</div>`
       : items.map((item, i) => renderLibraryCard(item, i, current)).join('');
     // [Claude] — 2026-11-05 — La page montre l'étude qu'on regarde à droite.
     // Si celle qui était choisie sort de la liste (recherche, changement de
     // catégorie), on prend la première plutôt que de laisser un vide.
-    if (!items.some((i) => i.id === librarySelected)) librarySelected = items[0]?.id || null;
     renderLibraryDetail(items.find((i) => i.id === librarySelected) || null, current);
+    if (focusAttribute) els.exerciseLibrary.querySelector(`[${focusAttribute}="${CSS.escape(focusValue)}"]`)?.focus({ preventScroll: true });
   }
 
   /**
@@ -2293,33 +2281,12 @@ function initPracticeExercise() {
     const quoi = item.context || '';
     const playing = previewId === item.id;
 
-    // Les accords de l'étude, avec leurs vraies notes : c'est ce qui remplit la
-    // colonne et ce qui sert — « on peut rajouter des cartes d'accord, tu peux
-    // rajouter des mini-keyboardings à chaque fois pour illustrer les accords ».
-    // Même fabrique que l'aperçu sonore : ce qu'on voit est ce qu'on entendra.
-    const key = practiceExercise.getState().keyChoice ?? 0;
-    let voiced = null;
-    try {
-      voiced = item.grid
-        ? practiceExercise.previewGrid(item.grid.chords, item.grid.name)
-        : practiceExercise.previewMovement(item.id, key);
-    } catch (e) {
-      voiced = null;
-    }
-    const chordCards = (voiced || []).map((c) => {
-      const notes = [...new Set([...(c.leftHand || []), ...(c.rightHand || []), ...(c.notes || [])])].sort((a, b) => a - b);
-      if (!notes.length) return '';
-      const kb = miniKeyboardForNotes(notes, { leftHand: c.leftHand || [], rightHand: c.rightHand || [] });
-      const names = notes.map((n) => `${noteName(n)}${Math.floor(n / 12) - 1}`).join(' · ');
-      return `<figure class="exercise-library-chord">
-          <figcaption>${escapeHtml(c.name || '')}</figcaption>
-          <div class="exercise-library-chord-kb">${kb.svg}</div>
-          <span class="exercise-library-chord-notes">${escapeHtml(names)}</span>
-        </figure>`;
-    }).filter(Boolean).join('');
+    const libraryStyle = document.getElementById('exercise-library-style');
+    if (libraryStyle) renderDemoStyleMenu(libraryStyle, Boolean(item.score));
+    const format = item.score ? 'Étude écrite' : 'Grille libre';
 
     host.innerHTML = `
-      <span class="tr-eyebrow">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)}</span>
+      <span class="tr-eyebrow">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)} · ${format}</span>
       <h2 class="exercise-library-detail-name">${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</h2>
       ${item.route ? `<p class="exercise-library-detail-route">${escapeHtml(item.route)}</p>` : ''}
       ${quoi ? `<div class="exercise-library-what"><span class="exercise-library-what-label">Ce que c'est</span><p>${escapeHtml(quoi)}</p></div>` : ''}
@@ -2330,10 +2297,7 @@ function initPracticeExercise() {
         <button type="button" class="tr-button tr-primary" data-study-select="${escapeAttr(item.id)}">Travailler</button>
         ${item.grid ? `<button type="button" class="tr-button" data-grid-load="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Modifier la grille ${item.name}`)}">Modifier</button>
         <button type="button" class="tr-button is-danger${gridDeleteArmed === item.id ? ' is-armed' : ''}" data-grid-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Supprimer la grille ${item.name}`)}">${gridDeleteArmed === item.id ? 'Confirmer' : 'Supprimer'}</button>` : ''}
-      </div>
-
-      ${chordCards ? `<div class="exercise-library-chords" role="group" aria-label="Accords de l'étude">${chordCards}</div>`
-    : '<p class="exercise-library-noschords">Cette grille n\'a pas de position jouable à montrer.</p>'}`;
+      </div>`;
   }
 
   /**
@@ -2367,7 +2331,7 @@ function initPracticeExercise() {
     const isCurrent = item.name === current;
     const selected = item.id === librarySelected;
     return `<button type="button" class="exercise-library-card${isCurrent ? ' is-current' : ''}${item.grid ? ' is-perso' : ''}${selected ? ' is-selected' : ''}" data-id="${escapeAttr(item.id)}" style="--i:${i}" aria-pressed="${selected}" aria-label="${escapeAttr(item.grid ? `${item.name}, grille perso` : item.name)}">
-            <span class="exercise-library-card-category">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)}</span>
+            <span class="exercise-library-card-category">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)} · ${item.score ? 'Étude écrite' : 'Grille libre'}</span>
             <strong class="exercise-library-card-name">${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</strong>
             ${item.route ? `<span class="exercise-library-card-route">${escapeHtml(item.route)}</span>` : ''}
           </button>`;
@@ -3186,7 +3150,7 @@ function initPracticeExercise() {
     const written = Boolean(entry?.score);
     demoStyleSelects.forEach((select) => {
       const useStudy = select.id === 'exercise-library-style'
-        ? ![ARCHIVE_CATEGORY, PERSO_CATEGORY].includes(libraryCategory) : written;
+        ? Boolean(getLibraryItems().find((item) => item.id === librarySelected)?.score) : written;
       renderDemoStyleMenu(select, useStudy);
     });
     // [Claude] — 2026-11-07 — #exercise-study-info (route, dessus, repères,
