@@ -23,6 +23,8 @@ import {
 import {
   createDrumLoop, drumKitFor, drumTempoFor, drumStyles, setDrumManifest,
 } from './audio/drum-loop.js';
+import { createExerciseTransport } from './ui/components/exercise-transport.js';
+import { clampSpeed } from './ui/components/speed-menu.js';
 import { initGlobalMetronome } from './ui/global-metronome.js';
 import {bindPlaybackDrums} from './audio/playback-drums.js';
 
@@ -2299,7 +2301,9 @@ function initPracticeExercise() {
         <button type="button" class="tr-button tr-primary" data-study-select="${escapeAttr(item.id)}">Travailler</button>
         ${item.grid ? `<button type="button" class="tr-button" data-grid-load="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Modifier la grille ${item.name}`)}">Modifier</button>
         <button type="button" class="tr-button is-danger${gridDeleteArmed === item.id ? ' is-armed' : ''}" data-grid-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Supprimer la grille ${item.name}`)}">${gridDeleteArmed === item.id ? 'Confirmer' : 'Supprimer'}</button>` : ''}
-      </div>`;
+      </div><div data-library-transport></div>`;
+    host.querySelector('[data-library-transport]')?.append(libraryTransport.root);
+    updateExerciseTransports();
   }
 
   /**
@@ -2823,6 +2827,41 @@ function initPracticeExercise() {
   let exampleTicker = null;
   let exampleFrame = null;
 
+  let exerciseRate = 1;
+  try { exerciseRate = clampSpeed(window.localStorage?.getItem('exercise-playback-rate'), 1); } catch (_) { /* Séance seulement. */ }
+  const exerciseIsActive = () => ['movement', 'preview'].includes(demoContext?.kind) && demoPlayer.isActive();
+  function setExerciseRate(value) {
+    exerciseRate = value;
+    try { window.localStorage?.setItem('exercise-playback-rate', String(value)); } catch (_) { /* Séance seulement. */ }
+    if (exerciseIsActive()) demoPlayer.setRate(value);
+    updateExerciseTransports();
+  }
+  const makeTransport = () => createExerciseTransport({ onRate: setExerciseRate,
+    onToggle: () => { if (!exerciseIsActive()) return; if (demoPlayer.isPaused()) demoPlayer.resume(); else demoPlayer.pause(); updateExerciseTransports(); },
+    onSeek: (beat) => { if (exerciseIsActive()) { demoPlayer.seek(beat); updateExerciseTransports(); } },
+    onBack: () => { if (exerciseIsActive()) { demoPlayer.seek(Math.max(0, demoPlayer.position() - 4)); updateExerciseTransports(); } },
+  });
+  const workTransport = makeTransport();
+  const libraryTransport = makeTransport();
+  document.getElementById('exercise-demo-transport')?.append(workTransport.root);
+  function updateExerciseTransports() {
+    const active = exerciseIsActive();
+    const state = practiceExercise.getState();
+    const selected = movementsLibrary.movements.find(item => item.id === librarySelected);
+    const at = active ? demoPlayer.position() : 0;
+    let section = '', start = 0;
+    for (const step of demoContext?.steps || []) {
+      if (at >= start) section = step.label || '';
+      start += step.beats;
+    }
+    for (const [transport, own, entry] of [[workTransport, demoContext?.kind === 'movement', state.progression?.movement], [libraryTransport, demoContext?.kind === 'preview' && previewId === librarySelected, selected]]) {
+      transport.update({ active: active && own, paused: demoPlayer.isPaused(), at,
+        duration: active ? demoPlayer.duration() : 0, rate: exerciseRate, section,
+        tempo: active && own ? demoContext.tempo : entry?.score?.tempo });
+    }
+  }
+  setInterval(updateExerciseTransports, 150);
+
   const DEMO_STYLE_STORAGE = 'exercise-demo-style';
   let demoStyle = 'auto';
   // Le choix Plaqué d'une grille ne doit pas aplatir ensuite une étude latine.
@@ -2941,9 +2980,10 @@ function initPracticeExercise() {
     // enregistrement de plus d'un quart le rend faux. Le PIANO suit ce tempo
     // aussi, sinon les deux ne seraient plus ensemble.
     const tempo = drumTempoFor(kitName) || entry?.score?.tempo || DEMO_STYLES[styleId].tempo;
-    demoPlayer.play(buildDemo(chords, styleId, { variation }), { tempo });
+    demoContext = { ...context, tempo, steps: chords.map(c => c.studyStep).filter(Boolean) };
+    demoPlayer.play(buildDemo(chords, styleId, { variation }), { tempo, rate: exerciseRate });
     startDemoDrums(kitName, tempo);
-    demoContext = context;
+    updateExerciseTransports();
     previewId = context.kind === 'preview' ? context.previewId : null;
     refreshDemoButtons(practiceExercise.getState());
     if (context.kind === 'preview') renderLibrary();
@@ -3159,6 +3199,8 @@ function initPracticeExercise() {
     btn.hidden = exState.mode !== 'movement' || !exState.progression;
     const styleRow = document.getElementById('exercise-demo-style-row');
     if (styleRow) styleRow.hidden = btn.hidden;
+    const transportHost = document.getElementById('exercise-demo-transport');
+    if (transportHost) transportHost.hidden = btn.hidden;
     const entry = exState.progression?.movement;
     const written = Boolean(entry?.score);
     demoStyleSelects.forEach((select) => {
@@ -3207,7 +3249,7 @@ function initPracticeExercise() {
   // sur un accord, une tonalité, une technique…) arrête la démo d'abord.
   const exercisesView = document.getElementById('practice-view-exercices');
   const interruptDemo = (e) => {
-    if (!demoPlayer.isPlaying() || e.target.closest('#exercise-demo-btn, [data-preview], #exercise-library')) return;
+    if (!demoPlayer.isActive() || e.target.closest('#exercise-demo-btn, .exercise-transport, #exercise-demo-drums, [data-preview], #exercise-library')) return;
     if (e.type === 'change' || e.target.closest('button, select, input, [data-step], [data-key-index], [role="button"]')) demoPlayer.stop();
   };
   exercisesView?.addEventListener('click', interruptDemo, true);

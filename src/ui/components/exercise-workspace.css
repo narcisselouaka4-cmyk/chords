@@ -1432,3 +1432,15 @@
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .tr-exercise-progress.is-chord-side { grid-column: 1; grid-row: 2; height: auto; max-height: 50vh; }
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-stage.chord-explorer-3col.chord-explorer-3col.chord-explorer-3col .chord-explorer-left { grid-column: 1; grid-row: 3; height: auto; max-height: 50vh; }
 }
+
+/* Ralenti et observation des deux mains, avec les mêmes contrôles de vitesse
+   que le Copilote. Les contrôles de lecture n'occupent de place qu'à l'écoute. */
+.exercise-transport { margin-top: 10px; color: var(--tr-text); font-size: 12px; }
+.exercise-transport-settings, .exercise-transport-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.exercise-transport-settings output { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--tr-secondary); }
+.exercise-transport-controls { margin-top: 8px; }
+.exercise-transport-controls[hidden], .exercise-transport-section[hidden] { display: none; }
+.exercise-transport-controls .tr-button { padding: 5px 8px; font-size: 11px; }
+.exercise-transport-controls input { flex: 1 1 65px; min-width: 45px; width: 90px; accent-color: var(--tr-accent); }
+.exercise-transport-controls output { font-variant-numeric: tabular-nums; }
+.exercise-transport-section { margin: 8px 0 0; line-height: 1.5; color: var(--tr-secondary); }

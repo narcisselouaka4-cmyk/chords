@@ -7,7 +7,7 @@ import { buildDemo } from './practice-demo.js';
 
 const entries = catalogue.movements.filter((m) => m.category === 'Latino');
 const motifs = entries.filter((m) => m.provenance.adaptedFrom);
-assert.deepEqual(entries.map(m => m.id).sort(), ['latin-montuno-guajeo', 'latin-riff-salsa'], 'Latino conserve uniquement les deux motifs demandés par Narcisse');
+assert.deepEqual(entries.map(m => m.id).sort(), ['latin-montuno-contretemps', 'latin-montuno-dialogue', 'latin-montuno-guajeo', 'latin-riff-salsa'], 'deux nouveaux montunos composés, sans réintroduire les huit préparations supprimées');
 assert.equal(motifs.length, 2);
 let transpositions = 0;
 const engine = () => { const e = createPracticeExercise(); e.setMode('movement'); return e; };
@@ -69,7 +69,7 @@ assert.deepEqual(ons(riff, 1.5, 'lh'), [38]);
 assert.deepEqual(ons(riff, 1.5, 'rh'), [53]);
 assert.deepEqual(ons(riff, 3.5, 'rh'), [59], 'la phrase ne devient pas une simple montée de triade');
 const riffSource = buildDemo(e.previewMovement('latin-riff-salsa', 7), 'gospel');
-assert.deepEqual(e.previewMovement('latin-riff-salsa', 7).map(c=>c.name), ['G'], 'le riff est en Sol majeur, pas sur Sol7');
+assert.deepEqual(e.previewMovement('latin-riff-salsa', 7).map(c=>c.name), ['G', 'C', 'D7', 'G'], 'le riff est en Sol majeur, pas sur Sol7');
 assert.deepEqual(ons(riffSource, 3.5, 'rh'), [66], 'Fa dièse de Sol majeur demandé par Narcisse');
 assert.ok(!riffSource.events.some(x=>x.type==='noteOn' && x.note%12===5), 'aucun Fa naturel dans ce riff en Sol majeur');
 for (let key=0;key<12;key+=1) {
@@ -78,6 +78,19 @@ for (let key=0;key<12;key+=1) {
 }
 assert.deepEqual(ons(riffSource, 0, 'lh'), [43], 'registre de Sol2 de la référence');
 assert.deepEqual(ons(riffSource, 0, 'rh'), [59, 67], 'registre Si3–Sol4 de la référence');
+// Une forme musicale : quatre phrases différentes et une arrivée, pas quatre copies.
+const phraseSignatures = (demo) => [0,8,16,24].map(at => JSON.stringify(demo.events
+  .filter(x=>x.type==='noteOn' && x.time>=at && x.time<at+8)
+  .map(x=>[Number((x.time-at).toFixed(5)),x.hand,x.note])));
+assert.equal(new Set(phraseSignatures(riff)).size, 4);
+assert.deepEqual(e.previewMovement('latin-riff-salsa',0).map(c=>c.studyStep.repeatCount), [1,1,1,1]);
+for (const id of ['latin-montuno-dialogue','latin-montuno-contretemps']) {
+  const chords=e.previewMovement(id,0), demo=buildDemo(chords,'gospel');
+  assert.equal(chords.length,8); assert.equal(demo.beats,32);
+  assert.equal(new Set(chords.map(c=>c.studyStep.label)).size,4);
+  assert.equal(new Set(phraseSignatures(demo)).size,4);
+  assert.ok(!demo.events.some(x=>x.type==='noteOn' && x.time>30), 'une résolution tenue remplace une nouvelle relance');
+}
 for (const m of motifs) {
   const ref = m.provenance.adaptedFrom;
   assert.match(ref.sha256, /^[a-f0-9]{64}$/);
@@ -93,4 +106,4 @@ for (const m of motifs) {
 e.setLeftHandStyle('none'); e.setContentChoice('study-ii-v-i-major');
 assert.equal(e.getState().doubling, 'full');
 assert.ok(e.getState().progression.chords.every((c) => !c.studyStep.writtenVoicing));
-console.log(`Latino : ${transpositions} cas avec réglages réels, aperçu indépendant, deux motifs vidéo, quatre cycles, transposition et absence de modification des autres études vérifiés.`);
+console.log(`Latino : ${transpositions} cas avec réglages réels, aperçu indépendant, deux références vidéo et deux montunos composés, formes développées, transposition et absence de modification des autres études vérifiés.`);

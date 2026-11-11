@@ -1,6 +1,8 @@
 // Contrat des boucles de batterie : chaque genre a son kit, l'étirement reste
 // dans des limites audibles, et la boucle repart en phase avec la démo.
 import assert from 'node:assert/strict';
+import { createDemoPlayer } from '../exercise-demo-player.js';
+import { bindPlaybackDrums } from './playback-drums.js';
 import { readFile } from 'node:fs/promises';
 import {
   createDrumLoop, drumKitFor, drumTempoFor, stretchFor, DRUM_KITS, DRUM_FILES, LOOP_BEATS,
@@ -218,5 +220,31 @@ for (const tempo of [90, 110]) {
 check('Le WAV est chargé directement, sans suffixe MP3 ajouté et une seule fois',
   requestedFiles.length === 1 && requestedFiles[0] === 'salsa-coro_90bpm.wav');
 wavLoop.stop();
+
+// Régression réelle : manifeste Salsa à 90, piano à 86. Le kit ne commande
+// pas le tempo du piano ; phase recalculée au démarrage, ralenti et recherche.
+const syncCtx = fakeContext();
+syncCtx.decodeAudioData = async () => ({ duration: 233184 / 44100 });
+const syncLoop = createDrumLoop({ getContext: () => syncCtx, readFile: read });
+let shownStep = null;
+const syncPlayer = createDemoPlayer({ send:()=>{}, onStep:step=>{shownStep=step;}, now:()=>syncCtx.currentTime*1000, setTimer:()=>1, clearTimer:()=>{} });
+const binding = bindPlaybackDrums({ player:syncPlayer, drumLoop:syncLoop, enabled:()=>true });
+const phrase = { events:[{type:'step',time:0,step:0},{type:'step',time:16,step:2}], beats:32 };
+syncPlayer.play(phrase,{tempo:86}); binding.setKit('salsa',86);
+await new Promise(setImmediate);
+let source = syncCtx.started.at(-1);
+check('Kit Salsa 90 : la batterie suit le piano à 86 BPM', Math.abs(source.node.loopEnd/source.node.playbackRate.value-8*60/86)<1e-9);
+check('Départ commun après les 80 ms du piano', Math.abs(source.when-.08)<1e-9 && source.offset===0);
+syncCtx.advance(2); syncPlayer.setRate(.5); await new Promise(setImmediate);
+source=syncCtx.started.at(-1);
+const point=syncPlayer.syncPoint();
+check('À 0,5×, le kit suit aussi 43 BPM', Math.abs(source.node.loopEnd/source.node.playbackRate.value-8*60/43)<1e-9);
+check('Changement de vitesse : phase calculée à la date audio future', Math.abs(source.offset-(point.beat%8)*(233184/44100)/8)<1e-9);
+syncPlayer.pause(); check('Pause : batterie arrêtée', !syncLoop.isRunning());
+syncPlayer.seek(17); check('Recherche en pause : l’accord affiché suit aussi la position', shownStep===2);
+syncPlayer.seek(13); syncPlayer.resume(); await new Promise(setImmediate);
+source=syncCtx.started.at(-1);
+check('Recherche et reprise : batterie sur le même temps du cycle', Math.abs(source.offset-(syncPlayer.syncPoint().beat%8)*(233184/44100)/8)<1e-9);
+syncPlayer.stop();
 
 console.log(`\n=== ${passed} vérifications de boucle de batterie ===`);

@@ -9,7 +9,7 @@ export function bindPlaybackDrums({player,drumLoop,metronome=()=>null,enabled=()
   function sync() {
     if(metronome()?.isRunning())return;
     if(!kit||!enabled()||!player.isPlaying()){drumLoop.stop();return;}
-    void drumLoop.start({...kit,rate:player.rate(),getBeat:()=>player.position()}).then(onChange,onChange);
+    void drumLoop.start({...kit,rate:player.rate(),getBeat:()=>player.position(),getSyncPoint:()=>player.syncPoint()}).then(onChange,onChange);
   }
   const play=player.play.bind(player);
   player.play=(...args)=>{

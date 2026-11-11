@@ -259,25 +259,32 @@ export function createDrumLoop({ getContext, readFile, getOutput = null }) {
      * Démarre la boucle d'un genre ou d'un style. `fromBeat` = position de la
      * démo, pour que la boucle reparte en phase après un saut ou une reprise.
      */
-    async start({ kit = null, tempo = 100, rate = 1, fromBeat = 0, getBeat = null } = {}) {
+    async start({ kit = null, tempo = null, rate = 1, fromBeat = 0, getBeat = null, getSyncPoint = null } = {}) {
       const found = typeof kit === 'string' ? drumKitFor(kit) : kit;
       stopSources();
       lastError = null;
       if (!found) { current = null; lastError = `aucun kit pour « ${kit} »`; return false; }
       const token = ++loadToken;
       const ctx = getContext();
-      // Un kit peut imposer son tempo (voir DRUM_KITS) ; sinon celui de la démo.
-      const target = (found.tempo || tempo) * (rate || 1);
+      // Le tempo explicite est celui du piano (ou du métronome réglé). Le
+      // tempo du kit n'est qu'un défaut : Salsa à 90 ne doit pas écraser 86.
+      const baseTempo = Number.isFinite(tempo) && tempo > 0 ? tempo : (found.tempo || 100);
+      const target = baseTempo * (rate || 1);
       const loaded = await Promise.all(found.layers.map(([file]) => load(file)));
       // Une autre démo a démarré pendant le décodage : on abandonne celle-ci.
       if (token !== loadToken) return false;
       const out = output();
-      const startAt = ctx.currentTime + 0.03;
+      // Même instant futur pour la phase et le départ audio, y compris le
+      // délai de départ du piano. Relu après tout décodage asynchrone.
+      const sync = getSyncPoint?.();
+      const delayMs = Number.isFinite(sync?.delayMs) ? Math.max(0, sync.delayMs) : 30;
+      const startAt = ctx.currentTime + delayMs / 1000;
       // [Claude] — 2026-11-04 — La position est relue APRÈS le décodage. Au
       // premier lancement, décoder prend un instant : une position capturée
       // avant laissait la batterie démarrer en retard d'autant, donc décalée
       // du piano pour toute la démo. `getBeat` donne l'état réel à cet instant.
-      const beat = typeof getBeat === 'function' ? (Number(getBeat()) || 0) : fromBeat;
+      const beat = Number.isFinite(sync?.beat) ? sync.beat
+        : typeof getBeat === 'function' ? (Number(getBeat()) || 0) : fromBeat;
       const loopBeats = drumBeatsFor(found);
       let any = false;
       found.layers.forEach(([file, gain], i) => {

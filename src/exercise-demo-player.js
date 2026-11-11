@@ -180,7 +180,8 @@ export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = se
    * n'y sonnent plus s'éteignent, celles qui y sonnent s'allument. Rien ne s'accumule.
    */
   function showAt(at) {
-    const { held: down, sustained } = stateAt(demo.events, at, { inclusive: true });
+    const { held: down, sustained, lastStep } = stateAt(demo.events, at, { inclusive: true });
+    if (lastStep) onStep?.(lastStep.step);
     const wanted = new Map(sustained);
     for (const [note, d] of down) wanted.set(note, d.velocity);
     for (const note of [...shown.keys()].sort((a, b) => a - b)) {
@@ -212,6 +213,17 @@ export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = se
     if (paused) return pausedAt;
     if (!playing) return 0;
     return Math.min(demo.endBeat, fromBeat + Math.max(0, now() - startedAt) / demo.msPerBeat);
+  }
+
+  /** Point commun de départ pour la batterie : phase à l'instant prévu,
+   * attente initiale du piano comprise. Les millisecondes sont relatives. */
+  function syncPoint(leadMs = 30) {
+    const at = now();
+    const delayMs = Math.max(0, leadMs, playing ? startedAt - at : 0);
+    const beat = playing && demo
+      ? Math.min(demo.endBeat, fromBeat + Math.max(0, at + delayMs - startedAt) / demo.msPerBeat)
+      : position();
+    return { delayMs, beat };
   }
 
   function finish() {
@@ -413,6 +425,7 @@ export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = se
     setPedal,
     setRate,
     position,
+    syncPoint,
     /** Durée de la démo, en temps. */
     duration: () => (demo ? demo.endBeat : 0),
     isPlaying: () => playing,
