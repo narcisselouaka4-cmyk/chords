@@ -7,7 +7,8 @@ import { buildDemo } from './practice-demo.js';
 
 const entries = catalogue.movements.filter((m) => m.category === 'Latino');
 const motifs = entries.filter((m) => m.provenance.adaptedFrom);
-assert.deepEqual(entries.map(m => m.id).sort(), ['latin-montuno-guajeo'], 'seul le montuno octaves et relances est conservé à la demande de Narcisse');
+for (const rejected of ['latin-riff-salsa','latin-montuno-dialogue','latin-montuno-contretemps']) assert.ok(!entries.some(m=>m.id===rejected), 'ne pas réintroduire les contenus refusés');
+assert.ok(entries.filter(m=>m.id!=='latin-montuno-guajeo').every(m=>m.provenance.kind==='source-excerpt' && m.provenance.video), 'les nouveaux motifs latins sont reliés à un passage fourni');
 assert.equal(motifs.length, 1);
 let transpositions = 0;
 const engine = () => { const e = createPracticeExercise(); e.setMode('movement'); return e; };
@@ -75,4 +76,4 @@ for (const m of motifs) {
 e.setLeftHandStyle('none'); e.setContentChoice('study-ii-v-i-major');
 assert.equal(e.getState().doubling, 'full');
 assert.ok(e.getState().progression.chords.every((c) => !c.studyStep.writtenVoicing));
-console.log(`Latino : ${transpositions} cas avec réglages réels, aperçu indépendant, montuno octaves et relances seul, texture écrite, transposition et absence de modification des autres études vérifiés.`);
+console.log(`Latino : ${transpositions} cas avec réglages réels, aperçu indépendant, montuno conservé, nouveaux relevés sourcés, texture écrite et transposition vérifiés.`);

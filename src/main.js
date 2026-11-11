@@ -103,6 +103,7 @@ import {
   TECHNIQUE_LABELS,
   topNoteChoices,
   spellChordTone,
+  writtenNoteLabel,
   movementChordNames,
 } from './practice-exercise.js';
 import { loadGrids, saveGrids, upsertGrid, removeGrid, defaultGridName } from './practice-grids.js';
@@ -174,6 +175,8 @@ const state = {
 let chordHistory = null;
 let noteGrouper = null;
 let practiceExercise = null;
+let liveAttackVersion = 0;
+let lastWrittenAttackVersion = 0;
 // [Claude] — 2026-09-25 — Derniers essais pas encore retenus (notes, accord entendu) :
 // le Copilote les reçoit avec l'exercice (« Demander au Copilote », « Qu'en penses-tu ? »).
 const exerciseAttempts = [];
@@ -446,6 +449,9 @@ function getAllActivePcs() {
 
 function refreshChord() {
   const notes = getAllActivePcs();
+  const notePractice = practiceExercise?.getState().target?.studyStep?.practice === 'notes';
+  const freshAttack = liveAttackVersion !== lastWrittenAttackVersion;
+  lastWrittenAttackVersion = liveAttackVersion;
   if (notes.length === 0) {
     clearDisplay(els, state.notation === 'latin');
     state.currentChord = null;
@@ -466,7 +472,11 @@ function refreshChord() {
   // voicing juste que le détecteur ne sait pas nommer (« ? ») est validé aussi,
   // mais un « ? » faux (accord en cours de formation) ne compte pas d'essai.
   const fromPlayback = notes.some((n) => state.playbackNotes.has(n));
-  if (!state.isPlayback && !fromPlayback && result && result.notes.length >= 3
+  if (notePractice) {
+    // Un relâchement ne joue pas le geste suivant. Une ou deux notes peuvent
+    // former un lick ; la reconnaissance d'un accord n'est pas un préalable.
+    if (!state.isPlayback && !fromPlayback && freshAttack && practiceExercise.isCorrect(notes)) checkPracticeExercise(notes);
+  } else if (!state.isPlayback && !fromPlayback && result && result.notes.length >= 3
     && (result.symbol !== '?' || practiceExercise?.isCorrect(result.notes))) {
     checkPracticeExercise(result.notes);
   }
@@ -557,6 +567,7 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   const safeVelocity = Number.isFinite(velocity) && velocity >= 0 && velocity <= 1 ? velocity : 0.8;
   if (audible && !state.silentMode) playVirtualNote(transposed, safeVelocity);
   state.activeNotes.set(transposed, safeVelocity);
+  if (!state.isPlayback) liveAttackVersion += 1;
   state.keyTimes.set(transposed, { note: transposed, onTime: performance.now(), keyOffTime: null });
   if (state.sustain) dropGraceNotes();
   if (state.isPlayback) state.playbackNotes.add(transposed);
@@ -1586,7 +1597,10 @@ function renderExerciseProgressPanel(exState) {
   const prog = exState.mode === 'movement' ? exState.progression : null;
   if (els.exerciseCurrentKey) els.exerciseCurrentKey.hidden = !prog;
   if (els.exerciseKeyStrip) els.exerciseKeyStrip.hidden = !prog;
-  if (els.exerciseChordsEyebrow) els.exerciseChordsEyebrow.hidden = !prog;
+  if (els.exerciseChordsEyebrow) {
+    els.exerciseChordsEyebrow.hidden = !prog;
+    els.exerciseChordsEyebrow.textContent = prog?.movement.score?.practice === 'notes' ? 'GESTES DE LA PHRASE' : 'ACCORDS';
+  }
   // [Claude] — 2026-09-24 (nuit) — Accords de passage = étapes à jouer (règle de
   // Narcisse : les tensions ne se jouent qu'en passage ; le niveau se lit aux passages).
   const steps = prog ? prog.chords.reduce((n, c) => n + (c.passingChord ? 2 : 1), 0) : 0;
@@ -1595,7 +1609,7 @@ function renderExerciseProgressPanel(exState) {
     : 0;
   if (els.exerciseArenaEyebrow) {
     els.exerciseArenaEyebrow.textContent = prog && exState.target?.keyName
-      ? `À VOUS DE JOUER · ${exState.target.keyName.toUpperCase()} · ACCORD ${stepNumber + 1} / ${steps}${prog.onPassing ? ' · PASSAGE' : ''}`
+      ? `À VOUS DE JOUER · ${exState.target.keyName.toUpperCase()} · ${prog.movement.score?.practice === 'notes' ? 'GESTE' : 'ACCORD'} ${stepNumber + 1} / ${steps}${prog.onPassing ? ' · PASSAGE' : ''}`
       : 'À VOUS DE JOUER';
   }
 
@@ -1639,7 +1653,9 @@ function renderExerciseProgressPanel(exState) {
       // s'affiche plus sous le nom de l'accord (Narcisse) : gardé seulement
       // dans l'info-bulle (title), pas perdu, juste moins visible d'un coup d'œil.
       const timing = chord.studyStep ? `${role ? `${role} · ` : ''}${chord.studyStep.beats.toLocaleString('fr-FR')} temps` : '';
-      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}${timing ? ` · ${timing}` : ''}"${current ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong>${topTag(chord)}</div></button>`;
+      const gestureName = chord.studyStep?.practice === 'notes'
+        ? chord.notes.map(n => writtenNoteLabel(n, chord, { keyPc: prog.currentKey, minor })).join(' ') : chord.name;
+      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}${timing ? ` · ${timing}` : ''}"${current ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${gestureName || '—'}</strong>${topTag(chord)}</div></button>`;
       const p = chord.passingChord;
       if (!p) return row;
       const onIt = onPassing && i === stepIndex;
@@ -1648,6 +1664,13 @@ function renderExerciseProgressPanel(exState) {
       const hands = `main gauche ${notes(p.voicing?.leftHand || [])}, main droite ${notes(p.voicing?.rightHand || [])}`;
       return `${row}<button type="button" class="exercise-passing-chord${passingState}${playing}" data-passing="${i}" title="Accord de passage (tension) — ${hands}. Cliquez pour le travailler."${onIt ? ' aria-current="step"' : ''}><span aria-hidden="true">↳</span><div><strong>${p.name}</strong><small>passage</small>${topTag(p)}</div></button>`;
     }).join('');
+    // Les licks peuvent comporter plusieurs dizaines de gestes. Leur cible
+    // reste visible pendant la lecture et après une recherche dans la phrase.
+    if (prog.movement.score?.practice === 'notes') {
+      const active = path.querySelector('[aria-current="step"]');
+      const bounds = path.getBoundingClientRect();
+      if (active && bounds.width) path.scrollLeft += active.getBoundingClientRect().left - bounds.left - (bounds.width - active.offsetWidth) / 2;
+    }
     return;
   }
 
@@ -1754,6 +1777,9 @@ function initPracticeExercise() {
     refreshDemoButtons(exState);
     if (prevBtn) {
       prevBtn.style.display = practiceExercise.canGoPrevious() ? '' : 'none';
+      const gesture = exState.target?.studyStep?.practice === 'notes';
+      if (prevBtn.lastChild?.nodeType === Node.TEXT_NODE) prevBtn.lastChild.textContent = gesture ? 'Geste précédent' : 'Accord précédent';
+      prevBtn.title = gesture ? 'Revenir au geste précédent de la phrase' : "Revenir à l'accord précédent pour réexaminer son voicing";
     }
     updateExerciseProgressUI(exState);
     showExerciseNotice(exState);
@@ -2173,6 +2199,7 @@ function initPracticeExercise() {
       focus: m.focus,
       provenance: m.provenance,
       score: m.score,
+      writtenKey: m.writtenKey,
       referenceMotif: Boolean(m.provenance?.adaptedFrom),
       name: m.name,
       category: m.category || 'Mouvements 12 tons',
@@ -2286,14 +2313,16 @@ function initPracticeExercise() {
     const playing = previewId === item.id;
 
     const libraryStyle = document.getElementById('exercise-library-style');
-    if (libraryStyle) renderDemoStyleMenu(libraryStyle, Boolean(item.score));
+    if (libraryStyle) renderDemoStyleMenu(libraryStyle, Boolean(item.score), item.score?.practice === 'notes');
     const format = item.score ? 'Étude écrite' : 'Grille libre';
+    const reference = item.provenance?.video;
 
     host.innerHTML = `
       <span class="tr-eyebrow">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)} · ${format}</span>
       <h2 class="exercise-library-detail-name">${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</h2>
       ${item.route ? `<p class="exercise-library-detail-route">${escapeHtml(item.route)}</p>` : ''}
       ${quoi ? `<div class="exercise-library-what"><span class="exercise-library-what-label">Ce que c'est</span><p>${escapeHtml(quoi)}</p></div>` : ''}
+      ${reference ? `<p><button type="button" class="tr-button" data-study-source="${escapeAttr(item.id)}">Voir la démonstration · ${escapeHtml(reference.author)}</button></p>` : ''}
 
       <div class="exercise-library-player${playing ? ' is-playing' : ''}">
         <button type="button" class="exercise-library-play" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${playing ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${playing ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${playing ? 'Arrêter' : 'Écouter'}</span></button>
@@ -2798,6 +2827,17 @@ function initPracticeExercise() {
     }
     const choose = e.target.closest('[data-study-select]');
     if (choose) { pickLibraryCard(choose.dataset.studySelect); return; }
+    const source = e.target.closest('[data-study-source]');
+    if (source) {
+      const video = getLibraryItems().find(item => item.id === source.dataset.studySource)?.provenance?.video;
+      if (video && /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(video.url)) {
+        demoPlayer.stop();
+        const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id)}&t=${Math.floor(video.excerptSeconds[0])}s`;
+        if (window.electronAPI?.openExternal) window.electronAPI.openExternal(url);
+        else window.open(url, '_blank', 'noopener');
+      }
+      return;
+    }
     // Un clic dans la liste change seulement ce qu'on regarde. Charger une étude
     // reste un acte explicite (« Travailler »), comme pour les morceaux du Studio
     // depuis le 14/10 : un clic sélectionne, un bouton confirme.
@@ -2897,15 +2937,16 @@ function initPracticeExercise() {
     refreshDemoButtons(practiceExercise.getState());
   });
   const demoStyleSelects = [...document.querySelectorAll('[data-demo-style]')];
-  function renderDemoStyleMenu(select, written) {
-    const menu = written ? 'study' : 'free';
+  function renderDemoStyleMenu(select, written, notePractice = false) {
+    const menu = notePractice ? 'phrase' : written ? 'study' : 'free';
     if (select.dataset.menu !== menu) {
-      select.innerHTML = written
+      select.innerHTML = notePractice ? '<option value="auto">Phrase écrite</option>' : written
         ? '<option value="auto">Étude écrite</option><option value="plaque">Accords seuls</option>'
         : '<option value="auto">Accompagnement automatique</option>' + DEMO_STYLE_IDS.map((id) => `<option value="${id}">${DEMO_STYLES[id].label} · ${DEMO_STYLES[id].tempo}</option>`).join('');
       select.dataset.menu = menu;
     }
-    select.value = written ? studyPlayback : demoStyle;
+    select.disabled = notePractice;
+    select.value = notePractice ? 'auto' : written ? studyPlayback : demoStyle;
   }
   // Options posées une fois (un menu reconstruit à chaque rendu se refermerait
   // pendant la démo) ; seul le libellé « Selon le mouvement » suit le mouvement.
@@ -3008,7 +3049,8 @@ function initPracticeExercise() {
     const exState = practiceExercise.getState();
     // Aperçu dans la tonalité en cours (sinon le départ choisi, sinon Do) ; une
     // grille Perso, dans le ton où elle a été écrite.
-    const key = exState.mode === 'movement' && exState.progression ? exState.progression.currentKey : (exState.keyChoice ?? 0);
+    const key = exState.keyChoice ?? item?.writtenKey
+      ?? (exState.mode === 'movement' && exState.progression ? exState.progression.currentKey : 0);
     const chords = !item ? null : item.grid
       ? practiceExercise.previewGrid(item.grid.chords, item.grid.name)
       : practiceExercise.previewMovement(item.id, key);
@@ -3204,9 +3246,9 @@ function initPracticeExercise() {
     const entry = exState.progression?.movement;
     const written = Boolean(entry?.score);
     demoStyleSelects.forEach((select) => {
-      const useStudy = select.id === 'exercise-library-style'
-        ? Boolean(getLibraryItems().find((item) => item.id === librarySelected)?.score) : written;
-      renderDemoStyleMenu(select, useStudy);
+      const score = select.id === 'exercise-library-style'
+        ? getLibraryItems().find((item) => item.id === librarySelected)?.score : entry?.score;
+      renderDemoStyleMenu(select, Boolean(score), score?.practice === 'notes');
     });
     // [Claude] — 2026-11-07 — #exercise-study-info (route, dessus, repères,
     // tempo de l'étude écrite) retiré sur annotation de Narcisse : le bloc qui
@@ -3215,7 +3257,7 @@ function initPracticeExercise() {
     const movementStyle = exState.progression?.movement?.style;
     const autoStyle = DEMO_STYLES[defaultDemoStyle(movementStyle)];
     const autoOption = document.querySelector('#exercise-demo-style option[value="auto"]');
-    if (autoOption) autoOption.textContent = written ? 'Étude écrite' : `Automatique · ${autoStyle.label}`;
+    if (autoOption) autoOption.textContent = entry?.score?.practice === 'notes' ? 'Phrase écrite' : written ? 'Étude écrite' : `Automatique · ${autoStyle.label}`;
     const styleId = resolveDemoStyle(movementStyle);
     const style = DEMO_STYLES[styleId];
     const variations = DEMO_VARIATIONS[styleId];

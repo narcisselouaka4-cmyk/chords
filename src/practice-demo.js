@@ -4,9 +4,10 @@
 //
 // La démo joue les MÊMES voicings que l'exercice (voicings enchaînés de
 // practice-exercise.js, doublures comprises) : on entend exactement ce qu'on va
-// jouer. Rien n'est repris d'un enregistrement : le jeu est écrit ici d'après
-// des procédés courants du piano (grilles et procédés ne sont pas protégés), et
-// le son est celui du piano de l'application (échantillons Salamander, licence
+// jouer. Les grilles libres utilisent les procédés écrits ici ; les relevés
+// vidéo du catalogue conservent leur phrase et leur provenance explicite.
+// Aucun enregistrement source n'est diffusé : le son est celui du piano de
+// l'application (échantillons Salamander, licence
 // CC-BY) ou du VST branché sur la sortie MIDI.
 //
 // [Claude] — 2026-09-24 (soir) — Jouable comme au clavier (Narcisse : « ça sonne
@@ -136,13 +137,14 @@ export function buildDemo(chords, styleId, { variation = 0 } = {}) {
 export function buildStudyDemo(chords, { plain = false } = {}) {
   const score = createScore();
   let time = 0;
+  const phraseBeats = chords.reduce((sum, chord) => sum + chord.studyStep.beats, 0);
   const repeats = Math.max(1, Math.min(8, Math.floor(chords[0]?.studyStep?.repeatCount || 1)));
   for (let cycle = 0; cycle < repeats; cycle += 1) {
     chords.forEach((chord, i) => {
       const step = chord.studyStep;
       const { lh, rh } = cardHands(chord);
       score.step(time, i);
-      const attacks = plain
+      const attacks = plain && step.practice !== 'notes'
         ? [{ at: 0, hand: 'lh', duration: step.beats - LIFT, velocity: .52 },
           { at: 0, hand: 'rh', duration: step.beats - LIFT, velocity: .57 }]
         : step.attacks;
@@ -159,7 +161,9 @@ export function buildStudyDemo(chords, { plain = false } = {}) {
         // a été écrit ; explorer un autre voicing ne crée pas de grace note au hasard.
         if (attack.hand === 'grace') notes = step.writtenVoicing ? [attack.note + step.keyPc] : [];
         const roll = plain ? 0 : (attack.roll || 0);
-        const release = time + Math.min(step.beats - .01, attack.at + attack.duration);
+        const limit = step.carryAcrossSteps && (!plain || step.practice === 'notes')
+          ? (cycle + 1) * phraseBeats - time - .01 : step.beats - .01;
+        const release = time + Math.min(limit, attack.at + attack.duration);
         if (release <= time + attack.at + Math.max(0, notes.length - 1) * roll) return;
         score.hand(time + attack.at, notes, attack.velocity, release, {
           hand: attack.hand === 'lh' ? 'lh' : 'rh', roll,

@@ -72,8 +72,11 @@ export function exerciseContext(state, attempts = []) {
       contentKind: prog.movement?.kind || 'progression',
       route: prog.movement?.route || null,
       provenance: prog.movement?.provenance || null,
+      practice: prog.movement?.score?.practice || null,
       interpretation: prog.movement?.score
-        ? prog.movement.provenance?.adaptedFrom
+        ? prog.movement.provenance?.video
+          ? `Relevé d’un passage vidéo fourni par l’utilisateur : ${prog.movement.provenance.video.author}. Notes et mains relevées, rythme quantifié ; pas de suite inventée. ${prog.movement.provenance.video.adaptation} ${prog.movement.provenance.video.limits || ''} ${prog.movement.score.practice === 'notes' ? 'Les gestes demandent les notes dans leur registre écrit, et non un autre voicing de l’accord. La validation ne mesure pas le rythme.' : 'La carte sert de repère harmonique ; le motif contient des attaques indépendantes des deux mains.'}`
+          : prog.movement.provenance?.adaptedFrom
           ? 'Étude adaptée d’une vidéo fournie : transposition et rythme quantifié, pas une transcription intégrale. La position affichée sert de repère harmonique ; le motif fait aussi circuler des notes entre les attaques.'
           : 'Étude originale écrite ; ne pas attribuer les notes jouées à la source du procédé.'
         : null,
@@ -138,7 +141,9 @@ export function exerciseContextLines(ctx) {
   for (const c of ctx.chords) {
     out.push(`- ${c.current ? '▶ ' : ''}${c.name}${c.degree ? ` [${c.degree}]` : ''}${c.passing ? ' (accord de passage)' : ''} : ${names(c.lh, c.name) || '—'} | ${names(c.rh, c.name) || '—'} · ${c.roles.join(' ')}${c.technique ? ` · ${TECHNIQUE_LABELS[c.technique] || c.technique}` : ''}`);
   }
-  out.push('(▶ = l\'accord à jouer maintenant. L\'exercice accepte tout voicing de l\'accord annoncé, pas seulement celui de la carte.)');
+  out.push(ctx.practice === 'notes'
+    ? '(▶ = le geste à jouer maintenant. Les notes et leur registre sont attendus ; les tenues écrites du geste précédent sont permises. Le rythme se travaille avec la démonstration, sans notation automatique.)'
+    : '(▶ = l\'accord à jouer maintenant. L\'exercice accepte tout voicing de l\'accord annoncé, pas seulement celui de la carte.)');
   out.push('');
   if (ctx.attempts.length) {
     out.push('### Derniers essais pas encore retenus');

@@ -986,6 +986,15 @@ function replaysShownVoicing(notes, shownNotes) {
 export function judgeAnswer(notes, target) {
   const detected = notes?.length ? detectChord(notes) : null;
   if (!target) return { success: false, detected };
+  // Un lick demande ses hauteurs et ses registres : un autre voicing du
+  // même accord ne remplace pas la phrase. Les tenues du geste précédent
+  // peuvent rester sous les doigts, sans devenir des notes obligatoires.
+  if (target.studyStep?.practice === 'notes') {
+    const played = new Set(notes || []);
+    const allowed = new Set([...target.notes, ...(target.studyStep.allowedHeld || []).map(n => n + target.studyStep.keyPc)]);
+    return { detected, success: target.notes.length > 0
+      && target.notes.every(n => played.has(n)) && [...played].every(n => allowed.has(n)) };
+  }
   const shown = target.notes || [];
   const success = replaysShownVoicing(notes, shown)
     || Boolean(detected && detected.rootPc === target.rootPc && detected.symbol === target.symbol)
@@ -1881,7 +1890,7 @@ function writtenMovementChords(movement, keyPc) {
     const voicing = {
       leftHand: step.lh.map((n) => n + keyPc),
       rightHand: step.rh.map((n) => n + keyPc),
-      source: 'original-study', technique: 'written', familyId: 'written',
+      source: movement.provenance?.kind || 'original-study', technique: 'written', familyId: 'written',
       variantIndex: 0, variantCount: 1, variantLabel: 'Motif écrit',
       isPlayable: true, doubled: [], styleAdded: [], derived: false, rebuilt: false,
     };
@@ -1891,7 +1900,8 @@ function writtenMovementChords(movement, keyPc) {
       quality: parsed.quality, token, degree: parsed.degree,
       harmonicRole: movement.roles?.[i] || 'structural',
       studyStep: { ...step, keyPc, writtenVoicing: true, preserveTexture: true,
-        fixedPitches: Boolean(movement.score.fixedPitches), repeatCount: movement.score.repeats || 1 },
+        fixedPitches: Boolean(movement.score.fixedPitches), repeatCount: movement.score.repeats || 1,
+        practice: movement.score.practice || null, carryAcrossSteps: Boolean(movement.score.carryAcrossSteps) },
       passingChord: null,
     };
   }).filter(Boolean);
@@ -2429,7 +2439,7 @@ export function createPracticeExercise({ library = movementsLibrary } = {}) {
       keyLabel: `Tonalité ${keyLabel(movementState.currentKey, isMinorMovement(movementState.movement))}`,
       keyName: keyLabel(movementState.currentKey, isMinorMovement(movementState.movement)),
       keyProgress: `${movementState.keyIndex + 1} / ${movementState.totalKeys} tons`,
-      stepProgress: `${index + 1} / ${total} accords`,
+      stepProgress: `${index + 1} / ${total} ${movementState.movement.score?.practice === 'notes' ? 'gestes' : 'accords'}`,
     };
   }
 
@@ -3020,10 +3030,16 @@ export function createPracticeExercise({ library = movementsLibrary } = {}) {
       }
       return {
         success: true,
-        message: `✅ ${expected.name} correct. Suivant : ${state.target.name}`,
+        message: expected.studyStep?.practice === 'notes'
+          ? `Geste ${index + 1} validé. ${state.target.studyStep?.label || 'Geste suivant'}.`
+          : `✅ ${expected.name} correct. Suivant : ${state.target.name}`,
         expectedName: expected.name,
       };
     }
+    if (expected.studyStep?.practice === 'notes') return {
+      success: false, message: 'Jouez les notes indiquées dans leur registre ; les tenues du geste précédent peuvent rester sous les doigts.',
+      hint: expected.notes, expectedName: expected.name,
+    };
     const heard = detected ? `J'entends ${spellPcInKey(detected.rootPc, state.progression.currentKey, isMinorMovement(state.progression.movement))}${detected.symbol}. ` : '';
     const idea = exerciseSuggestion(notes, expected);
     return {
@@ -3165,7 +3181,9 @@ export function renderExerciseTarget(target, options = {}) {
     && leftHand.some((n) => !rightHand.includes(n));
 
   // Notes épelées selon la tonalité en Progression / Mouvement (Bb4 en Fa, pas A#4).
-  const noteLabel = options.spelling
+  const noteLabel = target.studyStep?.practice === 'notes'
+    ? (n) => writtenNoteLabel(n, target, options.spelling)
+    : options.spelling
     ? (n) => `${spellPcInKey(n, options.spelling.keyPc, options.spelling.minor)}${Math.floor(n / 12) - 1}`
     : formatNoteNameWithOctave;
   const allNames = cardNotes.map((n) => noteLabel(n)).join(' · ');
@@ -3186,7 +3204,8 @@ export function renderExerciseTarget(target, options = {}) {
       <button class="exercise-favorite-toggle${options.isFavorite ? ' active' : ''}" type="button" data-action="toggle-favorite" aria-pressed="${options.isFavorite ? 'true' : 'false'}" title="${options.isFavorite ? 'Retirer des favoris' : 'Ajouter ce voicing aux favoris'}">${options.isFavorite ? '★' : '☆'}</button>
       <div class="exercise-target-header">
         <div class="exercise-target-title">
-          <div class="exercise-target-name">${escapeHtml(target.name)}</div>
+          <div class="exercise-target-name">${escapeHtml(target.studyStep?.practice === 'notes' ? cardNotes.map(noteLabel).join(' · ') : target.name)}</div>
+          ${target.studyStep?.practice === 'notes' ? `<div class="exercise-target-passing">${escapeHtml(target.studyStep.label || 'Geste écrit')} · sur ${escapeHtml(target.name)}</div>` : ''}
           ${target.passing ? `<div class="exercise-target-passing">↳ Accord de passage${options.passingTo ? `, vers ${escapeHtml(options.passingTo)}` : ''}</div>` : ''}
         </div>
       </div>
@@ -3222,6 +3241,27 @@ export function renderExerciseTarget(target, options = {}) {
       </div>
     </div>
   `;
+}
+
+/** Dans un lick, la sensible de la dominante s’écrit par rapport à l’accord
+ * (Sol♯ sur Mi7), les notes de liaison par rapport à la tonalité. */
+export function writtenNoteLabel(note, target, spelling = null) {
+  const interval = pcRelativeTo(note, target.rootPc);
+  const root = /^[A-G][#b]?/.exec(target.name || '')?.[0];
+  const approach = target.studyStep?.approachTo;
+  if (spelling && approach != null) {
+    const arrival = (approach + target.studyStep.keyPc) % 12;
+    if (pcRelativeTo(arrival - note, 0) === 1) {
+      return `${spellChordTone(spellPcInKey(arrival, spelling.keyPc, spelling.minor), 11, 'maj7')}${Math.floor(note / 12) - 1}`;
+    }
+  }
+  if (spelling?.minor && pcRelativeTo(note, spelling.keyPc) === 9) {
+    return `${spellChordTone(keyLabel(spelling.keyPc, true).split(' ')[0], 9, 'm6')}${Math.floor(note / 12) - 1}`;
+  }
+  const pitch = root && chordToneIntervals(target.symbol || '').has(interval)
+    ? spellChordTone(root, interval, target.symbol || '')
+    : spelling ? spellPcInKey(note, spelling.keyPc, spelling.minor) : formatPc(pcRelativeTo(note, 0), false);
+  return `${pitch}${Math.floor(note / 12) - 1}`;
 }
 
 /** Vrai si le voicing de base (avant la main gauche du style) a une main gauche. */

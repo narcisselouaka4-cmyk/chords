@@ -26,7 +26,7 @@ for (const entry of catalogue.movements) {
   assert.ok(['progression','passage','study'].includes(entry.kind));
   assert.equal(entry.pattern.split('-').length, entry.score.steps.length);
   assert.ok(entry.preserveQualities && entry.noAutoPassing);
-  assert.equal(entry.provenance.kind, 'original-study');
+  assert.ok(['original-study', 'source-excerpt'].includes(entry.provenance.kind));
   assert.ok(entry.provenance.sources.every((s) => s.title && s.supports && new URL(s.url).protocol === 'https:'));
   if (entry.kind === 'passage') {
     assert.equal(entry.roles[0], 'departure');
@@ -56,8 +56,8 @@ for (const entry of catalogue.movements) {
     assert.equal(plain.beats,expectedBeats);
     let at=0;
     for(const [i,chord] of chords.entries()) {
-      assert.ok(phrase.events.some(e=>e.type==='step' && e.step===i && e.time===at));
-      const heard=new Set(phrase.events.filter(e=>e.type==='noteOn' && e.time>=at && e.time<at+entry.score.steps[i].beats).map(e=>e.note));
+      assert.ok(phrase.events.some(e=>e.type==='step' && e.step===i && Math.abs(e.time-at)<.001));
+      const heard=new Set(phrase.events.filter(e=>e.type==='noteOn' && e.time>=at-.001 && e.time<at+entry.score.steps[i].beats-.001).map(e=>e.note));
       assert.ok(chord.notes.every(n=>heard.has(n)), `${entry.id} ${key} ${i} : toutes les notes de la carte sont jouées`);
       at+=entry.score.steps[i].beats;
     }
@@ -69,7 +69,7 @@ for (const entry of catalogue.movements) {
         last=e.time;
         if(!['noteOn','noteOff'].includes(e.type)) continue;
         const id=`${e.hand}:${e.note}`;
-        assert.ok(e.note>=28 && e.note<=96);
+        assert.ok(e.note>=21 && e.note<=108, 'registre du piano 88 touches, y compris la basse source Do1');
         if(e.type==='noteOn') { assert.ok(!held.has(id), `${entry.id} : double attaque tenue ${id}@${e.time}`); held.set(id,e.note); }
         else { assert.ok(held.has(id), `${entry.id} : relâchement sans note ${id}@${e.time}`); held.delete(id); }
         for(const hand of ['lh','rh']) {
@@ -89,7 +89,7 @@ for (const entry of catalogue.movements) {
     const context=exerciseContext(ex.getState());
     assert.equal(context.contentKind,entry.kind);
     assert.equal(context.harmonicColor,null);
-    assert.ok(exerciseContextLines(context).some(s=>s.includes(entry.provenance.adaptedFrom ? 'adaptée d’une vidéo' : 'originale écrite')));
+    assert.ok(exerciseContextLines(context).some(s=>s.includes(entry.provenance.video ? 'Relevé d’un passage vidéo' : entry.provenance.adaptedFrom ? 'adaptée d’une vidéo' : 'originale écrite')));
     cases++;
   }
 }
