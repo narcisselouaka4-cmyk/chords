@@ -148,14 +148,23 @@ function testReviewButtonState() {
 
 // [Claude] — 2026-09-26 — Quand le Copilote n'a pas pu répondre : la raison, en clair.
 function testCopilotErrorText() {
-  check('Délai dépassé : dit en clair, avec quoi faire', /n'a pas répondu à temps \(90 secondes\)/.test(copilotErrorText('AI_TIMEOUT')) && /Réglages › Assistant IA/.test(copilotErrorText('AI_TIMEOUT')));
+  check('Délai dépassé : dit en clair, avec quoi faire', /n['’]a pas répondu à temps \(90 secondes\)/.test(copilotErrorText('AI_TIMEOUT')) && /Réglages › Assistant IA/.test(copilotErrorText('AI_TIMEOUT')));
   check('Clé refusée : message de la clé', /clé API a été refusée/.test(copilotErrorText('AI_API_KEY_INVALID')));
   check('Modèle absent : choisir un autre modèle sans accuser la clé', /introuvable ou inaccessible/.test(copilotErrorText('AI_MODEL_UNAVAILABLE')));
   check('Hébergeur saturé : indisponibilité temporaire distincte de la clé', /temporairement saturé/.test(copilotErrorText('AI_PROVIDER_BUSY')) && /clé n’est pas en cause/.test(copilotErrorText('AI_PROVIDER_BUSY')));
   check('Demande trop longue : une minute d’attente ne la corrige pas', /taille autorisée/.test(copilotErrorText('AI_REQUEST_TOO_LARGE')) && /passage plus court/.test(copilotErrorText('AI_API_ERROR_413')) && !/minute/.test(copilotErrorText('AI_REQUEST_TOO_LARGE')));
   check('Quota temporaire : attendre ou changer de fournisseur', /quota/.test(copilotErrorText('AI_API_ERROR_429')) && /plus tard/.test(copilotErrorText('AI_API_ERROR_429')));
   check('Panne du service (5xx) : dit en clair', /problème de son côté/.test(copilotErrorText('AI_API_ERROR_503')));
-  check('Autre erreur : la raison technique, à recopier', /Je n'ai pas pu répondre \(Unexpected token\)/.test(copilotErrorText('Unexpected token')));
+  // [Claude] — 2026-11-11 — Contrat changé volontairement (mission Copilot fiable, section 6) : le
+  // texte brut d'une exception n'est plus montré au pianiste ; un code court suffit à le signaler.
+  check('Autre erreur : jamais le texte brut de l\'exception', !/Unexpected token/.test(copilotErrorText('Unexpected token')) && /Je n’ai pas pu répondre/.test(copilotErrorText('Unexpected token')));
+  check('Autre erreur connue de l\'application : son code court, à signaler', /\(AI_INTERNAL_ERROR\)/.test(copilotErrorText('AI_INTERNAL_ERROR')));
+  check('Accès refusé (403) : la clé n\'est pas accusée d\'office', /pas forcément en cause/.test(copilotErrorText('AI_ACCESS_DENIED')) && !/clé API a été refusée/.test(copilotErrorText('AI_ACCESS_DENIED')));
+  check('Crédit épuisé (402) : pas un problème de clé', /crédit ou de budget/.test(copilotErrorText('AI_API_ERROR_402')) && /pas un problème de clé/.test(copilotErrorText('AI_API_ERROR_402')));
+  check('Quota avec délai annoncé : la durée est dite', /environ 12 secondes/.test(copilotErrorText('AI_API_ERROR_429', { waitSeconds: 12 })));
+  check('Arrêt demandé : dit comme tel, question gardée', /Tu as arrêté/.test(copilotErrorText('AI_CANCELLED')) && /conservée/.test(copilotErrorText('AI_CANCELLED')));
+  check('Avec une prise jointe : la prise est dite conservée', /ta prise sont conservées/.test(copilotErrorText('AI_NETWORK_ERROR', { hasTake: true })));
+  check('Aucun message ne montre de JSON ni d\'accolade', ['AI_TIMEOUT', 'AI_BAD_REQUEST', 'AI_INVALID_RESPONSE', 'AI_CONTENT_BLOCKED', '{"error":{"message":"x"}}'].every((c) => !/[{}]/.test(copilotErrorText(c))));
 }
 
 // [Claude] — 2026-10-04 — Réponses courtes, détail sur demande (Narcisse : « trop de détails,

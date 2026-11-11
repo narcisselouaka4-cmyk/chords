@@ -28,7 +28,8 @@ import {
   createConversationKeeper, decideContextEvent, sourceFromKey, sameSource,
   sessionFingerprint, conversationMatchesSession,
 } from './conversation-continuity.js';
-import { sendCopilotMessage, extractTextToolCalls, wantsToHear } from './copilot-client.js';
+import { sendCopilotMessage, extractTextToolCalls, wantsToHear, cancelCopilotRequest } from './copilot-client.js';
+import { copilotErrorText } from './copilot-errors.js';
 import { hasAIKey } from '../ai/openai-config.js';
 import { liveTake } from '../recorder/live-take.js';
 import { reviewTake } from '../recorder/take-review.js';
@@ -1946,6 +1947,28 @@ function onContextEvent(type, source) {
   });
 }
 
+// [Claude] — 2026-11-11 — Pendant l'attente, le bouton d'envoi devient « Arrêter » : une réponse
+// trop longue à venir peut être abandonnée sans attendre le délai (la question reste dans l'échange).
+const ICON_STOP_TURN = '<svg class="tr-i" width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>';
+let sendIcon = null;
+function setSendButtonBusy(busy) {
+  const btn = els.sendBtn;
+  if (!btn) return;
+  if (sendIcon == null) sendIcon = btn.innerHTML;
+  btn.disabled = false;
+  btn.classList.toggle('is-stop', busy);
+  btn.innerHTML = busy ? ICON_STOP_TURN : sendIcon;
+  const label = busy ? 'Arrêter la réponse' : 'Envoyer la question';
+  btn.title = busy ? 'Arrêter' : 'Envoyer';
+  btn.setAttribute('aria-label', label);
+}
+
+/** Clic sur le bouton d'envoi : envoyer, ou arrêter la réponse attendue. */
+function onSendButton() {
+  if (turnBusy) { cancelCopilotRequest(); return; }
+  sendUserMessage();
+}
+
 /** Envoie un message utilisateur. */
 async function sendUserMessage() {
   // Les changements de conversation en cours d'abord : le message part dans la bonne.
@@ -1967,25 +1990,9 @@ async function sendUserMessage() {
   await runCopilotTurn(text);
 }
 
-/**
- * [Claude] — 2026-09-26 — Ce que le pianiste lit quand le Copilote n'a pas pu
- * répondre : la raison, en clair, et quoi faire.
- */
-export function copilotErrorText(error) {
-  const code = String(error || '');
-  if (code === 'AI_EMPTY_RESPONSE') return 'Je n’ai pas reçu de réponse utilisable, même après une nouvelle tentative. Ta question est conservée ; tu peux la renvoyer.';
-  if (code === 'AI_OUTPUT_LIMIT') return 'La réponse a été interrompue avant d’être rédigée. Ta question est conservée ; réessaie sur un point précis.';
-  if (code === 'AI_API_KEY_INVALID') return 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.';
-  if (code === 'AI_MODEL_UNAVAILABLE') return 'Ce modèle est introuvable ou inaccessible avec ce compte. Ta question est conservée. Choisis un autre modèle dans Réglages › Assistant IA.';
-  if (code === 'AI_PROVIDER_BUSY') return 'Ce modèle gratuit est temporairement saturé chez son hébergeur. Ta clé n’est pas en cause. Réessaie plus tard ou choisis un autre modèle dans Réglages › Assistant IA.';
-  if (code === 'AI_NETWORK_ERROR') return 'La connexion au service d’IA a échoué. Ta prise est conservée ; vérifie la connexion puis réessaie.';
-  if (code === 'AI_TIMEOUT') return 'Le service d\'IA n\'a pas répondu à temps (90 secondes). Réessaie ; s\'il est souvent aussi lent, choisis un autre modèle dans Réglages › Assistant IA.';
-  if (code === 'AI_REQUEST_TOO_LARGE' || code === 'AI_API_ERROR_413') return 'La demande dépasse la taille autorisée par ce fournisseur. Ta question et ta prise sont conservées. Choisis un passage plus court ou un modèle chez un autre fournisseur dans Réglages › Assistant IA.';
-  if (code === 'AI_API_ERROR_429') return 'Le quota du service d’IA est atteint pour l’instant. Réessaie plus tard ou choisis un autre fournisseur dans Réglages › Assistant IA.';
-  if (code === 'AI_API_ERROR_402') return 'Le fournisseur refuse la demande pour une limite de crédit ou de budget. Ta prise est conservée. Vérifie ton compte chez ce fournisseur ou choisis-en un autre dans Réglages › Assistant IA.';
-  if (/^AI_API_ERROR_5\d\d$/.test(code)) return 'Le service d\'IA a un problème de son côté. Réessaie dans un moment.';
-  return `Je n'ai pas pu répondre (${code || 'erreur inconnue'}). Réessaie ; si ça se répète, recopie-moi ce message.`;
-}
+// [Claude] — 2026-11-11 — Les messages d'erreur vivent dans copilot-errors.js (une phrase par
+// catégorie : ce qui s'est passé, quoi faire, ce qui est conservé).
+export { copilotErrorText };
 
 /**
  * [Claude] — 2026-09-25 — Jeu du pianiste que le Copilote peut rejouer à
@@ -2018,7 +2025,7 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
   // case reste libre (on peut écrire la question suivante) ; seul l'envoi attend ;
   // quoi qu'il arrive, la réponse ou la raison de l'échec s'affiche.
   turnBusy = true;
-  els.sendBtn.disabled = true;
+  setSendButtonBusy(true);
   let autoplayMessage = null;
   // [Claude] — 2026-11-10 — L'échange d'ORIGINE du tour. Avant, si une autre conversation était
   // ouverte pendant l'attente, la réponse était abandonnée et la question jamais enregistrée.
@@ -2071,18 +2078,18 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
       // Demande d'écoute (« joue-moi… ») : l'exemple démarre une fois la réponse affichée.
       if (res.autoplay && res.toolResult?.example) autoplayMessage = reply;
     } else {
-      turnMessages.push({ role: 'assistant', content: copilotErrorText(res.error), isError: true, errorCode: String(res.error || ''), timestamp: new Date().toISOString() });
+      turnMessages.push({ role: 'assistant', content: copilotErrorText(res.error, { ...(res.details || {}), hasTake: Boolean(entry.lastTake?.events?.length) }), isError: true, errorCode: String(res.error || ''), timestamp: new Date().toISOString() });
     }
   } catch (err) {
     console.warn('[Copilot] Tour interrompu :', err);
     const list = entry ? entry.messages : messages;
     removeTypingIndicator(list);
-    list.push({ role: 'assistant', content: copilotErrorText(err?.message || err), isError: true, errorCode: String(err?.message || err || ''), timestamp: new Date().toISOString() });
+    list.push({ role: 'assistant', content: copilotErrorText('AI_INTERNAL_ERROR'), isError: true, errorCode: 'AI_INTERNAL_ERROR', timestamp: new Date().toISOString() });
   } finally {
     turnBusy = false;
     busyEntry = null;
     keeper.endTurn(entry);
-    els.sendBtn.disabled = false;
+    setSendButtonBusy(false);
     els.input.disabled = false;
   }
   const onScreen = !entry || keeper.current() === entry;
@@ -2146,7 +2153,7 @@ export async function initCopilotTab() {
   els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
   mountMemoryPanel(els.root,()=>messages,{getConversationId:()=>currentConversationId,onOpenConversation:loadHistoryItem});
 
-  els.sendBtn?.addEventListener('click', sendUserMessage);
+  els.sendBtn?.addEventListener('click', onSendButton);
   // [Claude] — 2026-09-26 — « Qu'en penses-tu ? » : dans la case, à la place de « IA connectée ».
   els.reviewBtn = document.getElementById('copilot-review-btn');
   els.reviewHint = document.getElementById('copilot-review-hint');

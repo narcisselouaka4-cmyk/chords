@@ -29,6 +29,7 @@ import {isExplanationQuestion,explicitPlaybackRequest,proposalExplanationAnswer}
 import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
 import { COMPACT_COPILOT_SYSTEM_PROMPT, compactMovementsReference } from './copilot-compact-prompt.js';
 import { groqBudgetRetry } from '../ai/groq-token-budget.js';
+import { classifyProviderFailure, embeddedProviderError, classifyTransportError, repairRejectedParameter } from '../ai/provider-errors.js';
 import { passageExample, transposeInterval, notesInRange } from './teacher-notes.js';
 import { onlySpeech, activitySummary } from './teacher-activity.js';
 import { exerciseContextLines } from './exercise-context.js';
@@ -1760,29 +1761,44 @@ function withTextToolCalls(choice) {
   return { ...choice, content, ...(own.length || added.length ? { tool_calls: [...own, ...added] } : {}) };
 }
 
-function completionAPIError(status, text) {
-  if (status === 401 || status === 403) return { ok: false, error: 'AI_API_KEY_INVALID', responseText: text };
-  if (status === 404) return { ok: false, error: 'AI_MODEL_UNAVAILABLE', status };
-  if (status === 429 && /upstream_provider_shared_pool/.test(text)) return { ok: false, error: 'AI_PROVIDER_BUSY', status };
-  if (status === 413 || (status === 400 && /context_length_exceeded|max_tokens_exceeded|string_too_long|maximum context length/i.test(text))) {
-    return { ok: false, error: 'AI_REQUEST_TOO_LARGE', status };
-  }
-  return { ok: false, error: `AI_API_ERROR_${status}`, responseText: text, status };
+// [Claude] — 2026-11-11 — Un refus du fournisseur, rangé par provider-errors.js. Avant : un 403
+// passait pour une clé refusée, et une saturation de l'hébergeur pour un quota personnel.
+function completionAPIError(status, text, retryAfter = null) {
+  const failure = classifyProviderFailure({ status, bodyText: text, retryAfter });
+  return { ok: false, error: failure.code, status, responseText: text, details: { waitSeconds: failure.waitSeconds, parameter: failure.parameter, userAction: failure.userAction } };
 }
 
+// [Claude] — 2026-11-11 — Le tour en cours peut être arrêté par le pianiste. Un seul tour à la
+// fois dans l'application : cet état est donc global. Les relances du même tour s'arrêtent aussi.
+let activeTurn = { cancelled: false, controllers: new Set() };
+/** Arrête la demande en cours (bouton « Arrêter »). Vrai si une requête était en vol. */
+export function cancelCopilotRequest() {
+  activeTurn.cancelled = true;
+  const flying = activeTurn.controllers.size > 0;
+  for (const controller of activeTurn.controllers) { try { controller.abort(); } catch (_) { /* déjà finie */ } }
+  cancelPendingCopilotNotes();
+  return flying;
+}
+const retryAfterOf = (response) => { try { return response?.headers?.get?.('retry-after') ?? null; } catch (_) { return null; } };
+
 async function callChatCompletionOnce(config, body) {
+  if (activeTurn.cancelled) return { ok: false, error: 'AI_CANCELLED' };
   const timeoutMs = Math.min(copilotTimeoutMs, config.copilotDeadline ? config.copilotDeadline - Date.now() : copilotTimeoutMs);
   if (timeoutMs <= 0) return { ok: false, error: 'AI_TIMEOUT' };
   // Une seule minuterie pour tout l'échange (envoi, attente, lecture de la
   // réponse), quel que soit le chemin : fetch (navigateur) ou processus principal
   // (Electron, qui reçoit aussi le délai pour arrêter sa propre requête).
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const turn = activeTurn;
+  if (controller) turn.controllers.add(controller);
   let timer = null;
   const expired = new Promise((resolve) => {
     timer = setTimeout(() => {
       controller?.abort();
       resolve({ ok: false, error: 'AI_TIMEOUT' });
     }, timeoutMs);
+    // Arrêt demandé par le pianiste : la réponse n'est plus attendue.
+    controller?.signal.addEventListener?.('abort', () => { if (turn.cancelled) resolve({ ok: false, error: 'AI_CANCELLED' }); });
   });
   const exchange = (async () => {
     const startedAt = Date.now();
@@ -1794,36 +1810,41 @@ async function callChatCompletionOnce(config, body) {
     let response = await send(body);
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      const adjusted = groqBudgetRetry(config.baseUrl, body, response.status, text);
+      // Une seule reprise, sous la même échéance, avec messages, notes et outils identiques :
+      // soit la réserve de sortie ajustée (refus TPM chiffré de Groq), soit la requête sans le
+      // paramètre que le fournisseur dit refuser (« temperature », « max_tokens »…). Avant, un
+      // paramètre refusé passait pour une incompatibilité des outils et coûtait deux envois inutiles.
+      const adjusted = groqBudgetRetry(config.baseUrl, body, response.status, text)
+        || (response.status === 400 ? repairRejectedParameter(body, text) : null);
       if (adjusted) {
-        // Une seule reprise, sous la même échéance, avec notes et outils identiques.
         response = await send(adjusted);
-        if (!response.ok) return completionAPIError(response.status, await response.text().catch(() => ''));
+        if (!response.ok) return completionAPIError(response.status, await response.text().catch(() => ''), retryAfterOf(response));
       } else {
         // OpenRouter relaie aussi les dépassements de contexte en HTTP 400.
         // Les distinguer d'une incompatibilité des outils évite un second envoi identique.
-        return completionAPIError(response.status, text);
+        return completionAPIError(response.status, text, retryAfterOf(response));
       }
     }
-    const data = await response.json();
-    // Une erreur fournisseur peut arriver dans un corps HTTP 200 chez OpenRouter.
-    if (data?.error) {
-      const status = Number(data.error.code);
-      return completionAPIError(Number.isInteger(status) && status >= 400 && status <= 599 ? status : 502, JSON.stringify(data.error));
-    }
+    let data = null;
+    try { data = await response.json(); } catch (_) { return { ok: false, error: 'AI_INVALID_RESPONSE' }; }
+    // Une erreur fournisseur peut arriver dans un corps HTTP 200 (OpenRouter et d'autres relais).
+    const embedded = embeddedProviderError(data);
+    if (embedded) return completionAPIError(embedded.status, embedded.bodyText);
+    if (!data || typeof data !== 'object' || !Array.isArray(data.choices)) return { ok: false, error: 'AI_INVALID_RESPONSE' };
     const { choice, diagnostics } = normalizeChatResponse(data);
     // [Claude] — 2026-10-04 — Jamais d'appel d'outil écrit en texte sous les yeux du pianiste.
     return { ok: true, choice: withTextToolCalls(choice), diagnostics };
   })().catch((err) => {
-    if (controller?.signal.aborted || err?.name === 'AbortError' || /timeout/i.test(err?.message || '')) {
-      return { ok: false, error: 'AI_TIMEOUT' };
-    }
-    throw err;
+    // Jamais le texte d'une exception jusqu'au pianiste : une catégorie, et le détail en console.
+    const error = classifyTransportError(err, { aborted: Boolean(controller?.signal.aborted), cancelled: turn.cancelled });
+    if (error === 'AI_NETWORK_ERROR' || error === 'AI_INVALID_RESPONSE') console.warn('[CopilotClient] Échange interrompu :', err?.name || 'Error', String(err?.message || '').slice(0, 200));
+    return { ok: false, error };
   });
   try {
     return await Promise.race([exchange, expired]);
   } finally {
     clearTimeout(timer);
+    turn.controllers.delete(controller);
   }
 }
 
@@ -1879,6 +1900,7 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
  * @returns {Promise<{ok: true, content: string, toolResult: {played: object[], ignored: number}} | {ok: false, error: string}>}
  */
 export async function sendCopilotMessage(params) {
+  activeTurn = { cancelled: false, controllers: new Set() };
   const reply=await sendCopilotMessageRaw(params);
   // Les évaluations hors réseau restent disponibles, sans les présenter comme
   // une décision du modèle sélectionné dans les réglages.
@@ -1927,7 +1949,7 @@ async function modelPlayingAnswer({message,messages,context,memory,preferences})
       payload.push({role:'assistant',content:content.slice(0,36000)},
         {role:'user',content:`Le plan a été refusé : ${reason} Corrige le JSON complet, en respectant les autres contraintes. Pas de commentaire hors JSON.`});
     }
-  }catch{return {ok:false,error:'AI_NETWORK_ERROR',toolResult:base};}
+  }catch(err){return {ok:false,error:activeTurn.cancelled?'AI_CANCELLED':classifyTransportError(err),toolResult:base};}
   return {ok:true,content:'Le modèle choisi n’a pas fourni de plan d’accords jouable, même après une correction. Ta prise est conservée. Tu peux réessayer ou essayer un autre modèle.',
     toolResult:{...base,generation:{...generation,rejected:true,validation:reason}},suggestedActions:[],autoplay:false};
 }
@@ -2109,14 +2131,17 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // instructions textuelles pour jouer les notes. Cela garantit le
     // fonctionnement avec n'importe quel modèle OpenAI-compatible.
     let toolsMode = true;
-    if (!first.ok && first.status === 400 && first.error !== 'AI_REQUEST_TOO_LARGE') {
+    // [Claude] — 2026-11-11 — Plus pour un contexte trop long, un modèle introuvable ou un paramètre
+    // refusé (déjà réparé plus haut) : renvoyer la même chose sans outils n'y changeait rien.
+    const toolsMayBeRefused = (r) => !r.ok && r.status === 400 && ['AI_TOOLS_UNSUPPORTED', 'AI_API_ERROR_400'].includes(r.error);
+    if (toolsMayBeRefused(first)) {
       const ollamaCloud = isOllamaCloudUrl(config.baseUrl);
       const payloadMessagesWithoutTools = payloadMessages.map((m) => {
         if (m.role !== 'system') return m;
         return { ...m, content: `${m.content}\n${TOOLS_UNAVAILABLE_PROMPT_ADDENDUM}` };
       });
       let second = await callChatCompletionOnce(config, buildChatCompletionPayload(config, payloadMessagesWithoutTools, { includeTools: false, useMaxTokens: ollamaCloud }));
-      if (!second.ok && second.status === 400 && second.error !== 'AI_REQUEST_TOO_LARGE' && !ollamaCloud) {
+      if (toolsMayBeRefused(second) && !ollamaCloud) {
         // Certains endpoints Ollama Cloud ne supportent pas max_completion_tokens.
         second = await callChatCompletionOnce(config, buildChatCompletionPayload(config, payloadMessagesWithoutTools, { includeTools: false, useMaxTokens: true }));
       }
@@ -2138,6 +2163,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     }
 
     let content = first.choice.content || '';
+    const cutShort = first.diagnostics?.finishReason === 'length' && Boolean(content.trim());
     if (evidence && content.replace(/[‐‑‒–—−]/g, '-').includes(evidence.degrees)
       && /(?:septième|7e)[\s\S]{0,100}(?:tierce|3ce)[\s\S]{0,100}(?:sixième|6te)|(?:sur|à) n[’']importe quel accord/i.test(content)) {
       return { ok: true, content: tutorialMeaningAnswer('Il raconte quoi ?', context, evidence), toolResult: { played: [], ignored: 0, suggestions: [], example: null, voicing: null }, suggestedActions: [], autoplay: false };
@@ -2545,6 +2571,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     }
 
     if (!String(content || '').trim()) return completionFailure(first, 'finalize');
+    if (cutShort) content = `${content.trimEnd()}\n\n_(Ma réponse a été coupée par la limite de longueur du modèle. Demande-moi la suite si tu en as besoin.)_`;
     return {
       ok: true,
       content,
@@ -2555,6 +2582,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     };
   } catch (err) {
     console.warn('[CopilotClient] Appel échoué :', err);
-    return { ok: false, error: err.message || 'Appel au modèle impossible.' };
+    // Une catégorie, pas le texte de l'exception (il s'affichait tel quel au pianiste).
+    return { ok: false, error: activeTurn.cancelled ? 'AI_CANCELLED' : err instanceof TypeError && !/fetch|network/i.test(err.message || '') ? 'AI_INTERNAL_ERROR' : classifyTransportError(err) };
   }
 }

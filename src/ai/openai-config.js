@@ -186,7 +186,7 @@ export async function callChatCompletions(baseUrl, apiKey, body, options = {}) {
     // processus principal traduit déjà Anthropic vers la forme OpenAI avant de
     // renvoyer son texte : rien à faire ici dans ce cas.
     const timeoutMs = options.timeoutMs || (options.signal ? 30000 : undefined);
-    const { ok, status, text } = await window.electronAPI.ai.chatCompletion(baseUrl, apiKey, body, timeoutMs);
+    const { ok, status, text, retryAfter = null } = await window.electronAPI.ai.chatCompletion(baseUrl, apiKey, body, timeoutMs);
     // [Claude] — 2026-11-10 — Seul point de passage réel de tout appel IA (Copilot,
     // narration Pédagogie, test de connexion) : avant ce lot, incrementMonthlyUsage()
     // existait mais n'était jamais appelée nulle part — « 0 / 50 ce mois » ne bougeait
@@ -195,6 +195,8 @@ export async function callChatCompletions(baseUrl, apiKey, body, options = {}) {
     return {
       ok,
       status,
+      // Seul en-tête utile aux appelants : le délai d'attente annoncé par le fournisseur.
+      headers: { get: (name) => (String(name).toLowerCase() === 'retry-after' ? retryAfter : null) },
       json: async () => JSON.parse(text),
       text: async () => text,
     };

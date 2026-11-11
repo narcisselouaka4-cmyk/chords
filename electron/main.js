@@ -2692,7 +2692,8 @@ ipcMain.handle('ai:chat-completion', async (event, { baseUrl, apiKey, body, time
     const text = await res.text();
     if (!res.ok) {
       console.warn('[Main:ai:chat-completion] Erreur API', res.status, 'modèle', body.model, '—', text.slice(0, 500));
-      return { ok: false, status: res.status, text };
+      // [Claude] — 2026-11-11 — Le délai d'attente annoncé par le fournisseur (Retry-After) est transmis.
+      return { ok: false, status: res.status, text, retryAfter: res.headers.get('retry-after') };
     }
     if (!anthropic) return { ok: true, status: res.status, text };
     try {
