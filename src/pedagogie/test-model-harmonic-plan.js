@@ -115,7 +115,8 @@ check('Deux plans invalides ne déclenchent jamais la recette locale',()=>{
  assert(rejected.ok);assert(!rejected.toolResult.variants);assert(!rejected.toolResult.example);
  assert(rejected.toolResult.generation.rejected);assert.equal(calls.length,6);
 });
-pending=true;setCopilotTimeout(25);
+// [Claude] — 2026-11-11 — 400 ms et non 25 : sous forte charge, le délai s'écoulait avant le premier envoi.
+pending=true;setCopilotTimeout(400);
 const timeout=await sendCopilotMessage({message:'Enrichis mes accords.',context});
 check('Le délai global interrompt la génération sans résultat local de secours',()=>{
  assert(!timeout.ok);assert.equal(timeout.error,'AI_TIMEOUT');assert(!timeout.toolResult.example);

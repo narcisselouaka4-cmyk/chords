@@ -1541,7 +1541,7 @@ N'écris jamais d'appel d'outil dans ta réponse (suggest_actions(…), play_pro
 le pianiste le verrait tel quel.
 `;
 
-function buildChatCompletionPayload(config, payloadMessages, { includeTools = true, useMaxTokens = false, tutorialTools = false, exerciseTools = false, playingTools = false, consultTool = false, rememberTool = false, maxTokens = 1200 } = {}) {
+function buildChatCompletionPayload(config, payloadMessages, { includeTools = true, useMaxTokens = false, tutorialTools = false, exerciseTools = false, playingTools = false, consultTool = false, rememberTool = false, harmonizeTool = false, maxTokens = 1200 } = {}) {
   const body = {
     model: config.model,
     messages: payloadMessages,
@@ -1561,6 +1561,7 @@ function buildChatCompletionPayload(config, payloadMessages, { includeTools = tr
     if (playingTools) body.tools.push(PLAY_MY_PLAYING_TOOL);
     // [Claude] — 2026-11-11 — Relire un message ancien de l'échange (seulement s'il y en a hors de
     // la fenêtre récente) ; proposer un souvenir durable (l'application valide avant d'écrire).
+    if (harmonizeTool) body.tools.push(HARMONIZE_MY_PLAYING_TOOL);
     if (consultTool) body.tools.push(CONSULT_CONVERSATION_TOOL);
     if (rememberTool) body.tools.push(REMEMBER_TOOL);
     body.tool_choice = 'auto';
@@ -1770,6 +1771,24 @@ function withTextToolCalls(choice) {
   const added = suggested ? [] : calls;
   return { ...choice, content, ...(own.length || added.length ? { tool_calls: [...own, ...added] } : {}) };
 }
+
+// [Claude] — 2026-11-11 — « Tu peux me faire quelque chose de plus riche avec ça ? », « Et si on
+// mettait des couleurs plus gospel ? » : aucune liste de mots ne reconnaîtra toutes ces demandes.
+// Le modèle, qui les comprend, appelle cet outil ; l'application lance alors le parcours
+// d'harmonisation (le modèle propose accords et hauteurs, le moteur valide, la prise est protégée).
+const HARMONIZE_MY_PLAYING_TOOL = {
+  type: 'function',
+  function: {
+    name: 'harmonize_my_playing',
+    description: 'À appeler quand le pianiste demande une VERSION TRANSFORMÉE de son propre jeu (sa prise ou sa session) : l’enrichir, le réharmoniser, mettre des accords sous sa mélodie, changer de couleur, le rendre plus riche ou plus simple. N’écris pas de notes ni d’accords à sa place en texte : cet outil prépare une proposition vérifiée à partir de ses notes. Ne l’appelle pas pour une simple question, un avis ou une explication.',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { request: { type: 'string', description: 'La demande du pianiste, reformulée clairement en une phrase (ce qu’il veut changer, ce qu’il veut garder, la couleur souhaitée).' } },
+      required: ['request'],
+    },
+  },
+};
 
 // [Claude] — 2026-11-11 — Un refus du fournisseur, rangé par provider-errors.js. Avant : un 403
 // passait pour une clé refusée, et une saturation de l'hébergeur pour un quota personnel.
@@ -2060,10 +2079,23 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   const adjustment=sessionAdjustmentAnswer({message,context});
   if(adjustment)return adjustment;
   const melodyTechnique=melodyTechniqueAnswer({message,context});if(melodyTechnique)return melodyTechnique;
+  // [Claude] — 2026-11-11 — ADR-071, appliquée à TOUTES les routes : avec un modèle connecté, une
+  // demande qui fait calculer une nouvelle version du jeu (« Rends mes accords plus beaux », la
+  // suggestion de l'accueil, restait locale faute de mot reconnu) est confiée au modèle, qui décide
+  // des accords et des hauteurs ; l'application valide. Le calcul local reste le mode hors réseau
+  // (sans clé, ou generationMode « local »). Rejouer des versions déjà proposées reste local et exact.
+  const connectedTake = !review && generationMode !== 'local' && Boolean(getAIConfig().apiKey) && Boolean(context?.playing?.passage?.events?.length);
+  const newLocalGeneration = (local) => {
+    const result = local?.toolResult;
+    if (!connectedTake || !result) return false;
+    const replayed = result.variants?.length && (messages || []).some((m) => m.toolResult?.variants === result.variants);
+    if (replayed) return false;
+    return Boolean(result.variants?.length || result.phraseHarmony || /Je n’ai pas trouvé (?:de proposition compatible|d’autre version)/.test(local.content || ''));
+  };
   const demo = personalDemoAnswer({message, messages, context, preferences});
-  if (demo) return demo;
+  if (demo) return newLocalGeneration(demo) ? modelPlayingAnswer({message,messages,context,memory,preferences}) : demo;
   const variants = personalVariantsAnswer({ message, messages, context, preferences });
-  if (variants) return variants;
+  if (variants) return newLocalGeneration(variants) ? modelPlayingAnswer({message,messages,context,memory,preferences}) : variants;
   const personal = personalPlayingAnswer({ message, messages, context, review });
   if (personal) return personal;
   }
@@ -2159,7 +2191,9 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   // [Claude] — 2026-09-25 — Jeu du pianiste (session confiée, dernier passage joué) :
   // ses évènements exacts, pour play_my_playing ; jamais dans le texte envoyé.
   const playingData = context?.playing?.session?.events?.length || context?.playing?.passage?.events?.length ? context.playing : null;
-  const toolOptions = { tutorialTools: Boolean(tutorialData), exerciseTools: Boolean(exerciseData), playingTools: Boolean(playingData), consultTool, rememberTool };
+  // Proposé seulement quand une prise est là et que le modèle peut vraiment recevoir ses notes.
+  const harmonizeTool = !review && generationMode !== 'local' && Boolean(playingData?.passage?.events?.length);
+  const toolOptions = { tutorialTools: Boolean(tutorialData), exerciseTools: Boolean(exerciseData), playingTools: Boolean(playingData), consultTool, rememberTool, harmonizeTool };
   const toolContext = { styleId: copilotStyleId, tutorial: tutorialData, exercise: exerciseData, playing: playingData };
   // Groq rejette tout champ inconnu dans les messages (timestamp, toolResult,
   // etc.). On ne garde que role et content pour la requête réseau.
@@ -2228,6 +2262,15 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
         { includeTools: true, ...toolOptions, consultTool: false });
       if (!second.ok) return second;
       first = { ...second, choice: { ...second.choice, tool_calls: [...(second.choice.tool_calls || []), ...(first.choice.tool_calls || []).filter((c) => c?.function?.name === 'remember')] } };
+    }
+    // Le modèle a compris que le pianiste veut une version transformée de son jeu : le parcours
+    // d'harmonisation prend le relais (accords et hauteurs proposés par le modèle, validés ici).
+    const harmonizeCall = toolsMode && harmonizeTool ? (first.choice.tool_calls || []).find((c) => c?.function?.name === 'harmonize_my_playing') : null;
+    if (harmonizeCall) {
+      let wanted = '';
+      try { wanted = String(JSON.parse(harmonizeCall.function.arguments || '{}').request || '').slice(0, 400); } catch (_) { wanted = ''; }
+      // La phrase du pianiste reste la demande ; la reformulation du modèle la précise seulement.
+      return modelPlayingAnswer({ message: wanted && wanted !== message ? `${message}\n(Précision : ${wanted})` : message, messages, context, memory, preferences });
     }
     // Souvenirs proposés par le modèle : gardés de côté ; ils ne sont validés et écrits qu'au moment
     // de rendre la réponse, pour que l'avis « Retenu… » accompagne toujours l'enregistrement.
