@@ -91,7 +91,7 @@ export async function loadHistory(conversationId) {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed.messages)) return null;
     // Réindexation des anciens échanges aussi : aucune migration destructive.
-    return { conversationId, tutorialPath: parsed.tutorialPath || '', messages: parsed.messages, memory:buildConversationMemory(parsed.messages,{conversationId}) };
+    return { conversationId, tutorialPath: parsed.tutorialPath || '', source: parsed.source?.key ? parsed.source : null, messages: parsed.messages, memory:buildConversationMemory(parsed.messages,{conversationId}) };
   } catch (err) {
     if (err?.code === 'ENOENT' || err?.message?.includes('ENOENT')) return null;
     console.warn('[CopilotHistory] Chargement impossible :', err);
@@ -105,9 +105,12 @@ export async function loadHistory(conversationId) {
  * @param {string} conversationId
  * @param {string} tutorialPath
  * @param {object[]} messages
+ * @param {{source?: {kind: string, key: string, label?: string, fingerprint?: string}}} [extra]
+ *   [Claude] — 2026-11-10 — La source de la conversation (tutoriel, session, exercice), gardée
+ *   avec elle : la rouvrir depuis l'historique ne la transforme plus en conversation libre.
  * @returns {Promise<boolean>}
  */
-export async function saveHistory(conversationId, tutorialPath, messages) {
+export async function saveHistory(conversationId, tutorialPath, messages, extra = {}) {
   if (!conversationId || !Array.isArray(messages)) return false;
   // Une conversation sans message ne s'écrit pas : c'est ce qui peuplait l'historique de vides.
   if (messages.length === 0) return false;
@@ -120,6 +123,7 @@ export async function saveHistory(conversationId, tutorialPath, messages) {
     version: STORAGE_VERSION,
     tutorialPath: tutorialPath || '',
     updatedAt: new Date().toISOString(),
+    ...(extra?.source?.key ? { source: extra.source } : {}),
     messages,
     memory: buildConversationMemory(messages,{conversationId}),
   };
@@ -134,21 +138,28 @@ export async function saveHistory(conversationId, tutorialPath, messages) {
 }
 
 /**
- * Supprime toutes les conversations dont la liste de messages est vide.
+ * [Claude] — 2026-11-10 — Les conversations réellement vides : un fichier LU correctement, dont la
+ * liste de messages existe et ne contient rien. Avant, un fichier illisible (abîmé, format inconnu,
+ * lecture en échec) passait pour « vide » et était supprimé au premier affichage de l'historique.
+ * Un fichier qu'on ne sait pas lire n'est jamais supprimé d'office.
+ *
+ * @returns {Promise<{conversationId: string}[]>}
+ */
+export async function listEmptyConversations() {
+  return (await listAllConversations()).filter((item) => item.empty === true);
+}
+
+/**
+ * Supprime les conversations réellement vides (voir listEmptyConversations).
  * Retourne le nombre de conversations supprimées.
  *
  * @returns {Promise<number>}
  */
 export async function deleteEmptyConversations() {
-  const all = await listAllConversations();
   let removed = 0;
-  for (const item of all) {
-    const history = await loadHistory(item.conversationId);
-    const messages = history?.messages;
-    if (!messages || messages.length === 0) {
-      const ok = await deleteConversation(item.conversationId);
-      if (ok) removed += 1;
-    }
+  for (const item of await listEmptyConversations()) {
+    const ok = await deleteConversation(item.conversationId);
+    if (ok) removed += 1;
   }
   return removed;
 }
@@ -210,7 +221,8 @@ export async function listAllConversations() {
     const entries = await api.readDir(dir);
     const conversations = [];
     for (const entry of entries || []) {
-      if (!entry.name?.endsWith('.json') || entry.name === MEMORY_FILE) continue;
+      // Le dossier contient aussi les souvenirs et leurs copies de sûreté : ce ne sont pas des conversations.
+      if (!entry.name?.endsWith('.json') || entry.name === MEMORY_FILE || entry.name.startsWith('memories')) continue;
       const filePath = `${dir}/${entry.name}`;
       let updatedAt = null;
       let preview = '';
@@ -220,19 +232,27 @@ export async function listAllConversations() {
       // d'œil si la conversation a duré. L'aperçu (la réponse) reste, en seconde ligne.
       let title = '';
       let messageCount = 0;
+      // Lu et vide (supprimable d'office), ou illisible (à garder : peut-être récupérable).
+      let empty = false;
+      let unreadable = false;
       try {
         const raw = await api.readFile(filePath);
         if (raw) {
           const parsed = JSON.parse(raw);
+          // Un fichier JSON du dossier qui n'est pas une conversation (ni messages ni origine) est ignoré.
+          if (!parsed || typeof parsed !== 'object' || (!Array.isArray(parsed.messages) && !('tutorialPath' in parsed))) continue;
+          if (!Array.isArray(parsed.messages)) unreadable = true;
+          else empty = parsed.messages.length === 0;
           updatedAt = parsed.updatedAt || null;
           tutorialPath = parsed.tutorialPath || '';
           const messages = Array.isArray(parsed.messages) ? parsed.messages.filter((m) => !m.isTyping) : [];
           messageCount = messages.filter((m) => m.role === 'user' || m.role === 'assistant').length;
           title = cleanPreview(messages.find((m) => m.role === 'user')?.content, 90);
           preview = cleanPreview(messages.find((m) => m.role === 'assistant')?.content, 120);
-        }
+        } else unreadable = true;
       } catch (_) {
-        // Fichier illisible : on affiche quand même l'entrée, sans aperçu.
+        // Fichier illisible : on affiche quand même l'entrée, sans aperçu, et on ne le supprime pas.
+        unreadable = true;
       }
       conversations.push({
         conversationId: entry.name.replace(/\.json$/, ''),
@@ -241,6 +261,8 @@ export async function listAllConversations() {
         preview,
         title,
         messageCount,
+        empty,
+        unreadable,
       });
     }
     return conversations.sort((a, b) => {

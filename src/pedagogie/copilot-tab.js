@@ -18,11 +18,16 @@ import {
   saveHistory,
   deleteConversation,
   deleteEmptyConversations,
+  listEmptyConversations,
   listAllConversations,
   labelForConversationPath,
   conversationToText,
   AUTONOMOUS_HISTORY_KEY as HISTORY_AUTONOMOUS_KEY,
 } from './copilot-history.js';
+import {
+  createConversationKeeper, decideContextEvent, sourceFromKey, sameSource,
+  sessionFingerprint, conversationMatchesSession,
+} from './conversation-continuity.js';
 import { sendCopilotMessage, extractTextToolCalls, wantsToHear } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
 import { liveTake } from '../recorder/live-take.js';
@@ -95,6 +100,36 @@ let currentSessionContext = null;
 let currentExerciseId = null;
 let currentExerciseTitle = null;
 
+// [Claude] — 2026-11-10 — Continuité (conversation-continuity.js). Narcisse : « j'ouvre une ancienne
+// conversation, je passe par Pédagogie IA puis Exercices, je reviens : ce n'est plus la même ».
+// Le gardien tient la conversation ouverte, SA source (ce dont elle parle) et son brouillon ; les
+// variables ci-dessus (currentMode, currentTutorialPath…) n'en sont plus que le reflet, posé par
+// adoptConversation(). Ce que les autres écrans montrent est gardé à part :
+//   - availableTutorialPath : le tutoriel ouvert dans Pédagogie IA ;
+//   - liveSession : la dernière session confiée par Sessions MIDI (ses notes) ;
+//   - offeredSource : une source proposée sans être imposée (« Parler de ce tutoriel »).
+function localStore() {
+  try { return typeof window !== 'undefined' && window.localStorage ? window.localStorage : null; } catch (_) { return null; }
+}
+const keeper = createConversationKeeper({
+  history: { createConversation, loadHistory, saveHistory, listAllConversations },
+  storage: localStore(),
+  lastTakeOf: lastPlayingTake,
+});
+let availableTutorialPath = null;
+let liveSession = null;
+let offeredSource = null;
+// L'échange qui attend une réponse (il peut ne plus être celui affiché).
+let busyEntry = null;
+// Les changements de conversation se suivent, et un message envoyé juste après (« Copilote » d'une
+// session, puis sa question 50 ms plus tard) attend que la bonne conversation soit ouverte.
+let transition = Promise.resolve();
+function inOrder(task) {
+  const run = transition.then(task, task);
+  transition = run.catch(() => {});
+  return run;
+}
+
 /**
  * Nouveau mode à adopter quand la sélection de tutoriel ou de session change.
  * Le mode NE bascule JAMAIS automatiquement vers 'tutorial' ou 'session' (ça
@@ -151,7 +186,9 @@ function getTutorialContext() {
     type: 'tutorial',
     path: currentTutorialPath,
     name: currentTutorialPath.split('/').pop(),
-    notesUnavailable: 'le tutoriel n\'a pas encore été analysé dans Pédagogie IA (son analyse démarre quand on l\'importe ou qu\'on l\'ouvre)',
+    notesUnavailable: availableTutorialPath === currentTutorialPath
+      ? 'le tutoriel n\'a pas encore été analysé dans Pédagogie IA (son analyse démarre quand on l\'importe ou qu\'on l\'ouvre)'
+      : 'ce tutoriel n\'est pas ouvert en ce moment dans Pédagogie IA (il faut le rouvrir pour retrouver sa grille et ses notes)',
   };
 }
 
@@ -1134,6 +1171,59 @@ function resetComposer() {
   if (els.input) { els.input.value = ''; autoGrowInput(); }
 }
 
+/** Avant de quitter l'échange affiché : ce qui est écrit et la prise non envoyée restent avec lui. */
+function stashDraft() {
+  if (!keeper.current()) return;
+  keeper.setDraft(els.input ? els.input.value : '');
+  keeper.setDraftTake(draftTake);
+}
+
+/** La source d'une nouvelle conversation, avec ce qu'on sait d'elle (nom et empreinte d'une session). */
+function sourceWithDetails(key) {
+  const source = sourceFromKey(key);
+  if (source.kind === 'session' && liveSession?.sessionId === source.key) {
+    return { ...source, label: `Session : ${liveSession.name || source.key}`, fingerprint: sessionFingerprint(liveSession) };
+  }
+  return source;
+}
+
+/**
+ * Met à l'écran l'échange tenu par le gardien : les variables d'état en sont le reflet, la case
+ * retrouve SON brouillon et sa prise non envoyée. À appeler après stashDraft() et le changement.
+ */
+function adoptConversation(entry) {
+  if (!entry) return;
+  messages = entry.messages;
+  currentConversationId = entry.id;
+  lastTake = entry.lastTake || null;
+  const source = entry.source;
+  currentMode = source.kind;
+  currentTutorialPath = source.kind === 'tutorial' ? source.key : null;
+  currentSessionId = source.kind === 'session' ? source.key : null;
+  // Les notes de la session ne reviennent que si c'est bien CET enregistrement qui est confié.
+  currentSessionContext = source.kind === 'session' && liveSession?.sessionId === source.key
+    && (!source.fingerprint || source.fingerprint === sessionFingerprint(liveSession)) ? liveSession : null;
+  currentExerciseTitle = source.kind === 'exercise' ? source.key.slice('exercice:'.length) : null;
+  if (source.kind !== 'exercise') currentExerciseId = null;
+  if (offeredSource && sameSource(offeredSource, source)) offeredSource = null;
+  resetComposer();
+  if (els.input) { els.input.value = keeper.draft(entry); autoGrowInput(); }
+  draftTake = keeper.draftTake(entry);
+  renderDraftTake();
+  renderReviewButton();
+}
+
+/** Redessine ce qui dépend de la conversation ouverte. Faux si aucune clé d'IA n'est configurée. */
+function refreshConversationView() {
+  updateHeaderForMode();
+  updateModeToggle();
+  renderContextOffer();
+  if (!hasAIKey()) { showNoKeyState(); return false; }
+  showChatArea();
+  renderMessages();
+  return true;
+}
+
 /**
  * Le passage joué est analysé par l'application et part au Copilote avec la
  * question tapée (n'importe laquelle), ou « Qu'en penses-tu de ce que je viens de
@@ -1354,13 +1444,15 @@ function renderOneMessage(msg, { last = false } = {}) {
   els.messages.appendChild(row);
 }
 
-function addTypingIndicator() {
-  messages.push({ role: 'assistant', isTyping: true });
-  renderMessages();
+function addTypingIndicator(list = messages) {
+  list.push({ role: 'assistant', isTyping: true });
+  if (list === messages) renderMessages();
 }
 
-function removeTypingIndicator() {
-  messages = messages.filter((m) => !m.isTyping);
+// [Claude] — 2026-11-10 — Retiré SUR PLACE : la liste est celle de l'échange d'origine. La
+// remplacer par une copie (comme avant) détachait la réponse de sa conversation.
+function removeTypingIndicator(list = messages) {
+  for (let i = list.length - 1; i >= 0; i -= 1) if (list[i].isTyping) list.splice(i, 1);
 }
 
 /** Affiche l'état "pas de clé". */
@@ -1375,17 +1467,14 @@ function showChatArea() {
 }
 
 async function startNewConversation(tutorialPath) {
-  resetComposer();
-  lastTake = null;
-  const id = await createConversation(tutorialPath || AUTONOMOUS_HISTORY_KEY);
-  if (!id) return null;
-  currentConversationId = id;
-  messages = [];
-  return id;
+  stashDraft();
+  const entry = await keeper.startNew(sourceWithDetails(tutorialPath || AUTONOMOUS_HISTORY_KEY));
+  adoptConversation(entry);
+  return entry?.id || null;
 }
 
 async function ensureCurrentConversation() {
-  if (currentConversationId) return currentConversationId;
+  if (keeper.current()) return keeper.current().id;
   return startNewConversation(historyKeyForMode());
 }
 
@@ -1469,7 +1558,8 @@ async function renderHistoryList() {
       els.historyList.appendChild(el('div', { className: 'copilot-history-group', text: group.label }));
     }
     const isActive = item.conversationId === currentConversationId;
-    const title = item.title || item.preview || 'Conversation vide';
+    // Un fichier qu'on ne sait pas lire est dit illisible (et gardé), pas « vide ».
+    const title = item.title || item.preview || (item.unreadable ? 'Conversation illisible' : 'Conversation vide');
     const origin = labelForConversationPath(item.tutorialPath);
     const card = el('article', {
       className: `copilot-history-card${isActive ? ' is-current' : ''}${item.messageCount ? '' : ' is-empty'}`,
@@ -1494,7 +1584,7 @@ async function renderHistoryList() {
           el('span', { className: 'copilot-history-origin', text: origin }),
           item.messageCount
             ? el('span', { className: 'copilot-history-count-chip', text: `${item.messageCount} message${item.messageCount > 1 ? 's' : ''}` })
-            : el('span', { className: 'copilot-history-count-chip is-empty', text: 'vide' }),
+            : el('span', { className: 'copilot-history-count-chip is-empty', text: item.unreadable ? 'illisible' : 'vide' }),
           isActive ? el('span', { className: 'copilot-history-badge', text: 'Ouverte' }) : null,
         ]),
       ]),
@@ -1584,22 +1674,20 @@ async function deleteHistoryItem(conversationId, label, btn) {
     notify({ id: 'copilot-delete', tone: 'error', title: 'La suppression a échoué', message: 'Vérifiez que le fichier n\'est pas ouvert ailleurs.' });
     return;
   }
-  if (conversationId === currentConversationId) {
-    messages = [];
-    currentConversationId = null;
-    renderMessages();
+  const wasCurrent = conversationId === currentConversationId;
+  // Oubliée aussi par le gardien : brouillon effacé, et une réponse tardive ne la recrée pas.
+  keeper.forget(conversationId);
+  if (wasCurrent) {
+    adoptConversation(await keeper.startNew(sourceFromKey(AUTONOMOUS_HISTORY_KEY)));
+    refreshConversationView();
   }
   await renderHistoryList();
 }
 
 async function onDeleteEmptyConversations() {
-  const all = await listAllConversations();
-  const emptyItems = [];
-  for (const item of all) {
-    const history = await loadHistory(item.conversationId);
-    const messages = history?.messages;
-    if (!messages || messages.length === 0) emptyItems.push(item);
-  }
+  // [Claude] — 2026-11-10 — Seulement les conversations LUES et réellement vides : un fichier
+  // illisible n'est plus pris pour une conversation vide (il était supprimé avec les autres).
+  const emptyItems = await listEmptyConversations();
   if (emptyItems.length === 0) {
     notify({ id: 'copilot-delete', tone: 'info', title: 'Aucune conversation vide à supprimer' });
     return;
@@ -1614,14 +1702,6 @@ async function onDeleteEmptyConversations() {
     danger: true,
   })) return;
 
-  // Si la conversation courante est vide, on la décharge avant suppression.
-  const currentIsEmpty = emptyItems.some((item) => item.conversationId === currentConversationId);
-  if (currentIsEmpty) {
-    messages = [];
-    currentConversationId = null;
-    renderMessages();
-  }
-
   const removed = await deleteEmptyConversations();
   await renderHistoryList();
   if (removed === 0) {
@@ -1629,25 +1709,26 @@ async function onDeleteEmptyConversations() {
   }
 }
 
-async function loadHistoryItem(conversationId) {
-  const history = await loadHistory(conversationId);
-  if (!history) return false;
-  resetComposer();
-  currentConversationId = conversationId;
-  messages = history.messages || [];
-  lastTake = lastPlayingTake(messages);
-  currentMode = 'autonomous';
-  currentSessionId = null;
-  currentSessionContext = null;
-  currentTutorialPath = null;
-  currentExerciseId = null;
-  currentExerciseTitle = null;
-  updateHeaderForMode();
-  updateModeToggle();
-  showChatArea();
-  renderMessages();
-  await renderHistoryList();
-  return true;
+/**
+ * [Claude] — 2026-11-10 — Ouvrir une conversation de l'historique. Elle garde SA source (avant,
+ * elle redevenait une conversation « autonome » et son tutoriel ou sa session étaient oubliés,
+ * puis réécrits à l'enregistrement suivant). Une lecture en échec ne touche à rien.
+ */
+function loadHistoryItem(conversationId) {
+  return inOrder(async () => {
+    stashDraft();
+    const result = await keeper.open(conversationId);
+    if (!result.ok) {
+      if (result.reason !== 'superseded') {
+        notify({ id: 'copilot-open', tone: 'error', title: 'Cette conversation n\'a pas pu être ouverte', message: 'Son fichier est illisible ou introuvable. Rien n\'a été modifié.' });
+      }
+      return false;
+    }
+    adoptConversation(result.entry);
+    refreshConversationView();
+    await renderHistoryList();
+    return true;
+  });
 }
 
 // [Claude] — 2026-10-09 — Narcisse : la mention « Copilot IA » en haut à gauche « ne sert à rien »
@@ -1684,6 +1765,12 @@ function updateHeaderForMode() {
     const name = currentSessionContext.name || currentSessionId;
     if (els.selectedName) els.selectedName.textContent = `Session : ${name}`;
     setContextNote('Mode session : le Copilot analyse la session MIDI sélectionnée.');
+  } else if (currentMode === 'session' && currentSessionId) {
+    // Conversation d'une session rouverte sans que la session soit confiée en ce moment.
+    if (els.selectedName) els.selectedName.textContent = keeper.current()?.source.label || `Session : ${currentSessionId}`;
+    setContextNote(lastTake?.events?.length
+      ? 'Cette conversation porte sur cette session. Je garde le jeu joint à l\'échange ; pour l\'analyser de nouveau en entier, rouvre la session dans Sessions MIDI et clique sur « Copilote ».'
+      : 'Cette conversation porte sur cette session. Pour que je retrouve ses notes, rouvre-la dans Sessions MIDI et clique sur « Copilote ».');
   } else if (currentMode === 'exercise' && currentExerciseTitle) {
     if (els.selectedName) els.selectedName.textContent = currentExerciseTitle;
     setContextNote('Le Copilot connaît l\'exercice affiché : accords et voicings de la carte, tonalité, étape et tes derniers essais. Demande-lui d\'expliquer un voicing ou de le faire entendre ; après avoir joué, « Qu\'en penses-tu ? » compare ton jeu à l\'exercice.');
@@ -1701,123 +1788,173 @@ function updateModeToggle() {
     els.input.setAttribute('placeholder', currentMode === 'tutorial' ? 'Pose ta question sur ce passage…' : els.defaultPlaceholder);
   }
   if (!els.modeToggleBtn) return;
-  const state = toggleButtonState(currentMode, currentTutorialPath);
+  const state = toggleButtonState(currentMode, availableTutorialPath);
   els.modeToggleBtn.style.display = state.visible ? '' : 'none';
   els.modeToggleBtn.textContent = state.label;
 }
 
-async function switchToAutonomousMode() {
-  currentMode = 'autonomous';
-  currentSessionId = null;
-  currentSessionContext = null;
-  currentTutorialPath = null;
-  currentExerciseId = null;
-  currentExerciseTitle = null;
-  updateHeaderForMode();
-  updateModeToggle();
-  if (!hasAIKey()) { showNoKeyState(); return; }
-  showChatArea();
-  await startNewConversation(AUTONOMOUS_HISTORY_KEY);
-  renderMessages();
-  await renderHistoryList();
+/** « Revenir au mode autonome » : une conversation libre, neuve. L'ancienne reste dans l'historique. */
+function switchToAutonomousMode() {
+  return inOrder(async () => {
+    await startNewConversation(AUTONOMOUS_HISTORY_KEY);
+    refreshConversationView();
+    await renderHistoryList();
+  });
 }
 
 /**
+ * [Claude] — 2026-11-10 — Ouvre la conversation d'une source (tutoriel, session, exercice) : la
+ * dernière qui en parle, sinon une nouvelle. Celle qu'on quitte garde ses messages et son brouillon.
  * [Claude] — 2026-10-03 — Rouvrir un tutoriel rouvre sa dernière conversation (Narcisse :
- * l'analyse et la conversation restent avec le tuto) ; sinon, une nouvelle.
- * @returns {Promise<string|null>}
+ * l'analyse et la conversation restent avec le tuto).
+ * @returns {Promise<boolean>} vrai si la conversation de cette source est à l'écran
  */
-async function resumeOrStartConversation(key) {
-  try {
-    const latest = (await listAllConversations()).find((item) => item.tutorialPath === key && item.preview);
-    if (latest) {
-      const history = await loadHistory(latest.conversationId);
-      if (history?.messages?.length) {
-        resetComposer();
-        lastTake = lastPlayingTake(history.messages);
-        currentConversationId = latest.conversationId;
-        messages = history.messages;
-        return currentConversationId;
-      }
+async function openSourceConversation(source, options = {}) {
+  stashDraft();
+  const result = await keeper.openForSource(source, options);
+  if (!result.ok) return false;
+  adoptConversation(result.entry);
+  refreshConversationView();
+  await renderHistoryList();
+  return true;
+}
+
+function switchToTutorialMode(path) {
+  if (!path) return Promise.resolve(false);
+  return inOrder(() => openSourceConversation(sourceFromKey(path)));
+}
+
+/**
+ * « Copilote » depuis Sessions MIDI : la conversation de CETTE session. Même session : on continue
+ * le même échange (avant, chaque clic en ouvrait un nouveau). Le numéro d'une session pouvant être
+ * réattribué, on ne rattache une ancienne conversation que si elle parle du même enregistrement.
+ */
+export function switchToSessionMode(sessionContext) {
+  if (!sessionContext?.sessionId) return Promise.resolve(false);
+  return inOrder(async () => {
+    liveSession = sessionContext;
+    const source = sourceWithDetails(sessionContext.sessionId);
+    const current = keeper.current();
+    if (current && sameSource(current.source, source) && current.source.fingerprint && current.source.fingerprint !== source.fingerprint) {
+      // Même numéro, autre enregistrement : pas dans l'ancien échange.
+      await startNewConversation(sessionContext.sessionId);
+      refreshConversationView();
+      await renderHistoryList();
+      return true;
     }
-  } catch (err) {
-    console.warn('[Copilot] Conversation du tutoriel non retrouvée :', err);
+    const shown = await openSourceConversation(source, { accept: (loaded) => conversationMatchesSession(loaded, sessionContext) });
+    // Même conversation gardée : elle retrouve les notes de la session.
+    if (shown) { adoptLiveContext(); updateHeaderForMode(); }
+    return shown;
+  });
+}
+
+/** L'échange affiché retrouve le contexte vivant de sa source, sans toucher à la case. */
+function adoptLiveContext() {
+  const source = keeper.current()?.source;
+  if (!source) return;
+  if (source.kind === 'session') {
+    currentSessionContext = liveSession?.sessionId === source.key
+      && (!source.fingerprint || source.fingerprint === sessionFingerprint(liveSession)) ? liveSession : null;
   }
-  return startNewConversation(key);
-}
-
-async function switchToTutorialMode(path) {
-  if (!path) return;
-  currentMode = 'tutorial';
-  currentSessionId = null;
-  currentSessionContext = null;
-  currentExerciseId = null;
-  currentExerciseTitle = null;
-  currentTutorialPath = path;
-  updateHeaderForMode();
-  updateModeToggle();
-  if (!hasAIKey()) { showNoKeyState(); return; }
-  showChatArea();
-  await resumeOrStartConversation(path);
-  renderMessages();
-  await renderHistoryList();
-}
-
-export async function switchToSessionMode(sessionContext) {
-  if (!sessionContext?.sessionId) return;
-  currentMode = 'session';
-  currentSessionId = sessionContext.sessionId;
-  currentSessionContext = sessionContext;
-  currentTutorialPath = null;
-  currentExerciseId = null;
-  currentExerciseTitle = null;
-  updateHeaderForMode();
-  updateModeToggle();
-  if (!hasAIKey()) { showNoKeyState(); return; }
-  showChatArea();
-  await startNewConversation(currentSessionId);
-  renderMessages();
-  await renderHistoryList();
 }
 
 /**
  * [Claude] — 2026-09-25 — Mode exercice (« Demander au Copilote » dans Exercices ;
  * « Qu'en penses-tu ? » y compare le jeu à l'exercice). Même exercice : la
- * conversation continue ; autre exercice : une nouvelle conversation.
+ * conversation continue ; autre exercice : la conversation de cet exercice (ou une nouvelle).
  * @returns {Promise<boolean>} faux si aucun exercice n'est affiché
  */
-export async function switchToExerciseMode() {
+export function switchToExerciseMode() {
   const ctx = readCopilotContext('exercise');
-  if (!ctx) return false;
-  const same = currentMode === 'exercise' && currentExerciseId === ctx.id && currentConversationId;
-  currentMode = 'exercise';
-  currentExerciseId = ctx.id;
-  currentExerciseTitle = ctx.title;
-  currentSessionId = null;
-  currentSessionContext = null;
-  currentTutorialPath = null;
-  updateHeaderForMode();
-  updateModeToggle();
-  if (!hasAIKey()) { showNoKeyState(); return true; }
-  showChatArea();
-  if (!same) await startNewConversation(historyKeyForMode());
-  renderMessages();
-  await renderHistoryList();
-  return true;
+  if (!ctx) return Promise.resolve(false);
+  return inOrder(async () => {
+    currentExerciseId = ctx.id;
+    await openSourceConversation(sourceFromKey(`exercice:${ctx.title}`));
+    currentExerciseId = ctx.id;
+    return true;
+  });
 }
 
 async function onModeToggleClick() {
   if (currentMode === 'tutorial' || currentMode === 'session' || currentMode === 'exercise') {
     await switchToAutonomousMode();
-  } else if (currentTutorialPath) {
-    await switchToTutorialMode(currentTutorialPath);
+  } else if (availableTutorialPath) {
+    await switchToTutorialMode(availableTutorialPath);
   }
+}
+
+/**
+ * [Claude] — 2026-11-10 — Une source PROPOSÉE, pas imposée. Quand on passe par Pédagogie IA pendant
+ * qu'un autre échange est en cours, la conversation reste ouverte et ce bandeau, au-dessus de la
+ * case, permet de parler du tutoriel affiché si on le souhaite.
+ */
+function renderContextOffer() {
+  const area = els.chatArea?.querySelector('.tr-composer-area');
+  if (!area) return;
+  let bar = area.querySelector('.copilot-context-offer');
+  const source = offeredSource && !sameSource(offeredSource, keeper.current()?.source) ? offeredSource : null;
+  if (!source) { bar?.remove(); return; }
+  if (!bar) {
+    bar = el('div', { className: 'copilot-context-offer', role: 'status' });
+    area.prepend(bar);
+  }
+  const name = labelForConversationPath(source.key);
+  bar.replaceChildren(
+    el('span', { className: 'copilot-context-offer-text', text: `Tutoriel ouvert : ${name}. Cette conversation continue.` }),
+    el('button', {
+      type: 'button',
+      className: 'copilot-context-offer-btn',
+      text: 'Parler de ce tutoriel',
+      onClick: () => switchToTutorialMode(source.key),
+    }),
+    el('button', {
+      type: 'button',
+      className: 'copilot-context-offer-close',
+      'aria-label': 'Ne pas proposer ce tutoriel',
+      title: 'Fermer',
+      text: '×',
+      onClick: () => { offeredSource = null; renderContextOffer(); },
+    }),
+  );
+}
+
+/**
+ * Un écran annonce ou retire ce qu'il montre : décide (conversation-continuity.js) puis applique.
+ * Une annonce n'est jamais une demande : elle ne remplace pas un échange en cours.
+ */
+function onContextEvent(type, source) {
+  return inOrder(async () => {
+    const decision = decideContextEvent(keeper.stateFor(), { type, source });
+    if (decision.action === 'switch') {
+      await openSourceConversation(source);
+    } else if (decision.action === 'offer') {
+      offeredSource = source;
+      updateModeToggle();
+      renderContextOffer();
+    } else if (decision.action === 'reset') {
+      await startNewConversation(AUTONOMOUS_HISTORY_KEY);
+      refreshConversationView();
+    } else {
+      // 'attach', 'detach', 'ignore' : la conversation ne bouge pas ; l'en-tête dit ce qu'elle sait.
+      if (offeredSource && (type === 'closed' ? sameSource(offeredSource, source) : decision.action === 'attach')) offeredSource = null;
+      updateHeaderForMode();
+      updateModeToggle();
+      renderContextOffer();
+    }
+    return decision.action;
+  });
 }
 
 /** Envoie un message utilisateur. */
 async function sendUserMessage() {
+  // Les changements de conversation en cours d'abord : le message part dans la bonne.
+  await transition;
   // Réponse en cours : le texte reste dans la case, il partira ensuite.
-  if (turnBusy) return;
+  if (turnBusy) {
+    if (busyEntry && busyEntry !== keeper.current()) renderReviewButton('Une réponse est encore attendue dans une autre conversation. Ton message reste dans la case.');
+    return;
+  }
   if (liveTake.isCapturing()) { renderReviewButton('Arrête la prise pour pouvoir la réécouter et l’envoyer.'); return; }
   if (dictation && dictation.state() !== 'idle') return;
   if (draftTake) return reviewPassage(draftTake);
@@ -1883,16 +2020,25 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
   turnBusy = true;
   els.sendBtn.disabled = true;
   let autoplayMessage = null;
+  // [Claude] — 2026-11-10 — L'échange d'ORIGINE du tour. Avant, si une autre conversation était
+  // ouverte pendant l'attente, la réponse était abandonnée et la question jamais enregistrée.
+  // Elle rejoint maintenant son échange, où qu'on soit ; on en est prévenu.
+  let entry = null;
   try {
     // L'historique (fichiers) ne doit jamais empêcher de répondre.
     await ensureCurrentConversation().catch((err) => console.warn('[Copilot] Conversation non enregistrée :', err));
+    entry = keeper.current();
+    busyEntry = entry;
     // Après la création éventuelle de la conversation (qui oublie l'ancien passage).
-    if (take) lastTake = take;
-    const turnMessages = messages;
-    const turnConversationId = currentConversationId;
+    if (take) { entry.lastTake = take; lastTake = take; }
+    const turnMessages = entry.messages;
     const userMessage={ role: 'user', content: text, ...(take ? { take } : {}), timestamp: new Date().toISOString() };
-    messages.push(userMessage);
-    addTypingIndicator();
+    turnMessages.push(userMessage);
+    keeper.beginTurn(entry);
+    // Ce qui vient de partir n'est plus un brouillon.
+    keeper.setDraft(els.input ? els.input.value : '', entry);
+    keeper.setDraftTake(null, entry);
+    addTypingIndicator(turnMessages);
 
     const base = getTutorialContext() || getSessionContext() || getExerciseContext();
     // Le dernier passage joué reste connu pour les questions de suivi ; le jeu
@@ -1903,16 +2049,15 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
     if (lastTake?.lines?.length) context.take = lastTake.lines;
     if (playing) context.playing = playing;
     if(!userMessage.take){
-      const source=conversationSourceForTurn(context,messages);
-      if(source){userMessage.take=source;lastTake=source;}
+      const source=conversationSourceForTurn(context,turnMessages);
+      if(source){userMessage.take=source;entry.lastTake=source;lastTake=source;}
     }
+    // La question est écrite tout de suite : fermer l'application pendant l'attente ne la perd pas.
+    keeper.save(entry).catch((err) => console.warn('[Copilot] Question non enregistrée :', err));
     const copilotStyleId = 'auto';
-    const res = await sendCopilotMessage({ message: text, messages, context, conversationId:turnConversationId, copilotStyleId, review });
+    const res = await sendCopilotMessage({ message: text, messages: turnMessages, context, conversationId: entry.id, copilotStyleId, review });
 
-    // Une réponse lente ne doit jamais atterrir dans une autre conversation.
-    if (messages !== turnMessages || currentConversationId !== turnConversationId) return;
-
-    removeTypingIndicator();
+    removeTypingIndicator(turnMessages);
     if (res.ok) {
       const reply = {
         role: 'assistant',
@@ -1922,43 +2067,66 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
         timestamp: new Date().toISOString(),
       };
       if (res.toolResult?.example) exampleIdOf(reply);
-      messages.push(reply);
+      turnMessages.push(reply);
       // Demande d'écoute (« joue-moi… ») : l'exemple démarre une fois la réponse affichée.
       if (res.autoplay && res.toolResult?.example) autoplayMessage = reply;
     } else {
-      messages.push({ role: 'assistant', content: copilotErrorText(res.error), isError: true, timestamp: new Date().toISOString() });
+      turnMessages.push({ role: 'assistant', content: copilotErrorText(res.error), isError: true, errorCode: String(res.error || ''), timestamp: new Date().toISOString() });
     }
   } catch (err) {
     console.warn('[Copilot] Tour interrompu :', err);
-    removeTypingIndicator();
-    messages.push({ role: 'assistant', content: copilotErrorText(err?.message || err), isError: true, timestamp: new Date().toISOString() });
+    const list = entry ? entry.messages : messages;
+    removeTypingIndicator(list);
+    list.push({ role: 'assistant', content: copilotErrorText(err?.message || err), isError: true, errorCode: String(err?.message || err || ''), timestamp: new Date().toISOString() });
   } finally {
     turnBusy = false;
+    busyEntry = null;
+    keeper.endTurn(entry);
     els.sendBtn.disabled = false;
     els.input.disabled = false;
   }
-  renderMessages();
-  if (autoplayMessage) {
-    const conversationId = currentConversationId;
-    setTimeout(() => {
-      if (currentConversationId === conversationId && messages.includes(autoplayMessage)) toggleExample(autoplayMessage);
-    }, 700);
+  const onScreen = !entry || keeper.current() === entry;
+  if (onScreen) {
+    renderMessages();
+    renderReviewButton();
+    if (autoplayMessage) {
+      setTimeout(() => {
+        if (keeper.current() === entry && messages.includes(autoplayMessage)) toggleExample(autoplayMessage);
+      }, 700);
+    }
+    els.input.focus();
+  } else if (!entry.deleted) {
+    // La réponse est arrivée pendant qu'on regardait un autre échange : pas de son, pas de
+    // remplacement ; un avis, et un clic pour y revenir.
+    renderReviewButton();
+    const question = String(text || '').trim();
+    notify({
+      id: 'copilot-late-answer',
+      tone: 'info',
+      title: 'Une réponse est arrivée',
+      message: `Elle t'attend dans la conversation où tu l'as demandée${question ? ` (« ${question.length > 60 ? `${question.slice(0, 60)}…` : question} »)` : ''}.`,
+      action: { label: 'Ouvrir', onClick: () => loadHistoryItem(entry.id) },
+      duration: 15000,
+    });
   }
-  els.input.focus();
   // Enregistrement et liste des conversations : après, sans jamais bloquer la case.
   try {
-    await saveHistory(currentConversationId, historyKeyForMode(), messages.filter((m) => !m.isTyping));
+    if (entry) await keeper.save(entry);
     await renderHistoryList();
   } catch (err) {
     console.warn('[Copilot] Historique non mis à jour :', err);
+  } finally {
+    keeper.settle(entry);
   }
 }
 
 /** Reset de la conversation. */
-async function onNewConversation() {
-  await startNewConversation(historyKeyForMode());
-  renderMessages();
-  await renderHistoryList();
+function onNewConversation() {
+  return inOrder(async () => {
+    await startNewConversation(historyKeyForMode());
+    refreshConversationView();
+    await renderHistoryList();
+  });
 }
 
 export async function initCopilotTab() {
@@ -2022,6 +2190,8 @@ export async function initCopilotTab() {
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
   // comme dans la maquette (max ~110px, puis défilement interne).
   els.input?.addEventListener('input', autoGrowInput);
+  // [Claude] — 2026-11-10 — Ce qui est écrit reste avec la conversation (et survit à un redémarrage).
+  els.input?.addEventListener('input', () => keeper.setDraft(els.input.value));
   els.input?.addEventListener('keydown', (e) => {
     cancelChooserOnEscape(e);
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -2042,44 +2212,31 @@ export async function initCopilotTab() {
     document.dispatchEvent(new CustomEvent('pedagogie-seek', { detail: { seconds: Number(time.dataset.seconds) } }));
   });
 
-  // Écoute le changement de tutoriel dans Pédagogie
-  document.addEventListener('pedagogie-selection-change', async (e) => {
+  // [Claude] — 2026-11-10 — Pédagogie IA n'envoie cet événement que pour dire qu'aucun tutoriel
+  // n'est plus ouvert. La conversation en cours reste ouverte (avant : remplacée par une neuve).
+  document.addEventListener('pedagogie-selection-change', (e) => {
     const path = e.detail?.path || null;
-    const newMode = nextModeOnSelectionChange(currentMode, path, currentSessionId);
-    currentTutorialPath = path;
-    if (currentMode === 'session' && path) {
-      // Une session et un tutoriel ne coexistent pas : on repasse en mode autonome
-      // pour éviter un conflit de contexte.
-      await switchToAutonomousMode();
-      currentTutorialPath = path;
-      updateModeToggle();
-      return;
-    }
-    if (newMode !== currentMode) {
-      await switchToAutonomousMode(); // repli forcé (désélection en mode tutoriel)
-    } else if (currentMode === 'tutorial') {
-      await switchToTutorialMode(path); // même mode, mais nouveau tutoriel : nouvelle conversation
-    } else {
-      updateModeToggle(); // mode autonome inchangé : juste (dés)afficher le bouton bascule
-    }
+    const previous = availableTutorialPath;
+    availableTutorialPath = path;
+    if (path) { onContextEvent('announce', sourceFromKey(path)); return; }
+    if (previous) onContextEvent('closed', sourceFromKey(previous));
+    else updateModeToggle();
   });
 
-  // [Claude] — 2026-09-25 — « Copilote IA » depuis Pédagogie : mode tutoriel, avec son contexte
-  // (la conversation en cours est gardée si c'est déjà ce tutoriel).
-  document.addEventListener('copilot-open-tutorial', async (e) => {
+  // [Claude] — 2026-09-25 — « Copilote IA » depuis Pédagogie : mode tutoriel, avec son contexte.
+  // [Claude] — 2026-11-10 — Cet événement part à CHAQUE retour sur Pédagogie IA (announcedPath y
+  // est remis à zéro) : c'est une annonce, pas une demande. Un échange en cours n'est plus remplacé.
+  document.addEventListener('copilot-open-tutorial', (e) => {
     const path = e.detail?.path;
     if (!path) return;
-    if (currentMode === 'tutorial' && currentTutorialPath === path) {
-      updateHeaderForMode();
-      return;
-    }
-    await switchToTutorialMode(path);
+    availableTutorialPath = path;
+    onContextEvent('announce', sourceFromKey(path));
   });
 
-  document.addEventListener('copilot-switch-to-session', async (e) => {
+  document.addEventListener('copilot-switch-to-session', (e) => {
     const sessionContext = e.detail;
     if (!sessionContext?.sessionId) return;
-    await switchToSessionMode(sessionContext);
+    switchToSessionMode(sessionContext);
   });
 
   // Lecture d'un exemple commencée / finie (main.js).
@@ -2115,20 +2272,31 @@ export async function initCopilotTab() {
   document.addEventListener('copilot-send-message', async (e) => {
     const message = e.detail?.message;
     if (!message || !els.input) return;
-    els.input.value = String(message);
-    await sendUserMessage();
+    // La conversation demandée juste avant (« Copilote » d'une session) doit être ouverte.
+    await transition;
+    // Rien n'est écrasé : si une réponse est attendue ou si quelque chose est déjà dans la case,
+    // la question proposée attend dans la case quand elle est libre, sinon elle n'est pas envoyée.
+    if (turnBusy || liveTake.isCapturing() || draftTake) {
+      if (!els.input.value.trim()) { els.input.value = String(message); autoGrowInput(); keeper.setDraft(els.input.value); }
+      if (turnBusy) renderReviewButton('Une réponse est encore attendue. Ta question reste dans la case.');
+      return;
+    }
+    await runCopilotTurn(String(message));
   });
 
   // Quand la clé API est configurée/enregistrée alors que l'onglet est déjà
   // affiché (mode sans clé), on réactive le chat sans recharger la page.
-  document.addEventListener('app-ai-config-saved', async () => {
+  // [Claude] — 2026-11-10 — Changer de modèle ou de clé ne touche PAS à la conversation (avant :
+  // chaque enregistrement des réglages en ouvrait une neuve, et l'échange en cours disparaissait).
+  document.addEventListener('app-ai-config-saved', () => {
     if (!hasAIKey()) return;
-    // Même oubli ici : sans showChatArea(), enregistrer une clé depuis l'écran
-    // « Assistant IA non configuré » n'affichait jamais le chat.
-    showChatArea();
-    await startNewConversation(AUTONOMOUS_HISTORY_KEY);
-    renderMessages();
-    await renderHistoryList();
+    inOrder(async () => {
+      if (!keeper.current()) adoptConversation(await keeper.restoreLast());
+      // Même oubli ici autrefois : sans showChatArea(), enregistrer une clé depuis l'écran
+      // « Assistant IA non configuré » n'affichait jamais le chat.
+      refreshConversationView();
+      await renderHistoryList();
+    });
   });
 
   // Rafraîchit la liste d'historique quand une conversation est sauvegardée.
@@ -2145,23 +2313,17 @@ export async function initCopilotTab() {
   // Au chargement : prisme 1 (autonome) par défaut. [Claude] — 2026-10-03 — Aucun tuto
   // n'est ouvert au démarrage (la liste qu'on lisait ici, dans le tiroir « Mes tutoriels »,
   // est retirée) : Pédagogie IA l'annonce quand on en ouvre un.
-  currentTutorialPath = null;
-  currentMode = 'autonomous';
-  currentSessionId = null;
-  currentSessionContext = null;
-  currentConversationId = null;
-  updateHeaderForMode();
-  updateModeToggle();
-  if (!hasAIKey()) { showNoKeyState(); return; }
-  // [Astra round 3] — showChatArea() manquait sur ce chemin : #copilot-chat-area
-  // part de style="display:none" dans index.html, et #copilot-no-key aussi.
-  // Résultat, avec une clé API configurée les DEUX blocs restaient masqués et
-  // le panneau Copilot s'affichait entièrement vide sous son en-tête, sans la
-  // moindre erreur en console.
-  showChatArea();
-  // [Claude] — 2026-09-26 — L'historique (fichiers) ne doit jamais empêcher la
-  // conversation de s'afficher.
-  await startNewConversation(AUTONOMOUS_HISTORY_KEY).catch((err) => console.warn('[Copilot] Conversation non enregistrée :', err));
-  renderMessages();
+  // [Claude] — 2026-11-10 — Au démarrage : le dernier échange ouvert et son brouillon (avant :
+  // toujours une conversation neuve ; ce qu'on était en train d'écrire était perdu). L'historique
+  // (fichiers) ne doit jamais empêcher la conversation de s'afficher.
+  await inOrder(async () => {
+    let entry = null;
+    try { entry = await keeper.restoreLast(); } catch (err) { console.warn('[Copilot] Dernière conversation non retrouvée :', err); }
+    if (!entry) entry = await keeper.startNew(sourceFromKey(AUTONOMOUS_HISTORY_KEY));
+    adoptConversation(entry);
+    // [Astra round 3] — showChatArea() manquait sur ce chemin : avec une clé configurée, les deux
+    // blocs restaient masqués (refreshConversationView l'appelle).
+    refreshConversationView();
+  });
   await renderHistoryList().catch((err) => console.warn('[Copilot] Liste des conversations indisponible :', err));
 }
