@@ -78,7 +78,7 @@ queue.push(plan());
 const a=await sendCopilotMessage({message:'Enrichis mes accords.',context});
 check('Le parcours public appelle vraiment le modèle choisi avec les notes MIDI',()=>{
  assert(a.ok);assert.equal(calls.length,1);assert.equal(calls[0].model,'beam');
- assert.equal(calls[0].max_tokens,8192);assert(!calls[0].tools);
+ assert.equal(calls[0].max_tokens,2000); /* 12/11 : réserve proportionnée à la prise (3 appuis), et non plus 8 192 fixes */assert(!calls[0].tools);
  const data=JSON.parse(calls[0].messages[1].content);assert.deepEqual(data.source,modelHarmonyData(source));
  assert.equal(a.toolResult.generation.engine,'model');assert(a.toolResult.variants.length);
  assert.equal(proposalChordGrid(a.toolResult).rows.length,2);

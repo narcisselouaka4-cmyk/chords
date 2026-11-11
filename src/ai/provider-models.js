@@ -45,7 +45,13 @@ export function sortProviderModels(baseUrl, models) {
 export function isRetiredPublicModel(baseUrl, model) {
   const provider = providerIdentity(baseUrl);
   if (provider === 'https://openrouter.ai/api/v1') {
-    return ['meta-llama/llama-3.1-8b-instruct:free', 'google/gemini-flash-1.5:free'].includes(model);
+    // 12/11/2026 : les très petits modèles (1,7 à 2,6 milliards de paramètres) ne tiennent pas un plan
+    // d'harmonisation ; ils sont masqués des menus, jamais supprimés des données enregistrées.
+    return ['meta-llama/llama-3.1-8b-instruct:free', 'google/gemini-flash-1.5:free', 'liquid/lfm-3-1.7b:free', 'liquid/lfm-2.5-2.6b:free', 'google/gemma-4-26b-a4b-it:free'].includes(model);
+  }
+  if (provider === 'https://generativelanguage.googleapis.com/v1beta/openai') {
+    // Arrêtés par Google (page des modèles, vérifiée le 12/11/2026).
+    return /^gemini-(?:1\.5|2\.0)-/.test(String(model)) || ['gemini-3.1-flash-lite-preview', 'gemini-3-pro-preview'].includes(model);
   }
   if (provider === 'https://api.groq.com/openai/v1') {
     return ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'].includes(model);

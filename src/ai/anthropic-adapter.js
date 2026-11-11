@@ -53,9 +53,11 @@ export function toAnthropicBody(body) {
 
   const out = {
     model: body.model,
-    // Anthropic exige max_tokens ; tous les appelants internes le fournissent déjà, le
-    // repli ne sert qu'à ne jamais envoyer une requête invalide.
-    max_tokens: Number.isFinite(body.max_tokens) && body.max_tokens > 0 ? body.max_tokens : 1024,
+    // [Claude] — 2026-11-12 — Anthropic exige max_tokens. Le Copilote envoie le plus souvent
+    // max_completion_tokens (forme OpenAI) : il était IGNORÉ, et chaque demande tombait sur le repli
+    // de 1 024 jetons. Une proposition d'harmonisation (1 300 à 3 500 jetons) était donc toujours
+    // coupée : « le modèle a manqué de place », même avec Sonnet ou Haiku (retour de Narcisse, 12/11).
+    max_tokens: [body.max_tokens, body.max_completion_tokens].find((n) => Number.isFinite(n) && n > 0) ?? 1024,
     messages: chatMessages,
   };
   if (system) out.system = system;

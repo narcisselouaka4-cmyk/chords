@@ -83,12 +83,22 @@ async function startVirtualDisplay({ base, width, height }) {
  * @param {{root: string, debugPort?: number, headless?: boolean, width?: number, height?: number}} options
  *   headless : vrai (défaut) = affichage virtuel, aucune fenêtre sur le bureau ; faux = fenêtre réelle.
  */
-export async function launchIsolatedApp({ root, debugPort = 9357, headless = true, width = 1920, height = 1080 } = {}) {
+export async function launchIsolatedApp({ root, debugPort = 9357, headless = true, width = 1920, height = 1080, profileCopyFrom = null, devServer = false } = {}) {
   const base = assertIsolatedRoot(root);
   const home = path.join(base, 'home');
   const profile = path.join(base, 'profile');
   fs.mkdirSync(home, { recursive: true });
+  // [Claude] — 2026-11-12 — Essais avec les vraies clés, autorisés par Narcisse : on travaille sur une
+  // COPIE de son profil (lecture seule de l'original), jamais sur le profil lui-même. Les clés y
+  // restent chiffrées ; l'application les déchiffre par le trousseau du système, comme d'habitude.
+  if (profileCopyFrom && !fs.existsSync(path.join(profile, 'Local Storage'))) {
+    const skip = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'Crashpad', 'blob_storage', 'Shared Dictionary']);
+    fs.cpSync(profileCopyFrom, profile, { recursive: true, filter: (src) => !skip.has(path.basename(src)) && !/Singleton/.test(path.basename(src)) });
+    fs.writeFileSync(path.join(base, '.config-ecrite-par-essai'), 'copie du profil réel');
+    fs.writeFileSync(path.join(base, '.copie-de-profil'), new Date().toISOString());
+  }
   fs.mkdirSync(profile, { recursive: true });
+  const copied = fs.existsSync(path.join(base, '.copie-de-profil'));
   if (!fs.existsSync(path.join(REPO, 'dist', 'index.html'))) throw new Error('dist/index.html absent : lancer `npm run build` d\'abord.');
 
   const env = {
@@ -99,7 +109,9 @@ export async function launchIsolatedApp({ root, debugPort = 9357, headless = tru
     XDG_CACHE_HOME: path.join(home, '.cache'),
     // L'affichage reste celui de la session ; son autorisation se lit dans le vrai dossier personnel.
     XAUTHORITY: process.env.XAUTHORITY || path.join(REAL_HOME, '.Xauthority'),
-    NODE_ENV: 'production',
+    // devServer : pages servies par Vite (http://localhost:5173), l'origine où l'application de
+    // développement range ses réglages ; nécessaire pour retrouver ceux d'une copie de profil.
+    NODE_ENV: devServer ? 'development' : 'production',
     PJC_E2E: '1',
   };
   const display = headless ? await startVirtualDisplay({ base, width, height }) : null;
@@ -108,7 +120,7 @@ export async function launchIsolatedApp({ root, debugPort = 9357, headless = tru
     '.',
     `--user-data-dir=${profile}`,
     `--remote-debugging-port=${debugPort}`,
-    '--password-store=basic',
+    ...(copied ? [] : ['--password-store=basic']),
     '--mute-audio',
     '--no-first-run',
     ...(display ? ['--ozone-platform=wayland', '--disable-gpu'] : []),
@@ -137,7 +149,7 @@ export async function launchIsolatedApp({ root, debugPort = 9357, headless = tru
     const browser = await puppeteer.connect({ browserURL: `http://127.0.0.1:${debugPort}`, defaultViewport: null });
     let page = null;
     for (let i = 0; i < 80 && !page; i += 1) {
-      page = (await browser.pages()).find((p) => /index\.html/.test(p.url())) || null;
+      page = (await browser.pages()).find((p) => /index\.html|localhost:5173/.test(p.url())) || null;
       if (!page) await sleep(250);
     }
     if (!page) throw new Error('Fenêtre de l\'application introuvable.');
@@ -152,7 +164,7 @@ export async function launchIsolatedApp({ root, debugPort = 9357, headless = tru
       throw new Error('ARRÊT : ce profil contient déjà une configuration d\'IA que l\'essai n\'a pas écrite.');
     }
     // Des clés enregistrées dans un profil d'essai ne viennent jamais de l'essai : on s'arrête.
-    if (storedKeys) throw new Error('ARRÊT : ce profil d\'essai contient des clés enregistrées ; il ne vient pas de l\'essai.');
+    if (storedKeys && !copied) throw new Error('ARRÊT : ce profil d\'essai contient des clés enregistrées ; il ne vient pas de l\'essai.');
     await page.setViewport({ width, height }).catch(() => {});
     return { browser, page, child, home, profile, root: base, stop, hadKeys: Boolean(storedKeys) };
   } catch (err) {

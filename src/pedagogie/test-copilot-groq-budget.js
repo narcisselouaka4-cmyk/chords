@@ -86,19 +86,22 @@ const sourceBefore = JSON.stringify(take);
 const plan = { variants: [{ title: 'Accords liés', segments: [[0,'maj7',[48,55,59,64]],[2,'m7',[50,57,60,65]],[4,'m7',[52,59,62,67]]].map(([rootPc,quality,notes],anchor) => ({ anchor, rootPc, quality, notes, reason: 'Cette couleur soutient la mélodie.' })) }] };
 store.set('piano-jazz-ai-config', JSON.stringify({ apiKey: 'fake-test', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' }));
 const harmonyParams = { message: 'Enrichis mes accords.', context: { playing: { passage: take } } };
+const harmonyQuotaError = JSON.stringify({ error: { message: 'Request too large on tokens per minute (TPM): Limit 8000, Requested 8900, please reduce your message size.' } });
 let requests = [];
 let finalStatus = 200;
 let finishReason = 'stop';
 global.fetch = async (_url, options) => {
   requests.push(JSON.parse(options.body));
-  if (requests.length === 1 || finalStatus === 413) return { ok: false, status: 413, text: async () => quotaError };
+  // 12/11 : la réserve est proportionnée à la prise (2 000 jetons ici) ; le refus TPM simulé chiffre donc une demande plus petite.
+  if (requests.length === 1 || finalStatus === 413) return { ok: false, status: 413, text: async () => harmonyQuotaError };
   return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify(plan) }, finish_reason: finishReason }] }) };
 };
 const recovered = await sendCopilotMessage(harmonyParams);
 assert.ok(recovered.ok && recovered.toolResult.variants?.length);
 assert.equal(requests.length, 2);
-assert.equal(requests[0].max_completion_tokens, 8192);
-assert.equal(requests[1].max_completion_tokens, 5561);
+assert.equal(requests[0].max_completion_tokens, 2000); // réserve proportionnée (3 appuis), et non 8 192
+assert.equal(requests[0].reasoning_effort, 'low'); // gpt-oss chez Groq : raisonnement bref pour un plan JSON
+assert.equal(requests[1].max_completion_tokens, 972); // 2 000 − (8 900 − 8 000) − 128
 assert.deepEqual(requests[0].messages, requests[1].messages);
 assert.equal(JSON.stringify(take), sourceBefore);
 assert.equal(recovered.toolResult.generation.engine, 'model');
@@ -120,7 +123,7 @@ assert.ok(!truncated.toolResult.variants?.length);
 requests = []; setCopilotTimeout(400);
 global.fetch = async (_url, options) => {
   requests.push(JSON.parse(options.body));
-  if (requests.length === 1) return { ok: false, status: 413, text: async () => quotaError };
+  if (requests.length === 1) return { ok: false, status: 413, text: async () => harmonyQuotaError };
   return new Promise(() => {});
 };
 const timedOut = await sendCopilotMessage(harmonyParams);

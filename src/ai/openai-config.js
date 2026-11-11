@@ -15,7 +15,7 @@ const ENCRYPTED_PREFIX = 'enc:';
 const DEFAULTS = {
   baseUrl: 'https://api.groq.com/openai/v1',
   apiKey: '',
-  model: 'openai/gpt-oss-20b',
+  model: 'openai/gpt-oss-120b',
   monthlyCap: 50,
 };
 
@@ -270,35 +270,43 @@ export async function testAIConfig(config) {
 // transparent pour callChatCompletions des deux côtés (requête et réponse). Avant ce lot,
 // l'app ne proposait qu'un lien vers la page de clé, sans jamais pouvoir réellement appeler
 // Claude (404 : /chat/completions n'existe pas chez Anthropic, et les en-têtes différaient).
+// [Claude] — 2026-11-12 — Catalogues revus après les échecs répétés rapportés par Narcisse (« manque
+// de place », « pas fini à temps ») : seuls des modèles capables de tenir un plan d'harmonisation
+// complet en JSON sont proposés, le plus fiable en premier. Vérifiés le 12/11/2026 sur les pages
+// publiques des fournisseurs (OpenRouter : liste /api/v1/models ; Google AI Studio ; OpenAI).
 export const PRESETS = [
   {
     name: 'Groq',
     blurb: 'Gratuit, rapide',
     baseUrl: 'https://api.groq.com/openai/v1',
-    models: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
+    // Le 120b d'abord : le 20b manque souvent de précision pour un plan d'accords complet.
+    models: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
     genUrl: 'https://console.groq.com/keys',
   },
   {
     name: 'OpenRouter',
-    blurb: 'Multi-modèles gratuits',
+    blurb: 'Gratuits (saturés aux heures chargées) et payants à bas prix',
     baseUrl: 'https://openrouter.ai/api/v1',
-    // Catalogue public OpenRouter vérifié le 10/11/2026 : variantes gratuites
-    // annonçant le support des outils. Les deux anciennes références ont disparu.
-    models: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'google/gemma-4-26b-a4b-it:free', 'liquid/lfm-3-1.7b:free'],
+    // Catalogue public OpenRouter vérifié le 12/11/2026, modèles annonçant les outils. Payants peu
+    // coûteux d'abord (fiables, pas de file d'attente partagée), puis deux grands modèles gratuits.
+    // Retiré : liquid/lfm-3-1.7b:free (1,7 milliard de paramètres, trop petit pour cette tâche).
+    models: ['anthropic/claude-haiku-5.5', 'openai/gpt-oss-120b', 'deepseek/deepseek-v4.1-flash', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'google/gemma-4-31b-it:free'],
     genUrl: 'https://openrouter.ai/keys',
   },
   {
     name: 'Google AI Studio',
-    blurb: 'Gemini Flash, gratuit',
+    blurb: 'Gemini Flash, offre gratuite',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    models: ['gemini-1.5-flash', 'gemini-1.5-flash-8b'],
+    // Gemini 1.5 et 2.0 sont arrêtés ; 2.5 est déprécié (redirigé le 01/12/2026). Vérifié le 12/11/2026.
+    models: ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'],
     genUrl: 'https://aistudio.google.com/apikey',
   },
   {
     name: 'OpenAI',
     blurb: 'Payant, large choix de modèles',
     baseUrl: 'https://api.openai.com/v1',
-    models: ['gpt-4o-mini', 'gpt-4o'],
+    // Modèles conseillés par OpenAI le 12/11/2026 (le moins cher d'abord).
+    models: ['gpt-6-luna', 'gpt-6.1-sol'],
     genUrl: 'https://platform.openai.com/api-keys',
   },
   {

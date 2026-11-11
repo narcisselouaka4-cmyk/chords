@@ -58,6 +58,9 @@ check('anthropicHeaders utilise x-api-key et anthropic-version, pas Authorizatio
 {
   const body = toAnthropicBody({ model: 'claude-haiku-4-5-20251001', messages: [{ role: 'user', content: 'Salut' }] });
   check('max_tokens absent reçoit un repli sûr (requis par Anthropic)', body.max_tokens === 1024);
+  // 12/11 : la forme OpenAI était ignorée ; toute proposition était coupée à 1 024 jetons.
+  const fromOpenAiShape = toAnthropicBody({ model: 'claude-haiku-5-5', messages: [{ role: 'user', content: 'x' }], max_completion_tokens: 8192 });
+  check('max_completion_tokens (forme OpenAI) devient max_tokens', fromOpenAiShape.max_tokens === 8192 && !('max_completion_tokens' in fromOpenAiShape), JSON.stringify(fromOpenAiShape));
 }
 
 {

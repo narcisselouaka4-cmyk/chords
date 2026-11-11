@@ -1566,12 +1566,16 @@ N'écris jamais d'appel d'outil dans ta réponse (suggest_actions(…), play_pro
 le pianiste le verrait tel quel.
 `;
 
-function buildChatCompletionPayload(config, payloadMessages, { includeTools = true, useMaxTokens = false, tutorialTools = false, exerciseTools = false, playingTools = false, consultTool = false, rememberTool = false, harmonizeTool = false, maxTokens = 1200 } = {}) {
+function buildChatCompletionPayload(config, payloadMessages, { includeTools = true, useMaxTokens = false, tutorialTools = false, exerciseTools = false, playingTools = false, consultTool = false, rememberTool = false, harmonizeTool = false, maxTokens = 1200, reasoningEffort = null } = {}) {
   const body = {
     model: config.model,
     messages: payloadMessages,
     temperature: 0.4,
   };
+  // [Claude] — 2026-11-12 — Les modèles gpt-oss raisonnent avant de répondre, et ce raisonnement
+  // consomme la place et le temps de la réponse. Pour un plan JSON, un raisonnement bref suffit.
+  // Seulement chez Groq, qui documente ce paramètre ; ailleurs il est omis.
+  if (reasoningEffort && /gpt-oss/i.test(String(config.model)) && /api\.groq\.com/.test(String(config.baseUrl))) body.reasoning_effort = reasoningEffort;
   if (useMaxTokens || isOpenRouterUrl(config.baseUrl)) {
     body.max_tokens = maxTokens;
   } else {
@@ -2011,7 +2015,12 @@ async function modelPlayingAnswer({message,messages,context,memory,preferences,d
     for(let attempt=0;attempt<2;attempt++){
       // JSON demandé par le prompt : pas de response_format obligatoire, dont
       // le support varie suivant le fournisseur et le modèle cloud.
-      const options={includeTools:false,useMaxTokens:isOllamaCloudUrl(config.baseUrl),maxTokens:8192};
+      // [Claude] — 2026-11-12 — Place réservée à la mesure de la prise (une version ≈ 45 jetons par
+      // appui ; deux si la demande en réclame plusieurs), au lieu d'un plafond fixe de 8 192 : la
+      // réponse arrive plus vite et tient dans les limites de débit des offres gratuites.
+      const versions=/plusieurs|deux versions|2 versions|trois versions|des versions|des propositions|variantes/i.test(message)?2:1;
+      const maxTokens=Math.min(8192,Math.max(2000,Math.round((source.anchors.length*70+600)*versions)));
+      const options={includeTools:false,useMaxTokens:isOllamaCloudUrl(config.baseUrl),maxTokens,reasoningEffort:'low'};
       let result=await callChatCompletionOnce(config,buildChatCompletionPayload(config,payload,options));
       if(!result.ok&&result.status===400&&!options.useMaxTokens&&/max_completion_tokens/i.test(result.responseText||''))
         result=await callChatCompletionOnce(config,buildChatCompletionPayload(config,payload,{...options,useMaxTokens:true}));
