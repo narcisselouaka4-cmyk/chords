@@ -72,7 +72,11 @@ export function exerciseContext(state, attempts = []) {
       contentKind: prog.movement?.kind || 'progression',
       route: prog.movement?.route || null,
       provenance: prog.movement?.provenance || null,
-      interpretation: prog.movement?.score ? 'Étude originale écrite ; ne pas attribuer les notes jouées à la source du procédé.' : null,
+      interpretation: prog.movement?.score
+        ? prog.movement.provenance?.adaptedFrom
+          ? 'Étude adaptée d’une vidéo fournie : transposition et rythme quantifié, pas une transcription intégrale. La position affichée sert de repère harmonique ; le motif fait aussi circuler des notes entre les attaques.'
+          : 'Étude originale écrite ; ne pas attribuer les notes jouées à la source du procédé.'
+        : null,
       description: prog.description || '',
       key,
       keyProgress: state.target.keyProgress || '',

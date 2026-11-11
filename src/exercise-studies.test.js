@@ -51,7 +51,7 @@ for (const entry of catalogue.movements) {
     });
     const phrase = buildDemo(chords,'gospel');
     const plain = buildDemo(chords,'plaque');
-    const expectedBeats=entry.score.steps.reduce((sum,s)=>sum+s.beats,0);
+    const expectedBeats=entry.score.steps.reduce((sum,s)=>sum+s.beats,0) * (entry.score.repeats || 1);
     assert.equal(phrase.beats,expectedBeats);
     assert.equal(plain.beats,expectedBeats);
     let at=0;
@@ -89,7 +89,7 @@ for (const entry of catalogue.movements) {
     const context=exerciseContext(ex.getState());
     assert.equal(context.contentKind,entry.kind);
     assert.equal(context.harmonicColor,null);
-    assert.ok(exerciseContextLines(context).some(s=>s.includes('originale écrite')));
+    assert.ok(exerciseContextLines(context).some(s=>s.includes(entry.provenance.adaptedFrom ? 'adaptée d’une vidéo' : 'originale écrite')));
     cases++;
   }
 }

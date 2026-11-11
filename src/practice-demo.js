@@ -136,32 +136,39 @@ export function buildDemo(chords, styleId, { variation = 0 } = {}) {
 export function buildStudyDemo(chords, { plain = false } = {}) {
   const score = createScore();
   let time = 0;
-  chords.forEach((chord, i) => {
-    const step = chord.studyStep;
-    const { lh, rh } = cardHands(chord);
-    score.step(time, i);
-    const attacks = plain
-      ? [{ at: 0, hand: 'lh', duration: step.beats - LIFT, velocity: .52 },
-        { at: 0, hand: 'rh', duration: step.beats - LIFT, velocity: .57 }]
-      : step.attacks;
-    attacks.forEach((attack) => {
-      let notes = attack.hand === 'lh' ? lh : rh;
-      if (attack.hand === 'top') notes = rh.slice(-1);
-      if (attack.hand === 'inner') notes = rh.slice(0, -1);
-      if (attack.hand === 'note') notes = rh.length ? [rh[Math.min(attack.index, rh.length - 1)]] : [];
-      // L'ornement n'est pertinent que dans la mise en voix pour laquelle il
-      // a été écrit ; explorer un autre voicing ne crée pas de grace note au hasard.
-      if (attack.hand === 'grace') notes = step.writtenVoicing ? [attack.note + step.keyPc] : [];
-      const roll = plain ? 0 : (attack.roll || 0);
-      const release = time + Math.min(step.beats - .01, attack.at + attack.duration);
-      if (release <= time + attack.at + Math.max(0, notes.length - 1) * roll) return;
-      score.hand(time + attack.at, notes, attack.velocity, release, {
-        hand: attack.hand === 'lh' ? 'lh' : 'rh', roll,
-        accentTop: attack.hand === 'rh' ? .04 : 0,
+  const repeats = Math.max(1, Math.min(8, Math.floor(chords[0]?.studyStep?.repeatCount || 1)));
+  for (let cycle = 0; cycle < repeats; cycle += 1) {
+    chords.forEach((chord, i) => {
+      const step = chord.studyStep;
+      const { lh, rh } = cardHands(chord);
+      score.step(time, i);
+      const attacks = plain
+        ? [{ at: 0, hand: 'lh', duration: step.beats - LIFT, velocity: .52 },
+          { at: 0, hand: 'rh', duration: step.beats - LIFT, velocity: .57 }]
+        : step.attacks;
+      attacks.forEach((attack) => {
+        let notes = attack.hand === 'lh' ? lh : rh;
+        if (attack.hand === 'top') notes = rh.slice(-1);
+        if (attack.hand === 'inner') notes = rh.slice(0, -1);
+        if (attack.hand === 'note') notes = rh.length ? [rh[Math.min(attack.index, rh.length - 1)]] : [];
+        // Un riff ne se réduit pas aux notes d'un voicing tenu. Les hauteurs
+        // propres à chaque attaque restent écrites, main par main, et transposées.
+        // En exploration manuelle, la recette suit au contraire les mains choisies.
+        if (Array.isArray(attack.notes) && step.writtenVoicing) notes = attack.notes.map((n) => n + step.keyPc);
+        // L'ornement n'est pertinent que dans la mise en voix pour laquelle il
+        // a été écrit ; explorer un autre voicing ne crée pas de grace note au hasard.
+        if (attack.hand === 'grace') notes = step.writtenVoicing ? [attack.note + step.keyPc] : [];
+        const roll = plain ? 0 : (attack.roll || 0);
+        const release = time + Math.min(step.beats - .01, attack.at + attack.duration);
+        if (release <= time + attack.at + Math.max(0, notes.length - 1) * roll) return;
+        score.hand(time + attack.at, notes, attack.velocity, release, {
+          hand: attack.hand === 'lh' ? 'lh' : 'rh', roll,
+          accentTop: attack.hand === 'rh' ? .04 : 0,
+        });
       });
+      time += step.beats;
     });
-    time += step.beats;
-  });
+  }
   return score.finish(time);
 }
 

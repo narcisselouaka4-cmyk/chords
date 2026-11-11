@@ -2174,17 +2174,12 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude préparatoire · procédé référencé",
         "sources": [
           {
             "title": "Guajeo · Wikipédia",
             "url": "https://en.wikipedia.org/wiki/Guajeo",
             "supports": "Le guajeo comme ostinato cubain d'accords arpégés syncopés ; le guajeo de piano est le montuno."
-          },
-          {
-            "title": "Geste relevé sur une vidéo de cours (non publiée)",
-            "url": "https://en.wikipedia.org/wiki/Montuno",
-            "supports": "Geste relevé sur une vidéo de cours fournie par Narcisse (le professeur y énonce « gauche, droite, gauche, droite »). Aucune note n'en est reprise : seule l'alternance des mains est reproduite."
           }
         ]
       },
@@ -2192,7 +2187,7 @@
       "name": "Frappe alternée · gauche, droite, gauche, droite",
       "pattern": "1m7-5:7",
       "route": "i7 → V7 · une main après l'autre, sans jamais les superposer",
-      "context": "Le tout premier geste du latin : les deux mains ne tombent jamais ensemble. La gauche sur les temps, la droite entre les temps.",
+      "context": "Préparation à la salsa : alterner les mains avant de jouer un véritable motif.",
       "sound": "Un balancement continu, comme une marche : rien ne s'empile, tout se relaie.",
       "use": "À travailler d'abord sur le couvercle, sans appuyer, juste pour sentir l'alternance.",
       "description": "En Do : main gauche sur 1, 2, 3, 4 ; main droite sur chaque « et ». Comptez « gauche, droite, gauche, droite ».",
@@ -2344,7 +2339,8 @@
               }
             ]
           }
-        ]
+        ],
+        "preserveTexture": true
       },
       "focus": "En Do : main gauche sur 1, 2, 3, 4 ; main droite sur chaque « et ». Comptez « gauche, droite, gauche, droite »."
     },
@@ -2355,7 +2351,7 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude préparatoire · procédé référencé",
         "sources": [
           {
             "title": "Tresillo (rhythm) · Wikipédia",
@@ -2550,7 +2546,8 @@
               }
             ]
           }
-        ]
+        ],
+        "preserveTexture": true
       },
       "focus": "En Do : frappe sur 1 (main gauche), sur le « et » du 2 et sur le 4 (main droite). Rien d'autre ne sonne."
     },
@@ -2561,7 +2558,7 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude préparatoire · procédé référencé",
         "sources": [
           {
             "title": "Cinquillo · Wikipédia",
@@ -2780,7 +2777,8 @@
               }
             ]
           }
-        ]
+        ],
+        "preserveTexture": true
       },
       "focus": "En Do : long – court – long – court – long, sur 1, 2, le « et » du 2, le « et » du 3 et le 4."
     },
@@ -2791,25 +2789,20 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude préparatoire · procédé référencé",
         "sources": [
           {
             "title": "Syncopation (basse anticipée, tumbao) · Wikipédia",
             "url": "https://en.wikipedia.org/wiki/Syncopation",
             "supports": "La basse anticipée du son montuno : elle sonne sur le « 2 et » et sur le 4, anticipant les temps 3 et 1."
-          },
-          {
-            "title": "Geste relevé sur une vidéo de cours (non publiée)",
-            "url": "https://en.wikipedia.org/wiki/Montuno",
-            "supports": "Geste relevé sur une vidéo de cours fournie par Narcisse : la main droite n'y allume jamais plus de deux touches. Aucune note n'en est reprise."
           }
         ]
       },
       "id": "latin-tumbao-dyade",
-      "name": "Tumbao · la dyade martelée",
+      "name": "Merengue · préparation sur deux notes",
       "pattern": "1m7-4:7",
       "route": "i7 → IV7 · deux notes, répétées sans fin",
-      "context": "La main droite ne joue que DEUX notes, toujours les mêmes, martelées. Tout l'intérêt est dans le rythme, pas dans les notes.",
+      "context": "Exercice préparatoire sur deux notes répétées ; ce n’est pas le relevé du motif complet de la vidéo.",
       "sound": "Obstiné et percussif : l'oreille cesse d'écouter les notes et n'entend plus que la pulsation.",
       "use": "Le motif d'accompagnement le plus économique : deux doigts suffisent à tenir un morceau entier.",
       "description": "En Do : Mi♭–Si♭ puis La–Mi♭, frappés sur les contretemps. La basse ponctue sur 1 et 3.",
@@ -2823,7 +2816,8 @@
         "Dyade",
         "Tumbao",
         "Merengue",
-        "Martelé"
+        "Martelé",
+        "Tumbao · la dyade martelée"
       ],
       "score": {
         "tempo": 132,
@@ -2952,7 +2946,8 @@
               }
             ]
           }
-        ]
+        ],
+        "preserveTexture": true
       },
       "focus": "En Do : Mi♭–Si♭ puis La–Mi♭, frappés sur les contretemps. La basse ponctue sur 1 et 3."
     },
@@ -2963,23 +2958,39 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude adaptée · vidéo Dm–Sib–La",
         "sources": [
           {
-            "title": "Guajeo · Wikipédia",
-            "url": "https://en.wikipedia.org/wiki/Guajeo",
-            "supports": "Le guajeo comme ostinato cubain d'accords arpégés syncopés ; le guajeo de piano est le montuno."
+            "title": "Kevin Moore · Beyond Salsa Piano, vol. 10 (extrait auteur)",
+            "url": "https://www.timba.com/blog_files/0000/0437/BeyondSalsaPianoV10_KevinMoore_Sample.pdf",
+            "supports": "Vocabulaire montuno / tumbao et rôle des deux mains ; les notes de cette étude sont adaptées du fichier vidéo identifié séparément."
           }
-        ]
+        ],
+        "adaptedFrom": {
+          "id": "latin-user-video-1",
+          "file": "Latin Salsa Piano Pattern 🎹 Dm – B♭ – A (Salsa Montuno).mp4",
+          "sha256": "315703b4e73ace7ad3d87305b9364aafb41777fd9ae0e62d75f60141642fd666",
+          "inspection": "Images de début à fin, puis touches actives sur les extraits indiqués. Pas de validation auditive humaine.",
+          "excerptSeconds": [
+            5.37,
+            10.7
+          ],
+          "sourceHarmony": [
+            "Dm",
+            "Bb",
+            "A"
+          ],
+          "adaptation": "Motif transposé de Ré mineur vers Do mineur, attaques quantifiées et durées articulées ; les superpositions visuelles très brèves ne sont pas des accords supplémentaires."
+        }
       },
       "id": "latin-montuno-guajeo",
-      "name": "Montuno · guajeo à contretemps",
-      "pattern": "1:6-4:6-5:7-4:6",
-      "route": "I6 → IV6 → V7 → IV6 · guajeo de piano",
-      "context": "Le montuno : des notes seules qui évitent les temps forts. Deux accords par mesure.",
-      "sound": "Ça tourne tout seul et ça ne s'arrête jamais : aucune note ne tombe sur un temps fort.",
-      "use": "Dès que vous accompagnez une salsa : le motif que le piano répète derrière les cuivres.",
-      "description": "En Do : trois croches à contretemps par accord, qui descendent puis remontent. La basse entre avec elles, jamais sur le 1.",
+      "name": "Montuno mineur · octaves et relances",
+      "pattern": "1:m-b6:maj-5:7",
+      "route": "i → ♭VI → V7 · cycle de deux mesures",
+      "context": "Deux mains en parallèle, octaves à droite et approche chromatique du V. Adapté de la vidéo Dm–Sib–La.",
+      "sound": "Une figure répétée des deux mains, avec des relances sur la dominante.",
+      "use": "Travailler le motif lentement puis retrouver son élan à 90 à la noire.",
+      "description": "Motif de huit temps : deux temps de mineur, deux sur le VI abaissé, quatre sur la dominante. Les octaves répondent aux notes de liaison ; le rythme ne repart pas de zéro à chaque accord.",
       "style": "salsa",
       "tags": [
         "Intermédiaire",
@@ -2989,178 +3000,383 @@
       "aliases": [
         "Montuno",
         "Guajeo",
-        "Contretemps"
+        "Contretemps",
+        "Montuno · guajeo à contretemps"
       ],
       "score": {
-        "tempo": 96,
+        "tempo": 90,
         "meter": [
           4,
           4
         ],
+        "preserveTexture": true,
         "steps": [
           {
             "beats": 2,
             "lh": [
-              36
+              48
             ],
             "rh": [
-              64,
-              67,
-              69
+              60,
+              63,
+              67
             ],
             "attacks": [
               {
-                "at": 0.5,
+                "at": 0.25,
                 "hand": "lh",
-                "duration": 0.4,
-                "velocity": 0.52
+                "notes": [
+                  43
+                ],
+                "duration": 0.38,
+                "velocity": 0.63
               },
               {
-                "at": 0.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.6,
-                "index": 2
+                "at": 0.25,
+                "hand": "rh",
+                "notes": [
+                  55,
+                  67
+                ],
+                "duration": 0.38,
+                "velocity": 0.68
               },
               {
-                "at": 1.0,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 1
+                "at": 0.75,
+                "hand": "lh",
+                "notes": [
+                  48
+                ],
+                "duration": 0.21,
+                "velocity": 0.6
+              },
+              {
+                "at": 0.75,
+                "hand": "rh",
+                "notes": [
+                  60,
+                  72
+                ],
+                "duration": 0.21,
+                "velocity": 0.65
+              },
+              {
+                "at": 1,
+                "hand": "lh",
+                "notes": [
+                  51
+                ],
+                "duration": 0.28,
+                "velocity": 0.57
+              },
+              {
+                "at": 1,
+                "hand": "rh",
+                "notes": [
+                  63
+                ],
+                "duration": 0.28,
+                "velocity": 0.62
               },
               {
                 "at": 1.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.5599999999999999,
-                "index": 0
+                "hand": "lh",
+                "notes": [
+                  43
+                ],
+                "duration": 0.3,
+                "velocity": 0.62
+              },
+              {
+                "at": 1.5,
+                "hand": "rh",
+                "notes": [
+                  55,
+                  67
+                ],
+                "duration": 0.3,
+                "velocity": 0.67
               }
             ]
           },
           {
             "beats": 2,
             "lh": [
-              41
+              44
             ],
             "rh": [
-              69,
-              72,
-              74
+              60,
+              63,
+              68
             ],
             "attacks": [
               {
+                "at": 0,
+                "hand": "lh",
+                "notes": [
+                  44
+                ],
+                "duration": 0.4,
+                "velocity": 0.63
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "notes": [
+                  56,
+                  68
+                ],
+                "duration": 0.4,
+                "velocity": 0.68
+              },
+              {
                 "at": 0.5,
                 "hand": "lh",
+                "notes": [
+                  48
+                ],
                 "duration": 0.4,
-                "velocity": 0.52
+                "velocity": 0.59
               },
               {
                 "at": 0.5,
-                "hand": "note",
+                "hand": "rh",
+                "notes": [
+                  60,
+                  72
+                ],
                 "duration": 0.4,
-                "velocity": 0.6,
-                "index": 0
+                "velocity": 0.64
               },
               {
-                "at": 1.0,
-                "hand": "note",
+                "at": 1,
+                "hand": "lh",
+                "notes": [
+                  51
+                ],
                 "duration": 0.4,
-                "velocity": 0.58,
-                "index": 1
+                "velocity": 0.61
+              },
+              {
+                "at": 1,
+                "hand": "rh",
+                "notes": [
+                  63,
+                  75
+                ],
+                "duration": 0.4,
+                "velocity": 0.66
               },
               {
                 "at": 1.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.5599999999999999,
-                "index": 2
+                "hand": "lh",
+                "notes": [
+                  44
+                ],
+                "duration": 0.32,
+                "velocity": 0.64
+              },
+              {
+                "at": 1.5,
+                "hand": "rh",
+                "notes": [
+                  56,
+                  68
+                ],
+                "duration": 0.32,
+                "velocity": 0.69
               }
             ]
           },
           {
-            "beats": 2,
+            "beats": 4,
             "lh": [
               43
             ],
             "rh": [
-              71,
-              74,
-              77
+              59,
+              62,
+              65
             ],
             "attacks": [
               {
-                "at": 0.5,
+                "at": 0,
                 "hand": "lh",
-                "duration": 0.4,
-                "velocity": 0.52
+                "notes": [
+                  43
+                ],
+                "duration": 0.39,
+                "velocity": 0.65
               },
               {
-                "at": 0.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.6,
-                "index": 2
+                "at": 0,
+                "hand": "rh",
+                "notes": [
+                  55,
+                  67
+                ],
+                "duration": 0.39,
+                "velocity": 0.7
               },
-              {
-                "at": 1.0,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 1
-              },
-              {
-                "at": 1.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.5599999999999999,
-                "index": 0
-              }
-            ]
-          },
-          {
-            "beats": 2,
-            "lh": [
-              41
-            ],
-            "rh": [
-              69,
-              72,
-              74
-            ],
-            "attacks": [
               {
                 "at": 0.5,
                 "hand": "lh",
-                "duration": 0.4,
-                "velocity": 0.52
+                "notes": [
+                  47
+                ],
+                "duration": 0.19,
+                "velocity": 0.58
               },
               {
                 "at": 0.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.6,
-                "index": 0
+                "hand": "rh",
+                "notes": [
+                  59
+                ],
+                "duration": 0.19,
+                "velocity": 0.63
               },
               {
-                "at": 1.0,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 1
+                "at": 0.75,
+                "hand": "lh",
+                "notes": [
+                  50
+                ],
+                "duration": 0.19,
+                "velocity": 0.59
+              },
+              {
+                "at": 0.75,
+                "hand": "rh",
+                "notes": [
+                  62
+                ],
+                "duration": 0.19,
+                "velocity": 0.64
+              },
+              {
+                "at": 1,
+                "hand": "lh",
+                "notes": [
+                  41
+                ],
+                "duration": 0.28,
+                "velocity": 0.63
+              },
+              {
+                "at": 1,
+                "hand": "rh",
+                "notes": [
+                  53,
+                  65
+                ],
+                "duration": 0.28,
+                "velocity": 0.68
               },
               {
                 "at": 1.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.5599999999999999,
-                "index": 2
+                "hand": "lh",
+                "notes": [
+                  42
+                ],
+                "duration": 0.22,
+                "velocity": 0.57
+              },
+              {
+                "at": 1.5,
+                "hand": "rh",
+                "notes": [
+                  54,
+                  66
+                ],
+                "duration": 0.22,
+                "velocity": 0.62
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "notes": [
+                  43
+                ],
+                "duration": 0.38,
+                "velocity": 0.65
+              },
+              {
+                "at": 2,
+                "hand": "rh",
+                "notes": [
+                  55,
+                  67
+                ],
+                "duration": 0.38,
+                "velocity": 0.7
+              },
+              {
+                "at": 2.5,
+                "hand": "lh",
+                "notes": [
+                  47,
+                  50
+                ],
+                "duration": 0.23,
+                "velocity": 0.6
+              },
+              {
+                "at": 2.5,
+                "hand": "rh",
+                "notes": [
+                  59,
+                  62
+                ],
+                "duration": 0.23,
+                "velocity": 0.65
+              },
+              {
+                "at": 3,
+                "hand": "lh",
+                "notes": [
+                  43
+                ],
+                "duration": 0.38,
+                "velocity": 0.63
+              },
+              {
+                "at": 3,
+                "hand": "rh",
+                "notes": [
+                  55,
+                  67
+                ],
+                "duration": 0.38,
+                "velocity": 0.68
+              },
+              {
+                "at": 3.75,
+                "hand": "lh",
+                "notes": [
+                  47,
+                  50
+                ],
+                "duration": 0.2,
+                "velocity": 0.6
+              },
+              {
+                "at": 3.75,
+                "hand": "rh",
+                "notes": [
+                  59,
+                  62
+                ],
+                "duration": 0.2,
+                "velocity": 0.65
               }
             ]
           }
-        ]
+        ],
+        "fixedPitches": true,
+        "repeats": 4
       },
-      "focus": "En Do : trois croches à contretemps par accord, qui descendent puis remontent. La basse entre avec elles, jamais sur le 1."
+      "focus": "Garder le même cycle de huit temps, ses silences et les octaves : ce sont les notes et les attaques du motif qui conduisent le jeu."
     },
     {
       "kind": "progression",
@@ -3169,7 +3385,7 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude préparatoire · procédé référencé",
         "sources": [
           {
             "title": "Syncopation (basse anticipée, tumbao) · Wikipédia",
@@ -3184,10 +3400,10 @@
         ]
       },
       "id": "latin-tumbao-clave",
-      "name": "Tumbao · la basse saute le premier temps",
+      "name": "Coordination · basse tumbao et clave",
       "pattern": "1m7-5:7",
       "route": "i7 → V7 · tumbao à la main gauche, clave son à la droite",
-      "context": "Les deux mains cessent d'être d'accord : la gauche évite le 1, la droite suit la clave.",
+      "context": "Préparation rythmique : une basse en tumbao et la clave à l’autre main, avant le travail d’un montuno complet.",
       "sound": "Un creux sur le premier temps, et une poussée juste après : c'est ce vide qui fait avancer.",
       "use": "Le socle de toute salsa. À travailler mains séparées avant de les réunir.",
       "description": "En Do : main gauche sur le « et » du 2 et sur le 4, les deux mesures. Main droite sur la clave son, côté 3 puis côté 2.",
@@ -3201,7 +3417,8 @@
       "aliases": [
         "Tumbao",
         "Clave son",
-        "Basse latine"
+        "Basse latine",
+        "Tumbao · la basse saute le premier temps"
       ],
       "score": {
         "tempo": 94,
@@ -3293,7 +3510,8 @@
               }
             ]
           }
-        ]
+        ],
+        "preserveTexture": true
       },
       "focus": "En Do : main gauche sur le « et » du 2 et sur le 4, les deux mesures. Main droite sur la clave son, côté 3 puis côté 2."
     },
@@ -3304,28 +3522,35 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude adaptée · riff de la vidéo",
         "sources": [
           {
-            "title": "Guajeo · Wikipédia",
-            "url": "https://en.wikipedia.org/wiki/Guajeo",
-            "supports": "Le guajeo comme ostinato cubain d'accords arpégés syncopés ; le guajeo de piano est le montuno."
-          },
-          {
-            "title": "Geste relevé sur une vidéo de cours (non publiée)",
-            "url": "https://en.wikipedia.org/wiki/Montuno",
-            "supports": "Geste relevé sur une vidéo de cours fournie par Narcisse : une ligne de notes seules parcourant un large registre. Aucune note n'en est reprise."
+            "title": "Kevin Moore · Beyond Salsa Piano, vol. 10 (extrait auteur)",
+            "url": "https://www.timba.com/blog_files/0000/0437/BeyondSalsaPianoV10_KevinMoore_Sample.pdf",
+            "supports": "La notion de piano tumbao et le travail de figures propres à chaque partie ; les notes sont adaptées de la vidéo fournie, non de cet extrait."
           }
-        ]
+        ],
+        "adaptedFrom": {
+          "id": "latin-user-video-4",
+          "file": "utilise ce riff de salsa.mp4",
+          "sha256": "56c1b8202e425a891caf623d40369e5077b28501c99f254f25542468a7e48dc2",
+          "inspection": "Images de début à fin, puis touches actives sur les extraits indiqués. Pas de validation auditive humaine.",
+          "excerptSeconds": [
+            44.5,
+            50.0
+          ],
+          "sourceRoot": "G",
+          "adaptation": "Deux lignes transposées de Sol majeur vers Do majeur, rythme quantifié ; Fa♯ en Sol confirmé par Narcisse le 11/11/2026. Adaptation pédagogique, pas transcription intégrale de la vidéo."
+        }
       },
       "id": "latin-riff-salsa",
-      "name": "Riff de salsa · la ligne parcourt le clavier",
-      "pattern": "1m7-b6:6-5:7",
-      "route": "i7 → ♭VI → V7 · une ligne, pas un accompagnement",
-      "context": "Ici la main droite ne tient plus d'accord : elle dessine une ligne qui monte et redescend sur plus d'une octave.",
-      "sound": "Ça chante au lieu d'accompagner : le riff devient le morceau.",
-      "use": "Quand l'accompagnement doit passer devant — une intro, une relance entre deux couplets.",
-      "description": "En Do : la ligne monte Do – Mi♭ – Sol – Do puis redescend. La basse ne ponctue que deux fois par mesure.",
+      "name": "Riff de salsa · deux lignes coordonnées",
+      "pattern": "1:maj",
+      "route": "Riff en majeur · une phrase de deux mesures",
+      "context": "La main gauche suit sa ligne pendant que la droite lui répond. Adapté du riff montré en Sol majeur dans la vidéo.",
+      "sound": "Deux lignes articulées qui forment une phrase, plutôt qu’un arpège d’accord transposé en boucle.",
+      "use": "Reprendre le riff à vitesse lente, puis l’installer en majeur.",
+      "description": "En Do majeur, la main gauche parcourt Do–Mi–Ré–Mi–Fa–Sol ; la droite Mi/Do–Sol–Fa–Sol–La–Si. Transposé en Sol majeur, ce Si devient Fa♯, sans Fa naturel.",
       "style": "salsa",
       "tags": [
         "Avancé",
@@ -3335,243 +3560,252 @@
       "aliases": [
         "Riff",
         "Ligne de salsa",
-        "Montuno mélodique"
+        "Montuno mélodique",
+        "Riff de salsa · la ligne parcourt le clavier"
       ],
       "score": {
-        "tempo": 98,
+        "tempo": 86,
         "meter": [
           4,
           4
         ],
+        "preserveTexture": true,
         "steps": [
           {
-            "beats": 4,
+            "beats": 8,
             "lh": [
               36
             ],
             "rh": [
-              60,
-              63,
-              67,
-              72
+              52,
+              55,
+              60
             ],
             "attacks": [
               {
                 "at": 0,
                 "hand": "lh",
+                "notes": [
+                  36
+                ],
                 "duration": 0.4,
-                "velocity": 0.56
-              },
-              {
-                "at": 2.5,
-                "hand": "lh",
-                "duration": 0.4,
-                "velocity": 0.5
+                "velocity": 0.63
               },
               {
                 "at": 0,
-                "hand": "note",
+                "hand": "rh",
+                "notes": [
+                  52,
+                  60
+                ],
                 "duration": 0.4,
-                "velocity": 0.58,
-                "index": 0
-              },
-              {
-                "at": 0.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.54,
-                "index": 1
+                "velocity": 0.68
               },
               {
                 "at": 1,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 2
-              },
-              {
-                "at": 1.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.62,
-                "index": 3
-              },
-              {
-                "at": 2.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.56,
-                "index": 2
-              },
-              {
-                "at": 3,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.52,
-                "index": 1
-              },
-              {
-                "at": 3.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 0
-              }
-            ]
-          },
-          {
-            "beats": 4,
-            "lh": [
-              32
-            ],
-            "rh": [
-              56,
-              60,
-              63,
-              68
-            ],
-            "attacks": [
-              {
-                "at": 0,
                 "hand": "lh",
+                "notes": [
+                  40
+                ],
                 "duration": 0.4,
-                "velocity": 0.56
-              },
-              {
-                "at": 2.5,
-                "hand": "lh",
-                "duration": 0.4,
-                "velocity": 0.5
-              },
-              {
-                "at": 0,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 0
-              },
-              {
-                "at": 0.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.54,
-                "index": 1
+                "velocity": 0.59
               },
               {
                 "at": 1,
-                "hand": "note",
+                "hand": "rh",
+                "notes": [
+                  55
+                ],
                 "duration": 0.4,
-                "velocity": 0.58,
-                "index": 2
+                "velocity": 0.64
               },
               {
                 "at": 1.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.62,
-                "index": 3
-              },
-              {
-                "at": 2.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.56,
-                "index": 2
-              },
-              {
-                "at": 3,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.52,
-                "index": 1
-              },
-              {
-                "at": 3.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 0
-              }
-            ]
-          },
-          {
-            "beats": 4,
-            "lh": [
-              31
-            ],
-            "rh": [
-              59,
-              62,
-              65,
-              71
-            ],
-            "attacks": [
-              {
-                "at": 0,
                 "hand": "lh",
-                "duration": 0.4,
+                "notes": [
+                  38
+                ],
+                "duration": 0.37,
                 "velocity": 0.56
               },
               {
+                "at": 1.5,
+                "hand": "rh",
+                "notes": [
+                  53
+                ],
+                "duration": 0.37,
+                "velocity": 0.61
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "notes": [
+                  40
+                ],
+                "duration": 0.38,
+                "velocity": 0.59
+              },
+              {
+                "at": 2,
+                "hand": "rh",
+                "notes": [
+                  55
+                ],
+                "duration": 0.38,
+                "velocity": 0.64
+              },
+              {
                 "at": 2.5,
                 "hand": "lh",
+                "notes": [
+                  41
+                ],
                 "duration": 0.4,
-                "velocity": 0.5
-              },
-              {
-                "at": 0,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 0
-              },
-              {
-                "at": 0.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.54,
-                "index": 1
-              },
-              {
-                "at": 1,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 2
-              },
-              {
-                "at": 1.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.62,
-                "index": 3
+                "velocity": 0.61
               },
               {
                 "at": 2.5,
-                "hand": "note",
+                "hand": "rh",
+                "notes": [
+                  57
+                ],
                 "duration": 0.4,
-                "velocity": 0.56,
-                "index": 2
-              },
-              {
-                "at": 3,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.52,
-                "index": 1
+                "velocity": 0.66
               },
               {
                 "at": 3.5,
-                "hand": "note",
-                "duration": 0.4,
-                "velocity": 0.58,
-                "index": 0
+                "hand": "lh",
+                "notes": [
+                  43
+                ],
+                "duration": 0.52,
+                "velocity": 0.64
+              },
+              {
+                "at": 3.5,
+                "hand": "rh",
+                "notes": [
+                  59
+                ],
+                "duration": 0.52,
+                "velocity": 0.69
+              },
+              {
+                "at": 4.5,
+                "hand": "lh",
+                "notes": [
+                  40
+                ],
+                "duration": 0.38,
+                "velocity": 0.58
+              },
+              {
+                "at": 4.5,
+                "hand": "rh",
+                "notes": [
+                  55
+                ],
+                "duration": 0.38,
+                "velocity": 0.63
+              },
+              {
+                "at": 5,
+                "hand": "lh",
+                "notes": [
+                  43
+                ],
+                "duration": 0.37,
+                "velocity": 0.63
+              },
+              {
+                "at": 5,
+                "hand": "rh",
+                "notes": [
+                  59
+                ],
+                "duration": 0.37,
+                "velocity": 0.68
+              },
+              {
+                "at": 5.5,
+                "hand": "lh",
+                "notes": [
+                  41
+                ],
+                "duration": 0.48,
+                "velocity": 0.59
+              },
+              {
+                "at": 5.5,
+                "hand": "rh",
+                "notes": [
+                  57
+                ],
+                "duration": 0.48,
+                "velocity": 0.64
+              },
+              {
+                "at": 6.5,
+                "hand": "lh",
+                "notes": [
+                  45
+                ],
+                "duration": 0.34,
+                "velocity": 0.65
+              },
+              {
+                "at": 6.5,
+                "hand": "rh",
+                "notes": [
+                  60
+                ],
+                "duration": 0.34,
+                "velocity": 0.7
+              },
+              {
+                "at": 7,
+                "hand": "lh",
+                "notes": [
+                  36
+                ],
+                "duration": 0.22,
+                "velocity": 0.58
+              },
+              {
+                "at": 7,
+                "hand": "rh",
+                "notes": [
+                  52
+                ],
+                "duration": 0.22,
+                "velocity": 0.63
+              },
+              {
+                "at": 7.5,
+                "hand": "lh",
+                "notes": [
+                  36
+                ],
+                "duration": 0.3,
+                "velocity": 0.61
+              },
+              {
+                "at": 7.5,
+                "hand": "rh",
+                "notes": [
+                  52
+                ],
+                "duration": 0.3,
+                "velocity": 0.66
               }
             ]
           }
-        ]
+        ],
+        "fixedPitches": true,
+        "repeats": 4
       },
-      "focus": "En Do : la ligne monte Do – Mi♭ – Sol – Do puis redescend. La basse ne ponctue que deux fois par mesure."
+      "focus": "Apprendre chaque ligne séparément, puis conserver leurs attaques communes et les silences."
     },
     {
       "kind": "progression",
@@ -3580,7 +3814,7 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude préparatoire · procédé référencé",
         "sources": [
           {
             "title": "Syncopation (basse anticipée, tumbao) · Wikipédia",
@@ -3703,7 +3937,8 @@
               }
             ]
           }
-        ]
+        ],
+        "preserveTexture": true
       },
       "focus": "En Do : le Sol de la basse tombe sur le 4 de la première mesure, un temps avant les accords de G7."
     },
@@ -3714,7 +3949,7 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude préparatoire · procédé référencé",
         "sources": [
           {
             "title": "Andalusian cadence · Wikipédia",
@@ -3904,7 +4139,8 @@
               }
             ]
           }
-        ]
+        ],
+        "preserveTexture": true
       },
       "focus": "En Do : la basse descend Do – Si♭ – La♭ – Sol. La main droite suit le côté 3 de la clave rumba (1, « et » du 2, « et » du 4)."
     },
@@ -3915,7 +4151,7 @@
       "noAutoPassing": true,
       "provenance": {
         "kind": "original-study",
-        "label": "Étude originale · procédé référencé",
+        "label": "Étude préparatoire · procédé référencé",
         "sources": [
           {
             "title": "Robert Hutchinson · Standard Chord Progressions",
@@ -4042,7 +4278,8 @@
               }
             ]
           }
-        ]
+        ],
+        "preserveTexture": true
       },
       "focus": "En Do : C6 pendant trois temps, C7 sur un temps, puis F6 qui entre sur le « et » du 1."
     }

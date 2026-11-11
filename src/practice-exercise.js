@@ -146,6 +146,7 @@ const DEFAULT_QUALITY_FOR_DEGREE = {
 // « alt » seul (jeton « 5alt » de la bibliothèque) = 7#9b13 ; « 7alt » écrit en
 // toutes lettres (grille tapée) reste 7alt, publié par VoicingLab.
 const MOVEMENT_QUALITY_ALIASES = {
+  maj: '',
   alt: '7#9b13',
   m: 'm',
   'm(maj7)': 'mMaj7',
@@ -292,7 +293,7 @@ function parseProgressionToken(token) {
     if (accidental === 'b') offset = (offset - 1 + 12) % 12;
     if (accidental === '#') offset = (offset + 1) % 12;
     if (!quality) quality = DEFAULT_QUALITY_FOR_DEGREE[degree] || '';
-    quality = MOVEMENT_QUALITY_ALIASES[quality] || quality;
+    quality = MOVEMENT_QUALITY_ALIASES[quality] ?? quality;
     return { degree, offset, quality, raw: str };
   }
   // Format compact "b3m7" ou "5alt"
@@ -306,7 +307,7 @@ function parseProgressionToken(token) {
     if (accidental === 'b') offset = (offset - 1 + 12) % 12;
     if (accidental === '#') offset = (offset + 1) % 12;
     if (!quality) quality = DEFAULT_QUALITY_FOR_DEGREE[degree] || '';
-    quality = MOVEMENT_QUALITY_ALIASES[quality] || quality;
+    quality = MOVEMENT_QUALITY_ALIASES[quality] ?? quality;
     return { degree, offset, quality, raw: str };
   }
   return null;
@@ -1867,6 +1868,35 @@ function parseMovementToken(token) {
   return parseProgressionToken(token);
 }
 
+/** Réalisation écrite d'un motif : indépendante des recettes de voicings.
+ * Une triade de la source n'a pas besoin d'être remplacée par une septième
+ * simplement parce que VoicingLab n'en propose pas de variante. */
+function writtenMovementChords(movement, keyPc) {
+  const minor = isMinorMovement(movement);
+  return movement.pattern.split('-').map((token, i) => {
+    const parsed = parseMovementToken(token);
+    const step = movement.score.steps[i];
+    if (!parsed || !step) return null;
+    const rootPc = (keyPc + parsed.offset) % 12;
+    const voicing = {
+      leftHand: step.lh.map((n) => n + keyPc),
+      rightHand: step.rh.map((n) => n + keyPc),
+      source: 'original-study', technique: 'written', familyId: 'written',
+      variantIndex: 0, variantCount: 1, variantLabel: 'Motif écrit',
+      isPlayable: true, doubled: [], styleAdded: [], derived: false, rebuilt: false,
+    };
+    return {
+      ...targetFromVoicing(rootPc, parsed.quality, voicing, 'written'),
+      name: `${spellDegreeInKey(rootPc, parsed.degree, keyPc, minor)}${parsed.quality}`,
+      quality: parsed.quality, token, degree: parsed.degree,
+      harmonicRole: movement.roles?.[i] || 'structural',
+      studyStep: { ...step, keyPc, writtenVoicing: true, preserveTexture: true,
+        fixedPitches: Boolean(movement.score.fixedPitches), repeatCount: movement.score.repeats || 1 },
+      passingChord: null,
+    };
+  }).filter(Boolean);
+}
+
   /**
    * Accords d'un mouvement dans une tonalité. Un jeton illisible ou un accord
    * sans voicing est omis ; `failures` (facultatif) reçoit alors son nom, pour
@@ -1879,6 +1909,10 @@ function parseMovementToken(token) {
    * voisins. `passing` = { anchors, tops } des passages, par rang d'accord.
    */
   function buildMovementChords(movement, keyPc, technique, difficulty, anchors = {}, doubling = 'none', failures = null, leftHandStyle = 'none', topIntervals = {}, passing = {}) {
+    if (movement.score?.preserveTexture && (movement.score.fixedPitches || (technique === 'auto'
+      && Object.keys(anchors).length === 0 && Object.keys(topIntervals).length === 0))) {
+      return writtenMovementChords(movement, keyPc);
+    }
     const tokens = movement.pattern.split('-');
     const minor = isMinorMovement(movement);
     const parsedTokens = tokens.map((token) => parseMovementToken(token));
@@ -1991,7 +2025,7 @@ function parseMovementToken(token) {
         harmonicRole: movement.roles?.[i] || 'structural',
         // Même réalisation pour l'aperçu et l'exercice. Les attaques font
         // référence aux mains affichées, sauf les appoggiatures écrites.
-        studyStep: writtenStep ? { ...writtenStep, keyPc, writtenVoicing: Boolean(useWritten) } : null,
+        studyStep: writtenStep ? { ...writtenStep, keyPc, writtenVoicing: Boolean(useWritten), preserveTexture: Boolean(movement.score.preserveTexture) } : null,
         passingChord: p ? { ...targetAt(p, passingAt[i], passingTops[i]), passing: true, after: i, kind: p.kind } : null,
       };
     });
@@ -2832,6 +2866,9 @@ export function createPracticeExercise({ library = movementsLibrary } = {}) {
   function previewMovement(name, keyPc = 0) {
     const movement = findMovement(name);
     if (!movement) return null;
+    // La bibliothèque fait entendre le motif latin, même après exploration
+    // d'un autre accord en Drop 2, avec doublures ou main gauche ajoutée.
+    if (movement.score?.preserveTexture) return writtenMovementChords(movement, keyPc);
     const chords = buildMovementChords(movement, keyPc, state.technique, state.difficulty, {}, state.doubling, null, state.leftHandStyle, movement.topIntervals || {}, { tops: movement.passingTopIntervals || {} });
     return chords.length > 0 ? chords : null;
   }
@@ -3142,6 +3179,7 @@ export function renderExerciseTarget(target, options = {}) {
   // veut même DAVANTAGE : « tu peux rajouter des mini-keyboardings à chaque
   // fois, pour illustrer les accords montrés ».
   const compact = options.layout === 'chord';
+  const writtenMotif = target.studyStep?.preserveTexture && target.studyStep.writtenVoicing;
 
   return `
     <div class="exercise-target-card ${target.movementName ? 'has-movement' : ''}">
@@ -3168,15 +3206,15 @@ export function renderExerciseTarget(target, options = {}) {
         ${splitDisplay ? renderHandSplit(leftHand, rightHand, noteLabel) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
       </div>
       <div class="exercise-target-actions">
-      ${compact ? '' : renderDoublingSelect(options.doubling)}
+      ${compact || writtenMotif ? '' : renderDoublingSelect(options.doubling)}
       <!-- [Claude] — 2026-11-06 — « + main gauche », « + main gauche Arpégé »,
            « + main gauche Rythmé » : Narcisse, en Accord cible, « ça ne veut rien
            dire » — retiré ici comme la doublure juste au-dessus (compact), avec le
            même garde-fou. Parcours harmonique garde le menu intact : la main
            gauche de style y sert à jouer une démo d'accompagnement réaliste,
            pas à explorer un voicing isolé. -->
-      ${compact ? '' : renderLeftHandSelect(options.leftHandStyle ?? voicing?.leftHandStyle ?? 'none', baseHasLeftHand(voicing))}
-      ${options.topNote ? renderTopNoteSelect(options.topNote) : ''}
+      ${compact || writtenMotif ? '' : renderLeftHandSelect(options.leftHandStyle ?? voicing?.leftHandStyle ?? 'none', baseHasLeftHand(voicing))}
+      ${options.topNote && !writtenMotif ? renderTopNoteSelect(options.topNote) : ''}
       <button class="exercise-listen-btn" type="button" data-action="listen-exercise" aria-label="Écouter le voicing">
         <svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         Écouter
@@ -3267,6 +3305,9 @@ export function renderDoublingSelect(doubling = 'none') {
 export function renderVoicingChoices(target, options = {}) {
   const voicing = target?.voicing;
   if (!voicing) return '';
+  if (target.studyStep?.fixedPitches) {
+    return renderVoicingCategories([], 'written', 0, 'Motif écrit', 'auto');
+  }
   if (voicing.topNoteSuggestions) return renderTopNotePanel(voicing);
   const technique = voicing.technique || 'auto';
   const categories = options.categories ?? getAvailableTechniques(target.name);
@@ -3419,9 +3460,10 @@ export function renderTopNoteBrowser(results, { topPc, selected = null } = {}) {
  * (contour) avec ses flèches de variantes.
  */
 function renderVoicingCategories(categories, activeTechnique, variant = 0, variantLabel = '', selectedTechnique = activeTechnique) {
-  if (!categories || categories.length === 0) return '';
+  if ((!categories || categories.length === 0) && activeTechnique !== 'written') return '';
   const isAuto = selectedTechnique === 'auto';
-  const autoTag = `<span class="exercise-category-tag exercise-category-auto${isAuto ? ' active' : ''}" data-technique="auto" title="L'application choisit la technique (ordre pédagogique)" aria-pressed="${isAuto}">${escapeHtml(TECHNIQUE_LABELS.auto)}</span>`;
+  const written = activeTechnique === 'written';
+  const autoTag = `<button type="button" class="exercise-category-tag exercise-category-auto${isAuto ? ' active' : ''}" data-technique="auto" title="${written ? 'Notes et articulation du motif de l’étude' : "L'application choisit la technique (ordre pédagogique)"}" aria-pressed="${isAuto}">${written ? 'Motif écrit' : escapeHtml(TECHNIQUE_LABELS.auto)}</button>`;
   // [Claude] — 2026-10-13 — Les techniques inapplicables à l'accord ne sont plus affichées
   // (elles apparaissaient barrées et alourdissaient la colonne) : seules les disponibles
   // restent. Une technique en cours de jeu est toujours gardée.

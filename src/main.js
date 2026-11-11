@@ -2171,6 +2171,7 @@ function initPracticeExercise() {
       focus: m.focus,
       provenance: m.provenance,
       score: m.score,
+      referenceMotif: Boolean(m.provenance?.adaptedFrom),
       name: m.name,
       category: m.category || 'Mouvements 12 tons',
       level: m.level,
@@ -2244,6 +2245,7 @@ function initPracticeExercise() {
     // ne montraient que les tags de Latino sans dire d'où ils venaient. Les
     // catégories suffisent ; les tags restent dans le JSON et dans la recherche.
     items.sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category)
+      || Number(Boolean(b.referenceMotif)) - Number(Boolean(a.referenceMotif))
       || Number(Boolean(b.score)) - Number(Boolean(a.score)) || a.name.localeCompare(b.name));
     if (!els.exerciseLibraryGrid) return;
     const current = practiceExercise.getState().progression?.name;
@@ -2392,7 +2394,10 @@ function initPracticeExercise() {
     demoPlayer.stop();
     if (!await ensureMovementMode()) return;
     if (item.grid) practiceExercise.setCustomGrid(item.grid.chords, { name: item.grid.name });
-    else practiceExercise.setContentChoice(item.id);
+    else {
+      if (item.score?.preserveTexture) practiceExercise.setTechnique('auto');
+      practiceExercise.setContentChoice(item.id);
+    }
     closeLibrary();
     feedbackDiv.textContent = '';
     render();
@@ -2820,6 +2825,12 @@ function initPracticeExercise() {
 
   const DEMO_STYLE_STORAGE = 'exercise-demo-style';
   let demoStyle = 'auto';
+  // Le choix Plaqué d'une grille ne doit pas aplatir ensuite une étude latine.
+  const STUDY_PLAYBACK_STORAGE = 'exercise-study-playback';
+  let studyPlayback = 'auto';
+  try {
+    if (window.localStorage?.getItem(STUDY_PLAYBACK_STORAGE) === 'plaque') studyPlayback = 'plaque';
+  } catch (_) { /* Préférence de cette séance seulement. */ }
   try {
     const saved = window.localStorage?.getItem(DEMO_STYLE_STORAGE);
     if (saved && (saved === 'auto' || DEMO_STYLES[saved])) demoStyle = saved;
@@ -2855,7 +2866,7 @@ function initPracticeExercise() {
         : '<option value="auto">Accompagnement automatique</option>' + DEMO_STYLE_IDS.map((id) => `<option value="${id}">${DEMO_STYLES[id].label} · ${DEMO_STYLES[id].tempo}</option>`).join('');
       select.dataset.menu = menu;
     }
-    select.value = written && demoStyle !== 'plaque' ? 'auto' : demoStyle;
+    select.value = written ? studyPlayback : demoStyle;
   }
   // Options posées une fois (un menu reconstruit à chaque rendu se refermerait
   // pendant la démo) ; seul le libellé « Selon le mouvement » suit le mouvement.
@@ -2864,13 +2875,15 @@ function initPracticeExercise() {
       + DEMO_STYLE_IDS.map((id) => `<option value="${id}">${DEMO_STYLES[id].label} · ${DEMO_STYLES[id].tempo}</option>`).join('');
     select.value = demoStyle;
     select.addEventListener('change', () => {
-      demoStyle = select.value;
+      const written = select.dataset.menu === 'study';
+      if (written) studyPlayback = select.value;
+      else demoStyle = select.value;
       try {
-        window.localStorage?.setItem(DEMO_STYLE_STORAGE, demoStyle);
+        window.localStorage?.setItem(written ? STUDY_PLAYBACK_STORAGE : DEMO_STYLE_STORAGE, select.value);
       } catch (e) {
         // Choix gardé pour cette séance seulement.
       }
-      demoStyleSelects.forEach((other) => { other.value = demoStyle; });
+      demoStyleSelects.forEach((other) => renderDemoStyleMenu(other, other.dataset.menu === 'study'));
       demoPlayer.stop();
       // Carte (notes ajoutées par la démo) et liste (accords de passage) suivent le style.
       render();
@@ -2914,7 +2927,7 @@ function initPracticeExercise() {
       console.warn('[Démo] Audio indisponible', err);
     }
     const written = chords.every((c) => c.studyStep);
-    const styleId = written ? (demoStyle === 'plaque' ? 'plaque' : 'gospel') : resolveDemoStyle(movementStyle);
+    const styleId = written ? (studyPlayback === 'plaque' ? 'plaque' : 'gospel') : resolveDemoStyle(movementStyle);
     const choice = variationChoices[styleId] ?? 'cycle';
     const variation = choice === 'cycle' ? (nextVariation[styleId] || 0) : choice;
     if (choice === 'cycle') nextVariation[styleId] = (variation + 1) % DEMO_VARIATIONS[styleId].length;
