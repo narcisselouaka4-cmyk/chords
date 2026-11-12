@@ -209,8 +209,17 @@ function exercisePart(entry, part, commonTempo) {
   const perBeat = 60 / Math.max(30, Math.min(220, tempo));
   const events = (demo?.events || []).filter((e) => e.type === 'noteOn' || e.type === 'noteOff')
     .map((e) => ({ ...e, time: e.time * perBeat }));
+  // Dernier accord (attaque de son dernier pas) et premier accord : pour une charnière d'enchaînement.
+  // La tenue finale peut s'écrire en plusieurs pas du même accord (Lick 1 : La mineur, puis encore
+  // La mineur) : la charnière part du premier de ces pas.
+  const steps = (demo?.events || []).filter((e) => e.type === 'step');
+  let runStart = chords.length - 1;
+  while (runStart > 0 && chords[runStart - 1]?.name === chords.at(-1)?.name) runStart -= 1;
+  const runStep = steps.find((e) => e.step === runStart) || steps.at(-1);
   return {
     events, length: (demo?.beats || 0) * perBeat,
+    firstChord: chords[0]?.name || null, lastChord: chords.at(-1)?.name || null,
+    lastStepAt: runStep ? runStep.time * perBeat : null,
     label: `${entry.name} (${NAMES[keyPc]}${keyPc !== writtenKeyOf(entry) ? `, transposé depuis ${NAMES[writtenKeyOf(entry)]}` : ''}, ${tempo} à la noire)`,
     chords: dedupe(chords.map((c) => c.name)), tempo,
   };
@@ -243,9 +252,14 @@ export function combineLibrary(rawArgs, tutorials = []) {
   const mode = args?.mode === 'overlay' ? 'overlay' : 'chain';
   const parts = (Array.isArray(args?.parts) ? args.parts : []).slice(0, MAX_PARTS);
   if (!parts.length) return { example: null, note: '_(Combinaison vide : aucun élément de la bibliothèque demandé.)_', summary: 'aucun élément' };
-  // Superposer des exercices : même tempo pour tous (celui demandé, sinon celui du premier).
-  const firstExercise = parts.map((p) => exerciseEntry(p?.id)).find(Boolean);
-  const commonTempo = Number(args.tempo) > 0 ? Number(args.tempo) : mode === 'overlay' && firstExercise ? exerciseTempo(firstExercise) : null;
+  // Même tempo pour tous les exercices (celui demandé, sinon celui du premier), en superposition
+  // comme en enchaînement. [Claude] — 2026-11-12 — Narcisse : « il enchaîne mais ce n'est pas fluide,
+  // il marque un temps d'arrêt entre les deux exos ». Mesuré : le tempo tombait de 216 à 135 au
+  // passage du Lick 1 au Montuno (et 0,15 s de silence était ajouté) ; la pulsation cassait.
+  const exerciseParts = parts.map((p) => exerciseEntry(p?.id)).filter(Boolean);
+  const firstExercise = exerciseParts[0];
+  const commonTempo = Number(args.tempo) > 0 ? Number(args.tempo)
+    : firstExercise && (mode === 'overlay' || exerciseParts.length > 1) && !parts.some((p) => Number(p?.tempo) > 0 || Number(p?.speed) > 0) ? exerciseTempo(firstExercise) : null;
   // [Claude] — 2026-11-12 — Sans tonalité précisée, tout prend celle du premier élément : le modèle
   // annonçait « les deux sont en La mineur » alors que le Montuno restait en Do (essai réel).
   const firstPart = findItem(parts[0]?.id, tutorials);
@@ -270,11 +284,33 @@ export function combineLibrary(rawArgs, tutorials = []) {
   }
   if (!built.length) return { example: null, note: `_(Je n'ai rien pu assembler : ${problems.join(' ; ')}.)_`, summary: problems.join(' ; ') };
 
-  const events = [];
+  let events = [];
   let cursor = 0;
   const longest = Math.max(...built.map((b) => b.length * b.repeat));
-  for (const b of built) {
+  const joints = [];
+  for (const [index, b] of built.entries()) {
+    // Charnière : le précédent finit sur l'accord par lequel celui-ci commence (Lick 1 → Montuno :
+    // La mineur). Celui-ci démarre sur cet accord, à la place de sa tenue finale : pas de temps mort.
+    const prev = built[index - 1];
+    if (mode === 'chain' && prev && prev.lastChord && prev.lastChord === b.firstChord && Number.isFinite(prev.lastStepAt) && prev.lastStepAt > 0) {
+      const joint = prev.startedAt + (prev.repeat - 1) * prev.length + prev.lastStepAt;
+      if (joint < cursor) {
+        const sounding = new Map();
+        events = events.filter((e) => {
+          if (e.part !== index - 1 || e.time < joint - 1e-6) {
+            if (e.part === index - 1 && e.type === 'noteOn') sounding.set(e.note, (sounding.get(e.note) || 0) + 1);
+            if (e.part === index - 1 && e.type === 'noteOff') sounding.set(e.note, Math.max(0, (sounding.get(e.note) || 1) - 1));
+            return true;
+          }
+          return false;
+        });
+        for (const [note, count] of sounding) for (let k = 0; k < count; k += 1) events.push({ type: 'noteOff', note, time: joint, part: index - 1 });
+        cursor = joint;
+        joints.push(`${prev.lastChord}`);
+      }
+    }
     const at = mode === 'chain' ? cursor : Math.max(0, Number(b.at) || 0);
+    b.startedAt = at;
     // En superposition, un morceau plus court est répété (au plus 8 fois) pour couvrir le plus long, si demandé.
     const times = b.repeat;
     for (let r = 0; r < times; r += 1) {
@@ -283,11 +319,13 @@ export function combineLibrary(rawArgs, tutorials = []) {
       for (const e of b.events) {
         const time = e.time + offset;
         if (time > MAX_SECONDS + 4) continue;
-        events.push({ ...e, time, ...(Number.isFinite(e.withoutPedalAt) ? { withoutPedalAt: e.withoutPedalAt + offset } : {}) });
+        events.push({ ...e, time, part: index, ...(Number.isFinite(e.withoutPedalAt) ? { withoutPedalAt: e.withoutPedalAt + offset } : {}) });
       }
     }
-    if (mode === 'chain') cursor = at + b.length * times + 0.15;
+    // Bout à bout, sans silence ajouté : le suivant commence sur le temps où le précédent finit.
+    if (mode === 'chain') cursor = at + b.length * times;
   }
+  events = events.map(({ part, ...e }) => e);
   // À temps égal : relâchements d'abord, puis attaques.
   const order = { noteOff: 0, noteOn: 1 };
   events.sort((a, b) => a.time - b.time || (order[a.type] ?? 2) - (order[b.type] ?? 2));
@@ -310,7 +348,7 @@ export function combineLibrary(rawArgs, tutorials = []) {
     beats: Math.max(...events.map((e) => e.time), longest), chords: [],
     source: { kind: 'bibliothèque', mode, parts: built.map((b) => b.label), request: { mode, parts: parts.map((p) => ({ ...p })), ...(Number(args.tempo) > 0 ? { tempo: Number(args.tempo) } : {}) } },
   };
-  const summary = `${mode === 'chain' ? 'Enchaînement' : 'Superposition'} de ${built.length} élément(s), ${Math.round(example.beats)} s, ${ons.length} notes : ${built.map((b) => `${b.label}${b.chords ? ` [${b.chords.slice(0, 10).join(' ')}]` : ''}`).join(' ; ')}${problems.length ? ` — non retenus : ${problems.join(' ; ')}` : ''}${crowded ? ' — plus de dix notes ensemble' : ''}`;
+  const summary = `${joints.length ? `Charnière sur ${joints.join(', ')}. ` : ''}${mode === 'chain' ? 'Enchaînement' : 'Superposition'} de ${built.length} élément(s), ${Math.round(example.beats)} s, ${ons.length} notes : ${built.map((b) => `${b.label}${b.chords ? ` [${b.chords.slice(0, 10).join(' ')}]` : ''}`).join(' ; ')}${problems.length ? ` — non retenus : ${problems.join(' ; ')}` : ''}${crowded ? ' — plus de dix notes ensemble' : ''}`;
   const note = problems.length ? `_(Non retenu : ${problems.join(' ; ')}.)_` : '';
   return { example, note, summary };
 }
@@ -430,7 +468,9 @@ export function libraryRequestCall(message, tutorials = [], { previous = null, r
   const parts = asked.parts.map((p) => ({ ...p, ...(key ? { key } : {}) }));
   const names = parts.map((p) => exerciseEntry(p.id)?.name || tutorials.find((t) => t.id === p.id)?.title || p.id);
   const keyName = key && keyPcOf(key) != null ? NAMES[keyPcOf(key)] : key;
-  const said = `${asked.mode === 'overlay' ? 'Voici, superposés' : names.length > 1 ? 'Voici, enchaînés' : 'Voici'} : ${names.join(asked.mode === 'overlay' ? ' + ' : ' → ')}, avec les notes de la bibliothèque${tempo ? `, à ${tempo} à la noire` : ''}.${moved.length && keyName ? ` Tout est en ${keyName} : ${moved.map((p) => exerciseEntry(p.id).name).join(', ')} ${moved.length > 1 ? 'sont transposés depuis leur tonalité écrite' : 'est transposé depuis sa tonalité écrite'}.` : ''}`;
+  const exercises = parts.map((p) => exerciseEntry(p.id)).filter(Boolean);
+  const shared = !tempo && exercises.length > 1 && !parts.some((p) => p.speed) ? exerciseTempo(exercises[0]) : null;
+  const said = `${asked.mode === 'overlay' ? 'Voici, superposés' : names.length > 1 ? 'Voici, enchaînés' : 'Voici'} : ${names.join(asked.mode === 'overlay' ? ' + ' : ' → ')}, avec les notes de la bibliothèque${tempo ? `, à ${tempo} à la noire` : shared ? `, d'un seul tempo (${shared} à la noire, celui du premier)` : ''}.${moved.length && keyName ? ` Tout est en ${keyName} : ${moved.map((p) => exerciseEntry(p.id).name).join(', ')} ${moved.length > 1 ? 'sont transposés depuis leur tonalité écrite' : 'est transposé depuis sa tonalité écrite'}.` : ''}`;
   return { call: { function: { name: 'combine_library', arguments: JSON.stringify({ mode: asked.mode, parts, ...(tempo ? { tempo } : {}) }) } }, text: said };
 }
 

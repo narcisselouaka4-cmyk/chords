@@ -114,6 +114,26 @@ await check('Sans tonalité précisée, tout prend celle du premier élément (M
   assert.match(kept.summary, /Montuno mineur · octaves et relances \(Do,/);
 });
 
+await check('Enchaînement fluide (Narcisse, 12/11) : un seul tempo, aucun silence ajouté, charnière sur l’accord commun', () => {
+  const r = combineLibrary({ mode: 'chain', parts: [{ id: 'latin-ellen-lick-1', key: 'La' }, { id: 'latin-montuno-guajeo', key: 'La' }] }, tutos);
+  assert.match(r.summary, /^Charnière sur Am\./);
+  const tempos = [...r.summary.matchAll(/(\d+) à la noire/g)].map((m) => m[1]);
+  assert.equal(new Set(tempos).size, 1, `un seul tempo : ${tempos}`);
+  // Jamais un instant sans aucune note entre les deux exercices.
+  const sorted = [...r.example.events].sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
+  const active = new Map(); let silence = 0; let quietSince = null;
+  for (const e of sorted) {
+    if (quietSince != null && e.type === 'noteOn') { silence = Math.max(silence, e.time - quietSince); quietSince = null; }
+    active.set(e.note, Math.max(0, (active.get(e.note) || 0) + (e.type === 'noteOn' ? 1 : -1)));
+    if ([...active.values()].every((n) => n === 0)) quietSince = e.time;
+  }
+  assert.ok(silence < 0.12, `silence complet de ${silence.toFixed(2)} s`);
+  // Le Lick 1 seul dure plus longtemps que sa part dans l’enchaînement : sa tenue finale est remplacée.
+  const alone = combineLibrary({ parts: [{ id: 'latin-ellen-lick-1', key: 'La' }] }, tutos).example;
+  const montunoAlone = combineLibrary({ parts: [{ id: 'latin-montuno-guajeo', key: 'La', tempo: 216 }] }, tutos).example;
+  assert.ok(r.example.beats < alone.beats + montunoAlone.beats - 0.5);
+});
+
 await check('Adapter le tempo : le même exercice à 60 dure plus longtemps qu’à 120', () => {
   const slow = combineLibrary({ parts: [{ id: 'study-ii-v-i-major', tempo: 60 }] }, tutos).example;
   const fast = combineLibrary({ parts: [{ id: 'study-ii-v-i-major', tempo: 120 }] }, tutos).example;
