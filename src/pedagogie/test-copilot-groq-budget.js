@@ -24,7 +24,10 @@ const full = await request('https://example.test/v1');
 const openRouter = await request('https://openrouter.ai/api/v1');
 assert.deepEqual(openRouter.messages, compact.messages);
 assert.deepEqual(openRouter.tools, compact.tools);
-assert.equal(openRouter.max_tokens, 1200);
+// 12/11 : 1 200 pour la réponse + 4 000 pour le raisonnement, qui compte dans max_tokens chez OpenRouter.
+assert.equal(openRouter.max_tokens, 5200);
+assert.deepEqual(openRouter.reasoning, { effort: 'low' });
+assert.ok(!('reasoning' in compact) && compact.reasoning_effort === 'low');
 assert.ok(!('max_completion_tokens' in openRouter));
 assert.ok(compact.messages[0].content.length < full.messages[0].content.length / 2);
 assert.deepEqual(compact.messages.slice(1), full.messages.slice(1));

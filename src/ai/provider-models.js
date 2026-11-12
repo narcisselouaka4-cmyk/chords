@@ -20,6 +20,11 @@ export const ANTHROPIC_MODELS = [
   { id: 'claude-fable-5', input: 10, output: 50 },
 ];
 
+// [Claude] — 2026-11-12 — Proposés dans le préréglage : ceux qui ont réussi l'essai réel d'enrichissement
+// avec la clé de Narcisse (Haiku 5.5 : 5 à 12 s ; Sonnet 5.5 : 8 à 12 s ; Sonnet 5 : 17 à 24 s ;
+// Opus 5.5 : 81 s, le plus lent et le plus cher). Les Claude 4.x et Fable n'ont pas été essayés ici.
+export const ANTHROPIC_RECOMMENDED = ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5', 'claude-opus-5-5'];
+
 export function providerIdentity(baseUrl) {
   try {
     const url = new URL(baseUrl.trim());

@@ -63,7 +63,7 @@ export function retryDelaySeconds(retryAfter, bodyText = '') {
   return null;
 }
 
-const PARAMETERS = ['temperature', 'max_completion_tokens', 'max_tokens', 'tool_choice', 'response_format', 'top_p'];
+const PARAMETERS = ['temperature', 'max_completion_tokens', 'max_tokens', 'tool_choice', 'response_format', 'top_p', 'reasoning_effort', 'reasoning'];
 
 /** Le paramètre que le fournisseur dit refuser, s'il le nomme. */
 export function rejectedParameter(bodyText) {
@@ -84,10 +84,16 @@ export function rejectedParameter(bodyText) {
  * La réparation ne touche jamais aux messages, aux notes ni au modèle.
  */
 export function repairRejectedParameter(body, bodyText) {
+  // [Claude] — 2026-11-12 — Réglage de la réflexion ajouté par l'adaptateur Anthropic (thinking,
+  // output_config.effort) refusé par un modèle : on renvoie sans réglage, avec plus de place.
+  if (body && typeof body === 'object' && /^claude-/i.test(String(body.model || '')) && body.thinking_control !== false
+    && /\bthinking\b|output_config|\beffort\b/i.test(String(bodyText || ''))) {
+    return { ...body, thinking_control: false };
+  }
   const name = rejectedParameter(bodyText);
   if (!name || !body || typeof body !== 'object') return null;
   const next = { ...body };
-  if (name === 'temperature' || name === 'top_p' || name === 'response_format' || name === 'tool_choice') {
+  if (['temperature', 'top_p', 'response_format', 'tool_choice', 'reasoning_effort', 'reasoning'].includes(name)) {
     if (!(name in next)) return null;
     delete next[name];
     return next;

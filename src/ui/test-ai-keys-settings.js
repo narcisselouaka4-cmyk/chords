@@ -129,7 +129,7 @@ function check(label, ok) {
   // (Messages API) est traduit par anthropic-adapter.js, transparent pour callChatCompletions.
   check('Le préréglage Anthropic (Claude) pointe vers api.anthropic.com avec de vrais modèles Claude',
     /name: 'Anthropic \(Claude\)',[\s\S]{0,200}?baseUrl: 'https:\/\/api\.anthropic\.com'/.test(cfg)
-    && cfg.includes('models: ANTHROPIC_MODELS.map((m) => m.id)'));
+    && cfg.includes('models: ANTHROPIC_RECOMMENDED'));
   check('anthropic-adapter.js traduit requête (toAnthropicBody) et réponse (fromAnthropicResponse)',
     cfg.includes('toAnthropicBody') && cfg.includes('fromAnthropicResponse'));
 
@@ -233,9 +233,10 @@ await (async () => {
   const idAnthropic = await saveNamedKey({ baseUrl: 'https://api.anthropic.com', apiKey: 'sk-ant-test', model: 'claude-haiku-4-5-20251001' });
   const anthropicEntry = listSavedKeys().find((k) => k.id === idAnthropic);
   check('Une clé sur l’adresse d’un préréglage connu propose directement ses 3 modèles, pas qu’un seul',
+    // 12/11 : le préréglage ne propose plus que les modèles vérifiés ; celui enregistré reste.
     anthropicEntry.models.includes('claude-haiku-4-5-20251001')
     && anthropicEntry.models.includes('claude-sonnet-5')
-    && anthropicEntry.models.includes('claude-opus-5'));
+    && anthropicEntry.models.includes('claude-opus-5-5'));
 
   // [Claude] — 2026-11-10 — Narcisse : « faut qu'on puisse supprimer des modèles aussi ».
   removeModelFromSavedKey(id3, 'fixture/model-b');

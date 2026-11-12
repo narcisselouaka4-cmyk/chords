@@ -60,6 +60,17 @@ check('Erreur dans un HTTP 200 (choix)', embeddedProviderError({ choices: [{ err
 check('Réponse normale : pas d\'erreur embarquée', embeddedProviderError(completionBody({ text: 'ok' })) === null);
 const repaired = repairRejectedParameter({ model: 'm', messages: [{ role: 'user', content: 'notes exactes' }], temperature: 0.4, max_completion_tokens: 1200 }, JSON.stringify(ERROR_SCENARIOS.badParam400.body));
 check('Réparation : seul le paramètre refusé est retiré', repaired && !('temperature' in repaired) && repaired.max_completion_tokens === 1200 && repaired.messages[0].content === 'notes exactes');
+// 12/11 : réglage de réflexion ajouté par l'adaptateur Anthropic, refusé par un modèle → renvoi sans réglage.
+{
+  const thinking400 = JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'thinking.type: "disabled" is not supported for this model' } });
+  const claude = repairRejectedParameter({ model: 'claude-haiku-5-5', messages: [{ role: 'user', content: 'x' }] }, thinking400);
+  check('Réglage de réflexion refusé par Claude : renvoi marqué thinking_control:false, messages intacts', claude?.thinking_control === false && claude.messages[0].content === 'x');
+  check('… une seule fois (pas de boucle)', repairRejectedParameter({ ...claude }, thinking400) === null);
+  check('… jamais pour un autre fournisseur', repairRejectedParameter({ model: 'openai/gpt-oss-120b', messages: [] }, thinking400) === null);
+  const effort400 = JSON.stringify({ error: { message: 'Unsupported parameter: reasoning_effort is not supported with this model.', param: 'reasoning_effort' } });
+  const plain = repairRejectedParameter({ model: 'gpt-6-luna', reasoning_effort: 'low', messages: [] }, effort400);
+  check('reasoning_effort refusé : retiré, le reste intact', plain && !('reasoning_effort' in plain) && plain.model === 'gpt-6-luna');
+}
 check('Valeur trop grande (pas un paramètre refusé) : rien n\'est retiré ni renommé', repairRejectedParameter({ max_tokens: 8192, temperature: 0.4 }, JSON.stringify({ error: { message: 'max_tokens is too large: 8192. This model supports at most 4096 completion tokens', type: 'invalid_request_error', param: 'max_tokens' } })) === null);
 check('Valeur invalide de température : la température n\'est pas supprimée en silence', repairRejectedParameter({ temperature: 0.4 }, JSON.stringify({ error: { message: "Invalid value for 'temperature': must be between 0 and 1.", type: 'invalid_request_error', param: 'temperature' } })) === null);
 check('Réparation impossible quand rien n\'est nommé', repairRejectedParameter({ temperature: 0.4 }, '{"error":{"message":"Bad request"}}') === null);

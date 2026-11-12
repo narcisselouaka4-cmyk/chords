@@ -40,6 +40,28 @@ function toAnthropicToolChoice(choice) {
   return undefined;
 }
 
+// [Claude] — 2026-11-12 — Les modèles Claude 5 réfléchissent AVANT d'écrire, et cette réflexion
+// se prend sur max_tokens. Mesuré avec la clé de Narcisse : Haiku 5.5, plan d'harmonisation,
+// 3 080 jetons de sortie consommés, 0 caractère de texte (fin « max_tokens »). Sonnet 5, Sonnet 5.5
+// pareil : « le modèle a manqué de place ». Le Copilote répond en direct à un pianiste : on coupe
+// la réflexion là où l'API le permet, et ailleurs on la borne et on lui laisse de la place en plus.
+// Règles par modèle (documentation API Anthropic, novembre 2026) :
+//   Sonnet 5.5 : {type:"disabled"} refusé (400), on envoie {type:"between_tools"} ;
+//   Haiku 5.5, Sonnet 5, Opus 5 : {type:"disabled"} accepté (effort high ou moins, le défaut) ;
+//   Opus 5.5, Fable, Mythos : réflexion impossible à couper → effort « low » + marge ;
+//   Claude 4.x : sans paramètre, pas de réflexion → rien à envoyer.
+const THINKING_HEADROOM = 8000;
+
+export function anthropicThinkingPolicy(model) {
+  const id = String(model || '').toLowerCase();
+  if (/claude-sonnet-5-5\b/.test(id)) return { thinking: { type: 'between_tools' } };
+  if (/claude-(?:haiku-5-5|sonnet-5|opus-5)(?![-.]\d)/.test(id)) return { thinking: { type: 'disabled' } };
+  if (/claude-(?:opus-5-5|fable|mythos)/.test(id)) return { effort: 'low', headroom: THINKING_HEADROOM };
+  // Un modèle Claude plus récent que cette table : sa réflexion est probablement active.
+  if (/claude-[a-z]+-(?:[5-9]|\d{2})/.test(id)) return { headroom: THINKING_HEADROOM };
+  return {};
+}
+
 /** Traduit un corps de requête façon OpenAI (/chat/completions) vers l'API Messages d'Anthropic. */
 export function toAnthropicBody(body) {
   const messages = Array.isArray(body?.messages) ? body.messages : [];
@@ -61,6 +83,14 @@ export function toAnthropicBody(body) {
     messages: chatMessages,
   };
   if (system) out.system = system;
+  // `thinking_control: false` : le fournisseur a refusé le réglage (voir provider-errors.js) ; on
+  // renvoie alors la demande telle quelle, avec la seule marge de place.
+  const policy = anthropicThinkingPolicy(body.model);
+  if (body.thinking_control !== false) {
+    if (policy.thinking) out.thinking = policy.thinking;
+    if (policy.effort) out.output_config = { effort: policy.effort };
+  }
+  if (policy.headroom || body.thinking_control === false) out.max_tokens += policy.headroom || THINKING_HEADROOM;
   // Les modèles Claude récents refusent temperature (HTTP 400). On laisse
   // Anthropic appliquer son réglage par défaut, y compris pour les anciens
   // modèles ; les requêtes aux autres fournisseurs ne passent pas ici.
@@ -83,6 +113,7 @@ const STOP_REASON_TO_FINISH = {
   stop_sequence: 'stop',
   max_tokens: 'length',
   tool_use: 'tool_calls',
+  refusal: 'content_filter',
 };
 
 /**

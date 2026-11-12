@@ -1817,8 +1817,9 @@ async function testMelodyChordsInSend() {
   check('Mélodie tapée : exemple marqué comme exemple nommé, pas comme une proposition sur son jeu', typed.toolResult?.example?.source?.kind === 'exemple nommé', JSON.stringify(typed.toolResult?.example?.source));
   calls = 0;
   const res = await sendCopilotMessage({ message: 'Harmonise ma mélodie en melody chords', messages: [], context });
-  check('« Harmonise ma mélodie » avec un modèle connecté : le modèle décide (une correction au plus), aucun repli local',
-    res.ok && calls === 2 && !res.toolResult?.example && res.toolResult?.generation?.engine === 'model' && res.toolResult.generation.rejected === true
+  // 12/11 : deux corrections au plus (le refus nomme toutes les erreurs), d'où trois appels.
+  check('« Harmonise ma mélodie » avec un modèle connecté : le modèle décide (deux corrections au plus), aucun repli local',
+    res.ok && calls === 3 && !res.toolResult?.example && res.toolResult?.generation?.engine === 'model' && res.toolResult.generation.rejected === true
     && res.toolResult.originalTake?.events?.length > 0 && /Ta prise est conservée/.test(res.content), `${res.toolResult?.example?.kind} calls=${calls} ${res.content}`);
   calls = 0;
   body = null;
@@ -2047,7 +2048,7 @@ async function testResponseRecoveryAndPlans() {
       return bodies.length === 2 ? response({ content: '' }, 'length') : response({ content: 'Voici une réponse complète.' });
     };
     const compatible = await sendCopilotMessage({ message: 'Comment varier mon accompagnement ?', messages: [] });
-    check('Le repli compatible conserve max_tokens dans la récupération', compatible.ok && bodies.length === 3 && bodies[1].max_tokens === 1200 && bodies[2].max_tokens === 4800 && !bodies[2].max_completion_tokens);
+    check('Le repli compatible conserve max_tokens dans la récupération', compatible.ok && bodies.length === 3 && bodies[1].max_tokens === 1200 + 4000 && bodies[2].max_tokens === 4800 + 4000 && !bodies[2].max_completion_tokens); // 12/11 : + 4 000 pour le raisonnement (Ollama)
 
     const fs = await import('node:fs');
     const take = JSON.parse(fs.readFileSync(new URL('./fixtures/copilot-arpeggiated-take.json', import.meta.url)));

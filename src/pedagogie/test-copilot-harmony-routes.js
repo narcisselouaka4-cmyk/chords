@@ -91,9 +91,10 @@ r = await askAbout('Qu’en penses-tu de ma prise ?');
 check('« Qu’en penses-tu de ma prise ? » : avis sur la prise', r.ok && mock.requests.length === 0, r.content?.slice(0, 100));
 
 // ── Aucun repli silencieux ──
-mock.reset(); mock.enqueue({ text: 'pas un plan' }, { text: 'toujours pas' });
+mock.reset(); mock.enqueue({ text: 'pas un plan' }, { text: 'toujours pas' }, { text: 'encore rien' });
 r = await send('Rends mes accords plus beaux.');
-check('Plan invalide deux fois : échec dit clairement, une seule correction demandée', r.ok && mock.requests.length === 2 && /n’a pas fourni de plan d’accords jouable/.test(r.content) && /Ta prise est conservée/.test(r.content));
+// 12/11 : deux corrections au plus (le refus nomme toutes les erreurs).
+check('Plan invalide trois fois : échec dit clairement, deux corrections demandées', r.ok && mock.requests.length === 3 && /n’a pas fourni de plan d’accords jouable/.test(r.content) && /Ta prise est conservée/.test(r.content));
 check('… aucune version locale glissée à la place', !r.toolResult.variants?.length && !r.toolResult.example && r.toolResult.generation?.rejected === true);
 // Conversation de Narcisse du 11/11 : « limite de longueur » à chaque relance.
 const truncated = { body: { choices: [{ index: 0, message: { role: 'assistant', content: plan().slice(0, 120) }, finish_reason: 'length' }] } };

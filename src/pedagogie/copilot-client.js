@@ -1575,11 +1575,29 @@ function buildChatCompletionPayload(config, payloadMessages, { includeTools = tr
   // [Claude] — 2026-11-12 — Les modèles gpt-oss raisonnent avant de répondre, et ce raisonnement
   // consomme la place et le temps de la réponse. Pour un plan JSON, un raisonnement bref suffit.
   // Seulement chez Groq, qui documente ce paramètre ; ailleurs il est omis.
-  if (reasoningEffort && /gpt-oss/i.test(String(config.model)) && /api\.groq\.com/.test(String(config.baseUrl))) body.reasoning_effort = reasoningEffort;
+  // [Claude] — 2026-11-12 — Mesuré avec les clés de Narcisse : chez OpenRouter, gpt-oss-120b et
+  // Nemotron 3 Ultra ont passé les 3 080 jetons réservés à réfléchir (0 caractère de réponse), et
+  // ce raisonnement compte dans max_tokens. On demande un raisonnement bref partout où le
+  // fournisseur a un réglage, et on garde de la place pour lui en plus de la réponse. Groq garde sa
+  // réserve exacte (limite de débit par minute) ; Anthropic est réglé par anthropic-adapter.js.
+  const effort = reasoningEffort || 'low';
+  const host = providerHost(config.baseUrl);
+  let thinking = false;
+  if (host === 'api.groq.com') {
+    if (/gpt-oss/i.test(String(config.model))) body.reasoning_effort = effort;
+  } else if (host === 'openrouter.ai') {
+    body.reasoning = { effort };
+    thinking = true;
+  } else if (host === 'generativelanguage.googleapis.com' || host === 'api.openai.com' || isOllamaCloudUrl(config.baseUrl)) {
+    body.reasoning_effort = effort;
+    thinking = true;
+  }
+  // Adresse personnalisée (serveur local…) : réserve inchangée, on ne sait rien de son modèle.
+  const room = thinking ? maxTokens + REASONING_HEADROOM : maxTokens;
   if (useMaxTokens || isOpenRouterUrl(config.baseUrl)) {
-    body.max_tokens = maxTokens;
+    body.max_tokens = room;
   } else {
-    body.max_completion_tokens = maxTokens;
+    body.max_completion_tokens = room;
   }
   if (includeTools) {
     body.tools = [PLAY_NOTE_TOOL, SUGGEST_ACTIONS_TOOL, PLAY_VOICING_TOOL, PLAY_LICK_TOOL, PLAY_SCALE_TOOL, PLAY_PROGRESSION_TOOL, PLAY_MELODY_CHORDS_TOOL];
@@ -1600,6 +1618,14 @@ function buildChatCompletionPayload(config, payloadMessages, { includeTools = tr
 
 function isOllamaCloudUrl(baseUrl = '') {
   return /(?:api\.)?ollama\.(?:ai|com)\/v1/i.test(baseUrl);
+}
+
+// Place laissée au raisonnement des modèles qui réfléchissent avant de répondre (non facturée s'il
+// ne sert pas) : sans elle, une réserve « au plus juste » finit en réponse vide.
+const REASONING_HEADROOM = 4000;
+
+function providerHost(baseUrl) {
+  try { return new URL(baseUrl).hostname; } catch { return ''; }
 }
 
 function isOpenRouterUrl(baseUrl) {
@@ -2010,9 +2036,20 @@ async function modelPlayingAnswer({message,messages,context,memory,preferences,d
   const exclude=follow?previous.flatMap(m=>m.toolResult?.variants||[]).map(v=>v.example?.events).filter(Boolean):[];
   const payload=[{role:'system',content:MODEL_HARMONY_INSTRUCTIONS},
     {role:'user',content:JSON.stringify({source:modelHarmonyData(source),memory:conversationMemoryContext(memory),recentRequests:memory.questions,preferences,request:message})}];
-  let reason='';
+  let reason='';const contents=[];
+  const harmonyAnswer=(realized)=>{
+    const variants=realized.variants.map(v=>({...v,generation})),first=variants[0];
+    const scope=/appo[g]+iatur|arp[eè]g|lick/i.test(message)?' Cette version travaille les accords tenus et leurs liaisons ; les ornements et les licks ne sont pas encore pris en charge par ce parcours.':'';
+    const kept=first.keptSource?.length?` À ${first.keptSource.length===1?'un endroit':`${first.keptSource.length} endroits`}, le modèle n’a pas proposé d’accord jouable : ton accord d’origine y est gardé.`:'';
+    return {ok:true,content:`${variants.length===1?'Voici une proposition':`Voici ${variants.length} propositions différentes`} préparée${variants.length===1?'':'s'} avec ${config.model}. Ta mélodie et son rythme sont conservés. La grille permet de comparer les nouveaux accords.${kept}${scope}`,
+      toolResult:{...base,phraseHarmony:true,harmonicRequest:message,example:first.example,playingAdvice:first.advice,variants},
+      suggestedActions:[],autoplay:/entendre|ecout|joue|demo/i.test(message)};
+  };
   try{
-    for(let attempt=0;attempt<2;attempt++){
+    // [Claude] — 2026-11-12 — Deux corrections au plus (au lieu d'une), tant que l'échéance le permet :
+    // le refus nomme maintenant toutes les erreurs, une correction suffit le plus souvent.
+    for(let attempt=0;attempt<3;attempt++){
+      if(attempt>0&&config.copilotDeadline-Date.now()<15000)break;
       // JSON demandé par le prompt : pas de response_format obligatoire, dont
       // le support varie suivant le fournisseur et le modèle cloud.
       // [Claude] — 2026-11-12 — Place réservée à la mesure de la prise (une version ≈ 45 jetons par
@@ -2038,14 +2075,9 @@ async function modelPlayingAnswer({message,messages,context,memory,preferences,d
         return {ok:false,error:'AI_OUTPUT_LIMIT',details:failDetails(result),toolResult:base};
       }
       const content=result.choice?.content||'';
+      contents.push(content);
       const realized=realizeModelHarmony(content,source,{exclude});
-      if(realized.ok){
-        const variants=realized.variants.map(v=>({...v,generation})),first=variants[0];
-        const scope=/appo[g]+iatur|arp[eè]g|lick/i.test(message)?' Cette version travaille les accords tenus et leurs liaisons ; les ornements et les licks ne sont pas encore pris en charge par ce parcours.':'';
-        return {ok:true,content:`${variants.length===1?'Voici une proposition':`Voici ${variants.length} propositions différentes`} préparée${variants.length===1?'':'s'} avec ${config.model}. Ta mélodie et son rythme sont conservés. La grille permet de comparer les nouveaux accords.${scope}`,
-          toolResult:{...base,phraseHarmony:true,harmonicRequest:message,example:first.example,playingAdvice:first.advice,variants},
-          suggestedActions:[],autoplay:/entendre|ecout|joue|demo/i.test(message)};
-      }
+      if(realized.ok)return harmonyAnswer(realized);
       reason=realized.reason;
       // Une seule correction, sous la même échéance globale. Ne jamais faire
       // passer un échec du modèle pour une nouvelle proposition du moteur local.
@@ -2053,8 +2085,12 @@ async function modelPlayingAnswer({message,messages,context,memory,preferences,d
         {role:'user',content:`Le plan a été refusé : ${reason} Corrige le JSON complet, en respectant les autres contraintes. Pas de commentaire hors JSON.`});
     }
   }catch(err){return {ok:false,error:activeTurn.cancelled?'AI_CANCELLED':classifyTransportError(err),details:failDetails({}),toolResult:base};}
-  return {ok:true,content:'Le modèle choisi n’a pas fourni de plan d’accords jouable, même après une correction. Ta prise est conservée. Tu peux réessayer ou essayer un autre modèle.',
-    toolResult:{...base,generation:{...generation,rejected:true,validation:reason}},suggestedActions:[],autoplay:false};
+  // Dernier recours, sans nouvel appel : le plan le plus récent qui passe, avec l'accord d'origine du pianiste aux
+  // quelques appuis que le modèle n'a pas su rendre jouables (annoncé dans la réponse).
+  let fallback='';
+  for(const content of contents.reverse()){const kept=realizeModelHarmony(content,source,{exclude,keepSource:true});if(kept.ok)return harmonyAnswer(kept);fallback||=kept.reason;}
+  return {ok:true,content:'Le modèle choisi n’a pas fourni de plan d’accords jouable, même après correction. Ta prise est conservée. Tu peux réessayer ou essayer un autre modèle.',
+    toolResult:{...base,generation:{...generation,rejected:true,validation:reason,...(fallback?{fallback}:{})}},suggestedActions:[],autoplay:false};
 }
 
 async function sendCopilotMessageRaw({ message, messages = [], context, conversationId = null, copilotStyleId = 'auto', review = false, skipHarmonyBrief = false, generationMode = 'auto', resumed = false }) {

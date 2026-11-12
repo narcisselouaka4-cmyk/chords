@@ -7,7 +7,7 @@ import {
   isAnthropicEndpoint, anthropicRequestUrl, anthropicHeaders, toAnthropicBody, fromAnthropicResponse,
 } from './anthropic-adapter.js';
 import { incrementMonthlyUsage } from './usage-cap.js';
-import { ANTHROPIC_MODELS, providerIdentity, modelsForProvider, sortProviderModels } from './provider-models.js';
+import { ANTHROPIC_MODELS, ANTHROPIC_RECOMMENDED, providerIdentity, modelsForProvider, sortProviderModels } from './provider-models.js';
 
 const STORAGE_KEY = 'piano-jazz-ai-config';
 const ENCRYPTED_PREFIX = 'enc:';
@@ -279,18 +279,21 @@ export const PRESETS = [
     name: 'Groq',
     blurb: 'Gratuit, rapide',
     baseUrl: 'https://api.groq.com/openai/v1',
-    // Le 120b d'abord : le 20b manque souvent de précision pour un plan d'accords complet.
-    models: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
+    // [Claude] — 2026-11-12 — Essai réel avec la clé de Narcisse (Session_017, « Rends mes accords
+    // plus beaux. ») : gpt-oss-120b réussit en 5 à 6 s. Le 20b est retiré : plan JSON invalide, et
+    // limite de débit atteinte dès le premier appel.
+    models: ['openai/gpt-oss-120b'],
     genUrl: 'https://console.groq.com/keys',
   },
   {
     name: 'OpenRouter',
     blurb: 'Gratuits (saturés aux heures chargées) et payants à bas prix',
     baseUrl: 'https://openrouter.ai/api/v1',
-    // Catalogue public OpenRouter vérifié le 12/11/2026, modèles annonçant les outils. Payants peu
-    // coûteux d'abord (fiables, pas de file d'attente partagée), puis deux grands modèles gratuits.
-    // Retiré : liquid/lfm-3-1.7b:free (1,7 milliard de paramètres, trop petit pour cette tâche).
-    models: ['anthropic/claude-haiku-5.5', 'openai/gpt-oss-120b', 'deepseek/deepseek-v4.1-flash', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'google/gemma-4-31b-it:free'],
+    // [Claude] — 2026-11-12 — Seuls les modèles qui ont réussi l'essai réel (clé de Narcisse, même
+    // demande d'enrichissement) : Claude Haiku 5.5 (22 s) et gpt-oss-120b (15 à 45 s). Retirés :
+    // DeepSeek V4.1 Flash (place épuisée après 95 s), Nemotron 3 Ultra gratuit (délai de 180 s
+    // dépassé), Gemma 4 gratuit (saturé chez l'hébergeur). Un modèle déjà enregistré reste choisissable.
+    models: ['anthropic/claude-haiku-5.5', 'openai/gpt-oss-120b'],
     genUrl: 'https://openrouter.ai/keys',
   },
   {
@@ -311,9 +314,10 @@ export const PRESETS = [
   },
   {
     name: 'Anthropic (Claude)',
-    blurb: 'Haiku, Sonnet, Opus et Fable · prix croissants',
+    blurb: 'Haiku, Sonnet et Opus · prix croissants',
     baseUrl: 'https://api.anthropic.com',
-    models: ANTHROPIC_MODELS.map((m) => m.id),
+    // Modèles vérifiés par l'essai réel du 12/11/2026 (les anciens restent tarifés dans ANTHROPIC_MODELS).
+    models: ANTHROPIC_RECOMMENDED,
     genUrl: 'https://console.anthropic.com/settings/keys',
   },
 ];

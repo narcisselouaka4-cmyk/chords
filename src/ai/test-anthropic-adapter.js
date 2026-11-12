@@ -139,5 +139,32 @@ check('anthropicHeaders utilise x-api-key et anthropic-version, pas Authorizatio
   check('Une réponse sans contenu donne un texte vide, pas une exception', out.choices[0].message.content === '');
 }
 
+// ── Réflexion des modèles Claude 5 (12/11/2026) ─────────────────────────────
+{
+  const ask = (model, extra = {}) => toAnthropicBody({ model, max_completion_tokens: 3000, messages: [{ role: 'user', content: 'x' }], ...extra });
+  const haiku = ask('claude-haiku-5-5');
+  check('Haiku 5.5 : réflexion coupée, place inchangée', haiku.thinking?.type === 'disabled' && haiku.max_tokens === 3000 && !haiku.output_config);
+  check('Sonnet 5 : réflexion coupée', ask('claude-sonnet-5').thinking?.type === 'disabled');
+  check('Sonnet 5.5 : between_tools (disabled y est refusé)', ask('claude-sonnet-5-5').thinking?.type === 'between_tools');
+  const opus55 = ask('claude-opus-5-5');
+  check('Opus 5.5 : pas de « disabled », effort low et 8 000 jetons de marge',
+    !opus55.thinking && opus55.output_config?.effort === 'low' && opus55.max_tokens === 11000);
+  check('Fable : effort low et marge', ask('claude-fable-5-2').output_config?.effort === 'low' && ask('claude-fable-5-2').max_tokens === 11000);
+  const old = ask('claude-haiku-4-5-20251001');
+  check('Claude 4.x : aucun réglage de réflexion envoyé', !('thinking' in old) && !('output_config' in old) && old.max_tokens === 3000);
+  const future = ask('claude-sonnet-6');
+  check('Modèle Claude inconnu plus récent : pas de réglage risqué, mais de la marge', !future.thinking && future.max_tokens === 11000);
+  const refused = ask('claude-haiku-5-5', { thinking_control: false });
+  check('Réglage refusé par le fournisseur : renvoi sans réglage, avec marge',
+    !refused.thinking && !refused.output_config && refused.max_tokens === 11000 && !('thinking_control' in refused));
+}
+
+{
+  const out = fromAnthropicResponse({ content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: 'Voici.' }], stop_reason: 'end_turn', usage: {} });
+  check('Un bloc thinking est ignoré, seul le texte reste', out.choices[0].message.content === 'Voici.');
+  check('stop_reason refusal devient content_filter',
+    fromAnthropicResponse({ content: [], stop_reason: 'refusal' }).choices[0].finish_reason === 'content_filter');
+}
+
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 process.exitCode = failed > 0 ? 1 : 0;
