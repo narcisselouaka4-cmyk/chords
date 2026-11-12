@@ -143,6 +143,14 @@ const MOVEMENTS_REFERENCE = movementsLibrary.movements
   .map((m) => `- ${m.kind} (${m.style}) : ${m.name} — ${m.pattern} — ${m.context} Réalisation originale de l’application ; références du procédé : ${m.provenance.sources.map((s) => `${s.title} (${s.url})`).join(' ; ')}. Ne pas présenter cette étude comme une transcription de ces sources.`)
   .join('\n');
 
+/** La dernière combinaison jouée, et les demandes récentes du pianiste (pour « joue-les », « essaie »). */
+function libraryHistory(messages = []) {
+  const list = Array.isArray(messages) ? messages : [];
+  const lastLibrary = [...list].reverse().find((m) => m?.role === 'assistant' && m.toolResult?.example?.kind === 'library' && m.toolResult.example.source?.request);
+  const recent = list.filter((m) => m?.role === 'user' && typeof m.content === 'string').slice(-6).reverse().map((m) => m.content);
+  return { previous: lastLibrary?.toolResult.example.source.request || null, recent };
+}
+
 /** Une demande d'assembler des éléments (« combine », « enchaîne », « superpose », « mélange »). */
 function libraryCombination(message) {
   return /\b(?:combin|encha[iîï]n|superpos|m[ée]lang|assembl)\w*/i.test(String(message || ''));
@@ -868,6 +876,8 @@ export function asksForExample(message) {
   // [Claude] — 2026-11-12 — Demander une combinaison d'éléments de la bibliothèque (« combine le
   // Lick 3 avec le II–V–I », « enchaîne… », « mets la main droite de… sur… »), c'est demander à l'entendre.
   if (/\b(?:combin\w*|enchain\w*|superpos\w*|melang\w*|assembl\w*)\b/.test(text) && !/\b(?:comment|pourquoi|qu'est-ce)\b/.test(text)) return true;
+  // « Essaye au moins », « essaie-le », « lance-les », « vas-y, essaie » : faire entendre ce dont on parle.
+  if (/\b(?:essa(?:y|i)e?s?|tente|lance)(?:[- ](?:les?|la|ca)\b|\s+(?:au moins|quand meme|pour voir)\b|\s*[.!]*$)/.test(text)) return true;
   return EXAMPLE_PATTERNS.some((re) => re.test(text));
 }
 
@@ -1093,6 +1103,9 @@ const TECHNIQUE_TO_EXERCISE = {
  * @returns {{played: object[], ignored: number, suggestions: object[], voicing: object|null, example: object|null, content?: string}}
  */
 export function executeToolCalls(toolCalls, assistantContent = '', { styleId = 'auto', tutorial = null, exercise = null, playing = null, library = null } = {}) {
+  // [Claude] — 2026-11-12 — Diagnostic, inactif par défaut (localStorage « pjc.debug.copilot ») :
+  // les outils réellement demandés par le modèle, pour comprendre un exemple qui ne vient pas.
+  try { if (globalThis.localStorage?.getItem('pjc.debug.copilot')) console.info('[Copilot] outils demandés', JSON.stringify((toolCalls || []).map((c) => ({ name: c?.function?.name, arguments: String(c?.function?.arguments || '').slice(0, 600) })))); } catch (_) { /* diagnostic seulement */ }
   const suggestions = [];
   let played = [];
   let ignored = 0;
@@ -2479,7 +2492,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     } else if (toolsMode && mine && playingData && !chordsAsked) {
       forcedToolCalls = [{ function: { name: 'play_my_playing', arguments: JSON.stringify(mine) } }];
     } else if (toolsMode && library && message && !review && !mine && !chordsAsked && asksForExample(message)
-      && !(rawToolCalls || []).some((c) => c?.function?.name === 'combine_library') && (libraryAsk = libraryRequestCall(message, library.tutorials))) {
+      && !(rawToolCalls || []).some((c) => c?.function?.name === 'combine_library') && (libraryAsk = libraryRequestCall(hearIt ? `${previousQuestion || ''} ${message}` : message, library.tutorials, libraryHistory(messages)))) {
       // [Claude] — 2026-11-12 — Conversation de Narcisse : « joue "Lick 1…" puis t'enchaîne avec
       // "Montuno mineur…" ». Le modèle n'a pas appelé combine_library et l'ancien secours ci-dessous
       // a fabriqué un « Lick sur G7b9 » générique, sous un texte disant qu'il ne pouvait rien jouer.
@@ -2571,7 +2584,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // Combinaison montée par l'application : le texte du modèle qui disait ne rien pouvoir jouer
     // (ou qui parlait d'autre chose) laisse la place à ce qui est réellement préparé.
     if (libraryAsk && toolResult.example?.kind === 'library') {
-      const refusal = /ne (?:peux|pourrai|suis) pas|pas (?:été |pu )?(?:lanc|jou|fair)|impossible|il faut demander/i.test(content || '');
+      const refusal = /ne (?:peux|pourrai|suis) pas|pas (?:été |pu )?(?:lanc|jou|fair|déclench)|n['’]arrive (?:toujours )?pas|je ne lance pas|je (?:tente|retente|réessaie)|impossible|il faut demander|pas réussi/i.test(content || '');
       content = refusal || !String(content || '').trim() ? libraryAsk.text : `${content}\n\n${libraryAsk.text}`;
     }
     // Son jeu demandé, mais pas confié au Copilote : comment le lui confier.

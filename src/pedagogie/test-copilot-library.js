@@ -214,8 +214,44 @@ await check('« joue Lick 1 puis t’enchaîne avec Montuno mineur » : l’ench
   assert.equal(narcisse.toolResult.example.title, 'Lick 1 · octaves et dixièmes → Montuno mineur · octaves et relances');
   assert.match(narcisse.toolResult.example.subtitle, /Montuno mineur · octaves et relances \(La, transposé depuis Do/);
   assert.ok(!/ne peux pas|pas été lancé/.test(narcisse.content), narcisse.content);
-  assert.match(narcisse.content, /Voici, enchaînés : Lick 1 · octaves et dixièmes → Montuno mineur · octaves et relances[\s\S]*tout est en La/);
+  assert.match(narcisse.content, /Voici, enchaînés : Lick 1 · octaves et dixièmes → Montuno mineur · octaves et relances[\s\S]*Tout est en La/);
 });
+// Suite de la conversation (12/11, soir) : le modèle n'appelle plus aucun outil et écrit qu'il
+// « tente » ; « Joue-les », « essaie au moins », « Fais-le-moi entendre » ne nomment rien.
+const firstAsk = 'joue  "Lick 1 · octaves et dixièmes V7 → i → V7 → i" puis t\'enchaine avec "Montuno mineur · octaves et relances i → ♭VI → V7" je veux entendre ce que ça fait';
+const history = [{ role: 'user', content: firstAsk }, { role: 'assistant', content: 'Je ne peux pas faire entendre l’enchaînement.' }];
+async function followUp(message, modelText) {
+  bodies.length = 0;
+  replies.push({ content: modelText });
+  const r = await sendCopilotMessage({ message, messages: [...history] });
+  history.push({ role: 'user', content: message }, { role: 'assistant', content: r.content, toolResult: r.toolResult });
+  return r;
+}
+const enLa = await followUp('Joue-les en La mineur, enchaînés.', 'Je ne lance pas la lecture dans cette réponse. Voici ce que donnerait l’enchaînement.');
+await check('« Joue-les en La mineur, enchaînés » : les deux éléments nommés plus haut, en La, joués', () => {
+  assert.equal(enLa.toolResult.example?.kind, 'library');
+  assert.equal(enLa.toolResult.example.title, 'Lick 1 · octaves et dixièmes → Montuno mineur · octaves et relances');
+  assert.match(enLa.toolResult.example.subtitle, /Montuno mineur · octaves et relances \(La, transposé depuis Do/);
+  assert.ok(!/ne lance pas/.test(enLa.content), enLa.content);
+});
+await followUp('met toi sur un tempo de 170 alors pour combiner les deux', 'Compris : à 170.');
+const essai = await followUp('ok enchine les essaye au moins', 'Je tente l’enchaînement… *(je n’arrive toujours pas à déclencher l’exemple)*');
+await check('« met toi sur un tempo de 170 » puis « essaye au moins » : enchaînement à 170, en La', () => {
+  assert.equal(essai.toolResult.example?.kind, 'library');
+  assert.match(essai.toolResult.example.subtitle, /Lick 1 · octaves et dixièmes \(La, 170 à la noire\)/);
+  assert.match(essai.toolResult.example.subtitle, /Montuno mineur · octaves et relances \(La, transposé depuis Do, 170 à la noire\)/);
+  assert.match(essai.content, /à 170 à la noire/); assert.ok(!/n.arrive/.test(essai.content), essai.content);
+});
+const entendre = await followUp('Fais-le-moi entendre', 'Écoute l’exemple ci-dessous : E7b9 → Am → F → E7.');
+await check('« Fais-le-moi entendre » : la même combinaison, pas une grille d’accords générique', () => {
+  assert.equal(entendre.toolResult.example?.kind, 'library', entendre.toolResult.example?.title);
+  assert.match(entendre.toolResult.example.subtitle, /170 à la noire/);
+});
+const autre = await followUp('Fais-moi entendre un Cmaj7', 'Voici un Cmaj7.');
+await check('… mais « Fais-moi entendre un Cmaj7 » ne rejoue pas la combinaison', () => {
+  assert.notEqual(autre.toolResult.example?.kind, 'library');
+});
+
 const { libraryPartsFromText } = await import('./library-combine.js');
 await check('Éléments nommés reconnus dans l’ordre dit, mains et tonalité comprises ; rien pour une question générale', () => {
   assert.deepEqual(libraryPartsFromText('joue le turnaround puis le blues jazz').parts.map((p) => p.id), ['study-turnaround', 'study-jazz-blues']);

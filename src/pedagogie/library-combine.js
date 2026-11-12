@@ -303,7 +303,7 @@ export function combineLibrary(rawArgs, tutorials = []) {
   const example = {
     kind: 'library', title, subtitle, style: null, tempo: 60, events,
     beats: Math.max(...events.map((e) => e.time), longest), chords: [],
-    source: { kind: 'bibliothèque', mode, parts: built.map((b) => b.label) },
+    source: { kind: 'bibliothèque', mode, parts: built.map((b) => b.label), request: { mode, parts: parts.map((p) => ({ ...p })), ...(Number(args.tempo) > 0 ? { tempo: Number(args.tempo) } : {}) } },
   };
   const summary = `${mode === 'chain' ? 'Enchaînement' : 'Superposition'} de ${built.length} élément(s), ${Math.round(example.beats)} s, ${ons.length} notes : ${built.map((b) => `${b.label}${b.chords ? ` [${b.chords.slice(0, 10).join(' ')}]` : ''}`).join(' ; ')}${problems.length ? ` — non retenus : ${problems.join(' ; ')}` : ''}${crowded ? ' — plus de dix notes ensemble' : ''}`;
   const note = problems.length ? `_(Non retenu : ${problems.join(' ; ')}.)_` : '';
@@ -365,10 +365,37 @@ export function libraryPartsFromText(message, tutorials = []) {
   };
 }
 
-/** Arguments de combine_library pour une demande en toutes lettres : même tonalité pour tous
- * (celle demandée, sinon celle du premier élément), et la phrase qui le dit. */
-export function libraryRequestCall(message, tutorials = []) {
-  const asked = libraryPartsFromText(message, tutorials);
+/** Tempo demandé en toutes lettres (« tempo de 170 », « à 120 à la noire », « 90 bpm »). */
+export function tempoFromText(message) {
+  const text = plainText(message);
+  const m = /tempo (?:de |a |à )?(\d{2,3})|(\d{2,3}) (?:a la noire|bpm|a la blanche)|(?:^| )a (\d{2,3})(?: |$)/.exec(text);
+  const n = Number(m?.[1] || m?.[2] || m?.[3]);
+  return n >= 40 && n <= 260 ? n : null;
+}
+
+// « Joue-les », « essaie », « fais-le-moi entendre », « rejoue » : la combinaison dont on parlait.
+const REFERS_BACK = /\b(?:les|les deux|l'enchainement|la combinaison|enchain\w*|combin\w*|essai\w*|essay\w*|rejou\w*|refai\w*|fais.le|joue.les|entendre|ecouter|recommence\w*)\b/;
+const NAMES_A_CHORD = /\b[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add|°|ø)?\d{0,2}\b(?! (?:mineur|majeur))/;
+
+/**
+ * Arguments de combine_library pour une demande en toutes lettres. Si la phrase ne nomme rien
+ * (« Joue-les en La mineur, enchaînés », « essaie au moins », « fais-le-moi entendre »), on reprend
+ * la dernière combinaison (`previous`) ou les éléments nommés plus haut (`recent`, du plus récent
+ * au plus ancien) ; la tonalité et le tempo dits en cours de route s'appliquent.
+ * @param {{previous?: {mode: string, parts: object[], tempo?: number}|null, recent?: string[]}} [history]
+ */
+export function libraryRequestCall(message, tutorials = [], { previous = null, recent = [] } = {}) {
+  let asked = libraryPartsFromText(message, tutorials);
+  const text = plainText(message);
+  let tempo = tempoFromText(message);
+  if (!asked && REFERS_BACK.test(text) && !NAMES_A_CHORD.test(String(message || '').replace(/\b(?:La|Do|Ré|Re|Mi|Fa|Sol|Si)\b/g, ''))) {
+    const named = recent.map((t) => libraryPartsFromText(t, tutorials)).find(Boolean);
+    const base = previous?.parts?.length ? { mode: previous.mode === 'overlay' ? 'overlay' : 'chain', key: null, parts: previous.parts.map(({ key, ...p }) => p), prevKey: previous.parts[0]?.key || null } : named;
+    if (!base) return null;
+    const keyNow = libraryPartsFromText(`x ${message}`, [])?.key || /(?:^| )en (do|re|mi|fa|sol|la|si|[a-g])( ?(?:#|b|diese|bemol))?( mineur| majeur|m)?(?= |$)/.exec(text)?.slice(1, 3).join('') || null;
+    asked = { ...base, key: keyNow || base.key || base.prevKey || recent.map((t) => libraryPartsFromText(t, tutorials)?.key).find(Boolean) || null };
+    tempo = tempo || previous?.tempo || recent.map(tempoFromText).find(Boolean) || null;
+  }
   if (!asked) return null;
   const first = exerciseEntry(asked.parts[0].id);
   const firstTuto = tutorials.find((t) => t.id === asked.parts[0].id);
@@ -377,8 +404,8 @@ export function libraryRequestCall(message, tutorials = []) {
   const parts = asked.parts.map((p) => ({ ...p, ...(key ? { key } : {}) }));
   const names = parts.map((p) => exerciseEntry(p.id)?.name || tutorials.find((t) => t.id === p.id)?.title || p.id);
   const keyName = key && keyPcOf(key) != null ? NAMES[keyPcOf(key)] : key;
-  const text = `${asked.mode === 'overlay' ? 'Voici, superposés' : names.length > 1 ? 'Voici, enchaînés' : 'Voici'} : ${names.join(asked.mode === 'overlay' ? ' + ' : ' → ')}, avec les notes de la bibliothèque.${moved.length && keyName ? ` Pour qu'ils aillent ensemble, tout est en ${keyName} : ${moved.map((p) => exerciseEntry(p.id).name).join(', ')} ${moved.length > 1 ? 'sont transposés depuis leur tonalité écrite' : 'est transposé depuis sa tonalité écrite'}.` : ''}`;
-  return { call: { function: { name: 'combine_library', arguments: JSON.stringify({ mode: asked.mode, parts }) } }, text };
+  const said = `${asked.mode === 'overlay' ? 'Voici, superposés' : names.length > 1 ? 'Voici, enchaînés' : 'Voici'} : ${names.join(asked.mode === 'overlay' ? ' + ' : ' → ')}, avec les notes de la bibliothèque${tempo ? `, à ${tempo} à la noire` : ''}.${moved.length && keyName ? ` Tout est en ${keyName} : ${moved.map((p) => exerciseEntry(p.id).name).join(', ')} ${moved.length > 1 ? 'sont transposés depuis leur tonalité écrite' : 'est transposé depuis sa tonalité écrite'}.` : ''}`;
+  return { call: { function: { name: 'combine_library', arguments: JSON.stringify({ mode: asked.mode, parts, ...(tempo ? { tempo } : {}) }) } }, text: said };
 }
 
 export const CONSULT_LIBRARY_TOOL = {
