@@ -32,6 +32,7 @@ const TOOL_WORDS = {
   play_my_playing: 'le rejeu de ton jeu', play_tutorial_passage: 'l’écoute du passage de la vidéo', apply_tutorial_passage: 'l’adaptation du passage',
   play_melody_chords: 'l’harmonisation de la mélodie', harmonize_my_playing: 'la transformation de ton jeu', consult_conversation: 'la relecture de notre échange',
   remember: 'la mémoire', suggest_actions: 'les suggestions',
+  consult_library: 'la consultation de la bibliothèque', combine_library: 'la combinaison d’éléments de la bibliothèque',
 };
 const TOOL_NAME = new RegExp(`(?:(?:[lL]['’]|[cC]et |[uU]n )?(?:[oO]util|[fF]onction)\\s+)?\`?\\b(${Object.keys(TOOL_WORDS).filter((k) => k.includes('_')).join('|')})\\b\`?(?:\\s*\\(\\))?`, 'g'); // sensible à la casse : la balise [PLAY_NOTE: …] du mode sans outils reste intacte
 export function withoutToolNames(value) {

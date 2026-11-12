@@ -31,7 +31,11 @@ assert.ok(!('reasoning' in compact) && compact.reasoning_effort === 'low');
 assert.ok(!('max_completion_tokens' in openRouter));
 assert.ok(compact.messages[0].content.length < full.messages[0].content.length / 2);
 assert.deepEqual(compact.messages.slice(1), full.messages.slice(1));
-assert.deepEqual(compact.tools, full.tools);
+// 12/11 : la bibliothèque (catalogue + deux outils) seulement quand la demande la touche, chez Groq.
+const LIB = ['consult_library', 'combine_library'];
+assert.deepEqual(compact.tools, full.tools.filter((t) => !LIB.includes(t.function.name)));
+assert.ok(LIB.every((n) => full.tools.some((t) => t.function.name === n)) && !compact.tools.some((t) => LIB.includes(t.function.name)));
+assert.ok(full.messages[0].content.includes('latin-ellen-lick-3') && !compact.messages[0].content.includes('latin-ellen-lick-3'));
 assert.equal(compact.max_completion_tokens, 1200);
 for (const body of [compact, full]) {
   assert.ok(body.messages[0].content.includes('SESSION_EXACTE'));

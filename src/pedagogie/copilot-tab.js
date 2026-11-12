@@ -984,10 +984,16 @@ const exportedExamples = new Map();
 // Provenance d'un exemple calculé par l'application pour un accord, une progression ou une gamme
 // que le pianiste a nommé (copilot-client.js). Ce n'est pas une proposition sur son jeu.
 const NAMED_EXAMPLE = 'exemple nommé';
+// [Claude] — 2026-11-12 — Contenus de la bibliothèque demandés à l'écoute : une étude écrite des
+// Exercices (le Lick 3 joué tel qu'écrit) et une combinaison d'exercices et de tutoriels. Ils
+// n'avaient pas de carte : depuis le 05/11, seuls le jeu du pianiste, un passage de vidéo et un
+// exemple nommé en avaient une, et l'écoute préparée restait invisible.
+const LIBRARY_EXAMPLES = ['étude écrite', 'bibliothèque'];
+const LISTENED_SOURCES = ['passage vidéo', NAMED_EXAMPLE, ...LIBRARY_EXAMPLES];
 
 function renderExampleExport(example, id) {
   // Narcisse (05/11) a rejeté les boutons « Ma grille » / Favoris sur les exemples de bibliothèque.
-  if (example?.source?.kind === NAMED_EXAMPLE) return null;
+  if (example?.source?.kind === NAMED_EXAMPLE || LIBRARY_EXAMPLES.includes(example?.source?.kind)) return null;
   const tutorial = example.kind === 'tutorial-transfer';
   const grid = gridFromExample(example, { prefix: tutorial ? 'Tuto' : 'Copilote' });
   const favorites = favoritesFromExample(example, { technique: tutorial ? 'Voicing du prof' : '' });
@@ -1424,7 +1430,7 @@ function renderOneMessage(msg, { last = false } = {}) {
     if(msg.toolResult.harmonyBriefPreview&&msg.toolResult.originalTake)content.append(createTakePlayer(msg.toolResult.originalTake,{id:`${exampleIdOf(msg)}-brief`,title:'Ta prise à vérifier'}));
     const lines=harmonyBriefLines(msg.toolResult.harmonyBrief);
     if(lines.length){const details=renderNotesDetails(lines.join('\n'));details.querySelector('summary').textContent='Voir tous les changements d’accords';content.append(details);}
-  } else if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || ['passage vidéo', NAMED_EXAMPLE].includes(msg.toolResult.example.source?.kind))) {
+  } else if (msg.toolResult?.example && (isPersonalExample(msg.toolResult) || LISTENED_SOURCES.includes(msg.toolResult.example.source?.kind))) {
     // [Claude] — 2026-11-11 — Un objet musical NOMMÉ et demandé à l'écoute (« fais-moi entendre un
     // Do majeur 7 ») a de nouveau son exemple, clairement distinct d'une proposition sur le jeu.
     if (msg.toolResult.originalTake) content.append(createTakePlayer(msg.toolResult.originalTake, { id: `${exampleIdOf(msg)}-original`, title: 'Ton jeu original' }));
