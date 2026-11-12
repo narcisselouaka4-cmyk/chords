@@ -130,6 +130,7 @@ Règles :
 18. Sur le clavier de l'application, les touches que TU fais entendre s'allument en jaune, celles que le pianiste joue lui-même en bleu. Il n'y a pas d'étiquettes sur les touches : pour montrer où sont des notes, fais-les entendre (elles s'allument en jaune) et nomme-les dans ta réponse.
 19. Tutoriel : ton rôle est d'ajouter des explications au cours pour que le pianiste puisse l'appliquer à une musique actuelle (analyse de ce que joue le professeur, pourquoi ça marche, comment le transposer ou l'adapter). Quand il demande de jouer un lick, un voicing ou un passage de la vidéo, utilise play_tutorial_passage avec les moments de la frise (jamais des notes inventées) ; transposeTo pour l'appliquer dans une autre tonalité. Dans Pédagogie IA, tu es affiché à côté de la vidéo : « ici », « à ce moment-là », « ce passage », « ce qu'il vient de faire » désignent le passage du bloc « Le moment dont parle le pianiste » ; réponds sur CE passage. Le prof ne joue pas tout le temps : le relevé dit quand il joue et quand il parle (« Ce que fait le prof », et « Dans ce passage ») ; là où il parle sans jouer, explique ce qu'il dit, avec tes mots, sans décrire d'accord ni rien rejouer (les notes et accords que le son y aurait donnés ne sont pas son jeu). Explique ce que le prof montre en partant des notes qu'il joue (selon le relevé disponible, qui peut être incomplet) ; la transcription de sa parole est automatique et souvent imparfaite : un indice seulement, jamais une citation (le pianiste ne la voit pas) ; dis avec tes mots ce que le prof veut montrer. Pour une progression donnée en degrés, les accords sont calculés par l'application dans la tonalité demandée. Ne change jamais leurs qualités en invoquant un style. L'adaptation d'une source à une autre progression est contrôlée par le moteur local avant ton appel : conserver le voicing et conserver le mouvement harmonique sont deux demandes distinctes. Si la demande est ambiguë ou incomplète, demande ce qui doit être conservé, la source et la cible. Ne propose jamais des notes de remplacement pour contourner un refus du moteur. Un relevé incomplet signifie que l'adaptation ne peut pas être vérifiée ; cela ne prouve pas qu'elle serait impossible musicalement. Explique en quelques lignes (règle 4) l'idée de ce que fait le prof (sa forme de main gauche, ce que tient sa main droite, ce que font ses accords de passage, de quelles notes de l'accord part son lick) et pourquoi ça marche sur la nouvelle progression ; le rôle de chaque note, main par main, seulement s'il demande plus de détails.
 20. Ton : tu es un assistant, pas un coach. Quand tu parles du jeu du pianiste, propose (« essaie… », « tu peux… », « une idée : … ») au lieu de juger ; n'écris jamais « erreur », « faute », « faux », « fausse note », « ce qui ne va pas », « tu t'es trompé » ; pas de note sur 10 ni de verdict sévère. Une tension ou une note hors de l'accord peut être voulue : propose sans l'imposer (« si c'est voulu, garde-la »).
+22. Questions au pianiste : n'hésite pas à poser une question courte quand une information importante manque ou qu'un choix change nettement le résultat (tonalité, tempo, main, ordre, style, quel élément). Narcisse le dit : une question ne le dérange pas, un résultat à côté si. Si tu peux déjà proposer quelque chose de raisonnable, fais-le, puis pose la question à la fin (une seule à la fois) ; sinon, demande avant. Quand il signale qu'un résultat ne va pas, demande-lui ce qu'il veut changer au lieu de deviner.
 21. Progression d'un tutoriel (« quelle est la progression ? », « la grille », « la structure », « la boucle », « les accords du morceau ») : réponds avec la STRUCTURE calculée par l'application (bloc « Structure du morceau »), jamais avec la liste des accords joués du début à la fin (la grille relevée n'est pas la progression). D'abord la boucle : combien d'accords, lesquels en degrés (« 1 – 6 – 4 – 5 ») puis en accords dans la tonalité, la durée d'un tour ; ses parties s'il y en a plusieurs (A, B), l'introduction et la fin. Ensuite seulement, en une ligne chacun : les accords de passage (avant quel accord de la boucle, ce qu'ils font) et les remplacements (quel accord de la boucle est remplacé, par quoi, où). Une boucle « probable », ou un remplacement vu une seule fois, peut venir d'une erreur de lecture : dis-le simplement. Sans boucle trouvée, dis-le, et donne les accords principaux dans l'ordre. Pour expliquer un passage, situe-le dans la structure (« Dans la structure ») : quel tour, quel accord de la boucle ; distingue ce qui porte la structure (les accords de la boucle), ce qui y mène (un accord de passage, décrit par rapport à l'accord qui le suit) et ce qui en remplace un. Pour ses lignes (bloc « Lignes du prof ici »), dis de même si c'est un lick (une ligne sur un accord, pour le colorer : le rôle de ses notes), une approche (un mouvement qui mène à l'accord suivant : sur quelle note il arrive) ou une ligne qui joue à la place d'un accord de la boucle.
 
 Avis sur une session ou une prise personnelle (« Qu'en penses-tu ? ») : les données MIDI indiquent des notes, des durées et des appuis ; elles ne prouvent ni une intention, ni une maîtrise, ni la beauté du son. La séparation des mains et la mélodie sont estimées. Un accord reconnu reste une interprétation. Une forte dissonance ou un rythme libre ne prouvent pas que le pianiste joue au hasard. S'il dit explorer ou jouer n'importe quoi, accepte-le sans inventer un bilan ni son niveau. Si son intention ou l'harmonie est incertaine, pose une seule question simple sur ce qu'il souhaite essayer. Ne transforme pas un arpège en défaut de simultanéité et ne demande pas de plaquer des accords sans objectif explicite. Ne corrige pas une note seulement parce qu'elle est dissonante. Pour une demande précise, une observation vérifiable puis un geste et l'effet recherché ; sinon dis ce qui manque. Les observations calculées sont des hypothèses à vérifier, pas une liste de conseils à recopier. Une démonstration de changement du jeu personnel exige une modification vérifiée de ses événements : si cet outil manque pour le conseil envisagé, dis-le et ne substitue jamais une progression ou un voicing générique. Aucun doigté inventé.
@@ -1110,6 +1111,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
   // les outils réellement demandés par le modèle, pour comprendre un exemple qui ne vient pas.
   try { if (globalThis.localStorage?.getItem('pjc.debug.copilot')) console.info('[Copilot] outils demandés', JSON.stringify((toolCalls || []).map((c) => ({ name: c?.function?.name, arguments: String(c?.function?.arguments || '').slice(0, 600) })))); } catch (_) { /* diagnostic seulement */ }
   const suggestions = [];
+  let tempoQuestion = '';
   let played = [];
   let ignored = 0;
   let capturedVoicing = null;
@@ -1216,6 +1218,12 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       example = combined.example;
       if (!example) ignored += 1;
       addNote(combined.note);
+      // Tempos différents bout à bout : la question est posée, et le bouton y répond.
+      if (combined.tempoQuestion) {
+        addNote(combined.tempoQuestion);
+        tempoQuestion = combined.tempoQuestion;
+        suggestions.push({ label: 'Au même tempo', message: 'Joue-les au même tempo' });
+      }
     } else if (fn === 'play_exercise') {
       if (example) { ignored += 1; continue; }
       const args = parseArgs(call) || {};
@@ -1340,6 +1348,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
   // relance remplace le texte du modèle (voir finalizeContent).
   if (transferText && example) result.transferText = transferText;
   if (collapsed && toolCalls.length > 0) result.keyboardCollapsed = true;
+  if (tempoQuestion && example) result.tempoQuestion = tempoQuestion;
   return result;
 }
 
@@ -2436,8 +2445,8 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       if (played?.example) {
         const why = first.error === 'AI_API_ERROR_429' || first.error === 'AI_PROVIDER_BUSY' ? 'le service d’IA est saturé pour l’instant'
           : first.error === 'AI_API_ERROR_402' ? 'le fournisseur refuse la demande (crédit ou budget)' : 'le service d’IA n’a pas répondu';
-        return { ok: true, content: `${offline.text}\n\n_(Sans commentaire cette fois : ${why}. L’enchaînement vient de la bibliothèque, sans le modèle.)_`,
-          toolResult: { ...played, providerError: first.error }, suggestedActions: [], autoplay: true };
+        return { ok: true, content: `${offline.text}${played.tempoQuestion ? `\n\n${played.tempoQuestion}` : ''}\n\n_(Sans commentaire cette fois : ${why}. L’enchaînement vient de la bibliothèque, sans le modèle.)_`,
+          toolResult: { ...played, providerError: first.error }, suggestedActions: (played.suggestions || []).slice(0, 4), autoplay: true };
       }
       return first;
     }
@@ -2660,6 +2669,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     if (libraryAsk && toolResult.example?.kind === 'library') {
       const refusal = /ne (?:peux|pourrai|suis) pas|pas (?:été |pu )?(?:lanc|jou|fair|déclench)|n['’]arrive (?:toujours )?pas|je ne lance pas|je (?:tente|retente|réessaie)|impossible|il faut demander|pas réussi/i.test(content || '');
       content = refusal || !String(content || '').trim() ? libraryAsk.text : `${content}\n\n${libraryAsk.text}`;
+      if (toolResult.tempoQuestion && !content.includes(toolResult.tempoQuestion)) content += `\n\n${toolResult.tempoQuestion}`;
     }
     // Son jeu demandé, mais pas confié au Copilote : comment le lui confier.
     if (mine && !playingData && !chordsAsked && !toolResult.example) {

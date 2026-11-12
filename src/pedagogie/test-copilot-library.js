@@ -114,24 +114,26 @@ await check('Sans tonalité précisée, tout prend celle du premier élément (M
   assert.match(kept.summary, /Montuno mineur · octaves et relances \(Do,/);
 });
 
-await check('Enchaînement fluide (Narcisse, 12/11) : un seul tempo, aucun silence ajouté, charnière sur l’accord commun', () => {
+const { libraryRequestCall: requestCallEarly } = await import('./library-combine.js');
+await check('Enchaînement (Narcisse, 12/11) : chacun garde son tempo, collés sans silence, charnière, question posée', () => {
   const r = combineLibrary({ mode: 'chain', parts: [{ id: 'latin-ellen-lick-1', key: 'La' }, { id: 'latin-montuno-guajeo', key: 'La' }] }, tutos);
   assert.match(r.summary, /^Charnière sur Am\./);
-  const tempos = [...r.summary.matchAll(/(\d+) à la noire/g)].map((m) => m[1]);
-  assert.equal(new Set(tempos).size, 1, `un seul tempo : ${tempos}`);
-  // Jamais un instant sans aucune note entre les deux exercices.
-  const sorted = [...r.example.events].sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
-  const active = new Map(); let silence = 0; let quietSince = null;
-  for (const e of sorted) {
-    if (quietSince != null && e.type === 'noteOn') { silence = Math.max(silence, e.time - quietSince); quietSince = null; }
-    active.set(e.note, Math.max(0, (active.get(e.note) || 0) + (e.type === 'noteOn' ? 1 : -1)));
-    if ([...active.values()].every((n) => n === 0)) quietSince = e.time;
-  }
-  assert.ok(silence < 0.12, `silence complet de ${silence.toFixed(2)} s`);
-  // Le Lick 1 seul dure plus longtemps que sa part dans l’enchaînement : sa tenue finale est remplacée.
-  const alone = combineLibrary({ parts: [{ id: 'latin-ellen-lick-1', key: 'La' }] }, tutos).example;
-  const montunoAlone = combineLibrary({ parts: [{ id: 'latin-montuno-guajeo', key: 'La', tempo: 216 }] }, tutos).example;
-  assert.ok(r.example.beats < alone.beats + montunoAlone.beats - 0.5);
+  assert.match(r.summary, /Lick 1 · octaves et dixièmes \(La, 216 à la noire\)/);
+  assert.match(r.summary, /Montuno mineur · octaves et relances \(La, transposé depuis Do, 135 à la noire\)/, 'l’accompagnement n’est pas accéléré par le lick');
+  assert.equal(r.tempoQuestion, 'Chacun garde son tempo (Lick 1 à 216, Montuno mineur à 135). Tu préfères les entendre au même tempo ?');
+  // À la jonction (fin du Lick 1, vers 6,7 s), aucun silence ; ceux du Montuno sont écrits (et existent seul).
+  const silences = (ex) => { const sorted = [...ex.events].sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1)); const on = new Map(); let quiet = null; const out = [];
+    for (const e of sorted) { if (quiet != null && e.type === 'noteOn') { if (e.time - quiet > 0.1) out.push(quiet); quiet = null; }
+      on.set(e.note, Math.max(0, (on.get(e.note) || 0) + (e.type === 'noteOn' ? 1 : -1))); if ([...on.values()].every((n) => n === 0)) quiet = e.time; } return out; };
+  assert.deepEqual(silences(r.example).filter((t) => t > 5.5 && t < 7.5), [], 'silence à la jonction');
+  // Au même tempo seulement sur demande : bouton « Au même tempo » → « Joue-les au même tempo ».
+  const same = requestCallEarly('Joue-les au même tempo', [], { previous: r.example.source.request, recent: [] });
+  const again = combineLibrary(JSON.parse(same.call.function.arguments), tutos);
+  assert.match(again.summary, /Montuno mineur · octaves et relances \(La, transposé depuis Do, 216 à la noire\)/);
+  assert.equal(again.tempoQuestion, '');
+  // Superposés, ils jouent ensemble : un seul tempo, sans question.
+  const overlay = combineLibrary({ mode: 'overlay', parts: [{ id: 'latin-ellen-lick-1', hand: 'right' }, { id: 'latin-montuno-guajeo', hand: 'left' }] }, tutos);
+  assert.equal(overlay.tempoQuestion, '');
 });
 
 await check('Adapter le tempo : le même exercice à 60 dure plus longtemps qu’à 120', () => {
@@ -247,6 +249,14 @@ async function followUp(message, modelText) {
   history.push({ role: 'user', content: message }, { role: 'assistant', content: r.content, toolResult: r.toolResult });
   return r;
 }
+// Le premier tour réel de la conversation, rejoué ici pour la question de tempo.
+bodies.length = 0;
+replies.push({ content: 'Je ne peux pas faire entendre l’enchaînement dans cette réponse.' });
+const asked1 = await sendCopilotMessage({ message: firstAsk, messages: [] });
+await check('Tempos différents : la question est posée sous la réponse, avec le bouton « Au même tempo »', () => {
+  assert.match(asked1.content, /Chacun garde son tempo \(Lick 1 à 216, Montuno mineur à 135\)\. Tu préfères les entendre au même tempo \?/);
+  assert.ok((asked1.suggestedActions || []).some((a) => a.message === 'Joue-les au même tempo'), JSON.stringify(asked1.suggestedActions));
+});
 const enLa = await followUp('Joue-les en La mineur, enchaînés.', 'Je ne lance pas la lecture dans cette réponse. Voici ce que donnerait l’enchaînement.');
 await check('« Joue-les en La mineur, enchaînés » : les deux éléments nommés plus haut, en La, joués', () => {
   assert.equal(enLa.toolResult.example?.kind, 'library');

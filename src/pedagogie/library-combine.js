@@ -256,10 +256,14 @@ export function combineLibrary(rawArgs, tutorials = []) {
   // comme en enchaînement. [Claude] — 2026-11-12 — Narcisse : « il enchaîne mais ce n'est pas fluide,
   // il marque un temps d'arrêt entre les deux exos ». Mesuré : le tempo tombait de 216 à 135 au
   // passage du Lick 1 au Montuno (et 0,15 s de silence était ajouté) ; la pulsation cassait.
+  // [Claude] — 2026-11-12 — Puis Narcisse : « c'est une mauvaise idée de donner le tempo du premier au
+  // deuxième » : un lick joué très vite rendait l'accompagnement qui le suit trop rapide. Bout à bout,
+  // chacun garde son tempo (collés sans silence) ; un tempo commun seulement s'il est demandé
+  // (tempo, ou sameTempo). Superposés, ils jouent ensemble : un seul tempo, forcément.
   const exerciseParts = parts.map((p) => exerciseEntry(p?.id)).filter(Boolean);
   const firstExercise = exerciseParts[0];
   const commonTempo = Number(args.tempo) > 0 ? Number(args.tempo)
-    : firstExercise && (mode === 'overlay' || exerciseParts.length > 1) && !parts.some((p) => Number(p?.tempo) > 0 || Number(p?.speed) > 0) ? exerciseTempo(firstExercise) : null;
+    : firstExercise && (mode === 'overlay' || args.sameTempo === true) && !parts.some((p) => Number(p?.tempo) > 0 || Number(p?.speed) > 0) ? exerciseTempo(firstExercise) : null;
   // [Claude] — 2026-11-12 — Sans tonalité précisée, tout prend celle du premier élément : le modèle
   // annonçait « les deux sont en La mineur » alors que le Montuno restait en Do (essai réel).
   const firstPart = findItem(parts[0]?.id, tutorials);
@@ -304,7 +308,15 @@ export function combineLibrary(rawArgs, tutorials = []) {
           }
           return false;
         });
-        for (const [note, count] of sounding) for (let k = 0; k < count; k += 1) events.push({ type: 'noteOff', note, time: joint, part: index - 1 });
+        // Les notes qui sonnent tiennent jusqu'à la première attaque du suivant (le Montuno part sur un
+        // contretemps écrit) : aucun silence à la jonction.
+        const lead = Math.max(0, Math.min(...b.events.filter((e) => e.type === 'noteOn').map((e) => e.time)));
+        const holdUntil = joint + (Number.isFinite(lead) ? lead : 0);
+        for (const [note, count] of sounding) for (let k = 0; k < count; k += 1) events.push({ type: 'noteOff', note, time: holdUntil, part: index - 1 });
+        // La main qui se relève juste avant la charnière (écrit dans le lick) : ces notes tiennent aussi.
+        if (!sounding.size || [...sounding.values()].every((n) => !n)) {
+          for (const e of events) if (e.part === index - 1 && e.type === 'noteOff' && e.time > joint - 0.15 && e.time <= joint) e.time = holdUntil;
+        }
         cursor = joint;
         joints.push(`${prev.lastChord}`);
       }
@@ -346,11 +358,17 @@ export function combineLibrary(rawArgs, tutorials = []) {
   const example = {
     kind: 'library', title, subtitle, style: null, tempo: 60, events,
     beats: Math.max(...events.map((e) => e.time), longest), chords: [],
-    source: { kind: 'bibliothèque', mode, parts: built.map((b) => b.label), request: { mode, parts: parts.map((p) => ({ ...p })), ...(Number(args.tempo) > 0 ? { tempo: Number(args.tempo) } : {}) } },
+    source: { kind: 'bibliothèque', mode, parts: built.map((b) => b.label), request: { mode, parts: parts.map((p) => ({ ...p })), ...(Number(args.tempo) > 0 ? { tempo: Number(args.tempo) } : {}), ...(args.sameTempo === true ? { sameTempo: true } : {}) } },
   };
   const summary = `${joints.length ? `Charnière sur ${joints.join(', ')}. ` : ''}${mode === 'chain' ? 'Enchaînement' : 'Superposition'} de ${built.length} élément(s), ${Math.round(example.beats)} s, ${ons.length} notes : ${built.map((b) => `${b.label}${b.chords ? ` [${b.chords.slice(0, 10).join(' ')}]` : ''}`).join(' ; ')}${problems.length ? ` — non retenus : ${problems.join(' ; ')}` : ''}${crowded ? ' — plus de dix notes ensemble' : ''}`;
   const note = problems.length ? `_(Non retenu : ${problems.join(' ; ')}.)_` : '';
-  return { example, note, summary };
+  // Enchaînés à des tempos différents : on le dit, et on propose le même tempo (une question, un bouton).
+  const tempos = built.map((b) => b.tempo).filter(Boolean);
+  const differentTempos = mode === 'chain' && new Set(tempos).size > 1;
+  const tempoQuestion = differentTempos
+    ? `Chacun garde son tempo (${built.filter((b) => b.tempo).map((b) => `${b.label.replace(/\s*\(.*$/, '').split(' · ')[0]} à ${b.tempo}`).join(', ')}). Tu préfères les entendre au même tempo ?`
+    : '';
+  return { example, note, summary, differentTempos, tempoQuestion };
 }
 
 // ── Demande en toutes lettres ─────────────────────────────────────────────
@@ -430,8 +448,9 @@ export function tempoFromText(message) {
   return n >= 40 && n <= 260 ? n : null;
 }
 
+const SAME_TEMPO = /(?:meme|un seul) (?:tempo|vitesse|rythme)|tempo commun/;
 // « Joue-les », « essaie », « fais-le-moi entendre », « rejoue » : la combinaison dont on parlait.
-const REFERS_BACK = /\b(?:les|les deux|l'enchainement|la combinaison|enchain\w*|combin\w*|essai\w*|essay\w*|rejou\w*|refai\w*|fais.le|joue.les|joue.le|joue.la|entendre|ecouter|recommence\w*|plus lent\w*|ralenti\w*|plus vite|accelere\w*|encore)\b/;
+const REFERS_BACK = /\b(?:les|les deux|l'enchainement|la combinaison|enchain\w*|combin\w*|essai\w*|essay\w*|rejou\w*|refai\w*|fais.le|joue.les|joue.le|joue.la|entendre|ecouter|recommence\w*|plus lent\w*|ralenti\w*|plus vite|accelere\w*|encore|meme tempo|un seul tempo)\b/;
 const NAMES_A_CHORD = /\b[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add|°|ø)?\d{0,2}\b(?! (?:mineur|majeur))/;
 
 /**
@@ -468,10 +487,10 @@ export function libraryRequestCall(message, tutorials = [], { previous = null, r
   const parts = asked.parts.map((p) => ({ ...p, ...(key ? { key } : {}) }));
   const names = parts.map((p) => exerciseEntry(p.id)?.name || tutorials.find((t) => t.id === p.id)?.title || p.id);
   const keyName = key && keyPcOf(key) != null ? NAMES[keyPcOf(key)] : key;
-  const exercises = parts.map((p) => exerciseEntry(p.id)).filter(Boolean);
-  const shared = !tempo && exercises.length > 1 && !parts.some((p) => p.speed) ? exerciseTempo(exercises[0]) : null;
-  const said = `${asked.mode === 'overlay' ? 'Voici, superposés' : names.length > 1 ? 'Voici, enchaînés' : 'Voici'} : ${names.join(asked.mode === 'overlay' ? ' + ' : ' → ')}, avec les notes de la bibliothèque${tempo ? `, à ${tempo} à la noire` : shared ? `, d'un seul tempo (${shared} à la noire, celui du premier)` : ''}.${moved.length && keyName ? ` Tout est en ${keyName} : ${moved.map((p) => exerciseEntry(p.id).name).join(', ')} ${moved.length > 1 ? 'sont transposés depuis leur tonalité écrite' : 'est transposé depuis sa tonalité écrite'}.` : ''}`;
-  return { call: { function: { name: 'combine_library', arguments: JSON.stringify({ mode: asked.mode, parts, ...(tempo ? { tempo } : {}) }) } }, text: said };
+  // « Au même tempo » : celui du premier exercice, seulement à la demande du pianiste (ou gardé d'avant).
+  const sameTempo = !tempo && (SAME_TEMPO.test(text) || Boolean(previous?.sameTempo && !libraryPartsFromText(message, tutorials)));
+  const said = `${asked.mode === 'overlay' ? 'Voici, superposés' : names.length > 1 ? 'Voici, enchaînés' : 'Voici'} : ${names.join(asked.mode === 'overlay' ? ' + ' : ' → ')}, avec les notes de la bibliothèque${tempo ? `, à ${tempo} à la noire` : sameTempo ? ', au même tempo (celui du premier)' : ''}.${moved.length && keyName ? ` Tout est en ${keyName} : ${moved.map((p) => exerciseEntry(p.id).name).join(', ')} ${moved.length > 1 ? 'sont transposés depuis leur tonalité écrite' : 'est transposé depuis sa tonalité écrite'}.` : ''}`;
+  return { call: { function: { name: 'combine_library', arguments: JSON.stringify({ mode: asked.mode, parts, ...(tempo ? { tempo } : sameTempo ? { sameTempo: true } : {}) }) } }, text: said };
 }
 
 export const CONSULT_LIBRARY_TOOL = {
@@ -503,7 +522,8 @@ export const COMBINE_LIBRARY_TOOL = {
       additionalProperties: false,
       properties: {
         mode: { type: 'string', enum: ['chain', 'overlay'], description: 'chain : enchaîner ; overlay : superposer.' },
-        tempo: { type: 'number', description: 'Tempo commun des exercices, à la noire (superposition : celui du premier exercice par défaut).' },
+        tempo: { type: 'number', description: 'Tempo commun des exercices, à la noire, seulement si le pianiste le demande. Enchaînés, chacun garde sinon son tempo ; superposés, celui du premier.' },
+        sameTempo: { type: 'boolean', description: 'true : tous au tempo du premier exercice, si le pianiste demande « le même tempo ».' },
         parts: {
           type: 'array', maxItems: MAX_PARTS,
           items: {
@@ -543,6 +563,7 @@ export const COMPACT_COMBINE_LIBRARY_TOOL = {
       properties: {
         mode: { type: 'string', enum: ['chain', 'overlay'] },
         tempo: { type: 'number' },
+        sameTempo: { type: 'boolean' },
         parts: { type: 'array', maxItems: MAX_PARTS, items: { type: 'object', additionalProperties: false, required: ['id'], properties: {
           id: { type: 'string' }, key: { type: 'string' }, hand: { type: 'string', enum: ['both', 'left', 'right'] }, speed: { type: 'number' }, start: { type: 'number' }, end: { type: 'number' }, repeat: { type: 'integer' } } } },
       },
