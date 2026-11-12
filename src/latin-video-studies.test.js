@@ -15,7 +15,7 @@ const engine = (id, key = null) => {
 const noteOns = demo => demo.events.filter(e => e.type === 'noteOn');
 const nativeDemo = id => { const e = engine(id); return buildDemo(e.getState().progression.chords, 'gospel'); };
 
-assert.equal(entries.length, 5, 'deux motifs vidéo et les trois licks conservés');
+assert.equal(entries.length, 7, 'quatre motifs vidéo et les trois licks conservés');
 for (const id of ['latin-montuno-one-minute','latin-essential-montuno','latin-montuno-tumbao-koala']) assert.ok(!byId(id), 'contenu retiré à la demande du pianiste');
 for (const m of entries) {
   const video = m.provenance.video;

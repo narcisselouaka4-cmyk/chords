@@ -7,7 +7,7 @@ import { studyTempo, studyPulse, studyForPlayback, phraseGestures } from './exer
 const find = id => catalogue.movements.find(m=>m.id===id);
 const factors = { 'latin-montuno-guajeo':1.5, 'latin-coordination-mineure':1.3, 'latin-major-groove':1.3,
   'latin-ellen-lick-1':1.8, 'latin-ellen-lick-2':1.8, 'latin-ellen-lick-3':1.8 };
-assert.equal(catalogue.movements.filter(m=>m.category==='Latino').length,6);
+assert.equal(catalogue.movements.filter(m=>m.category==='Latino').length,8);
 for(const [id,factor] of Object.entries(factors)) {
   const m=find(id);
   assert.equal(studyTempo(m),m.score.tempo*factor);
