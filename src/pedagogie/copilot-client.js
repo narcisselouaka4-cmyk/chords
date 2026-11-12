@@ -37,7 +37,7 @@ import { onlySpeech, activitySummary } from './teacher-activity.js';
 import { exerciseContextLines } from './exercise-context.js';
 import { buildStudyDemo } from '../practice-demo.js';
 import movementsLibrary from '../exercise-catalogue.js';
-import { loadTutorialLibrary, libraryCatalogue, consultLibrary, combineLibrary, libraryRequestCall, CONSULT_LIBRARY_TOOL, COMBINE_LIBRARY_TOOL, LIBRARY_GUIDANCE } from './library-combine.js';
+import { loadTutorialLibrary, libraryCatalogue, consultLibrary, combineLibrary, libraryRequestCall, libraryPartsFromText, CONSULT_LIBRARY_TOOL, COMBINE_LIBRARY_TOOL, COMPACT_COMBINE_LIBRARY_TOOL, LIBRARY_GUIDANCE, COMPACT_LIBRARY_GUIDANCE } from './library-combine.js';
 import {
   generateCopilotVoicing,
   voicingToNoteSequence,
@@ -876,6 +876,9 @@ export function asksForExample(message) {
   // [Claude] — 2026-11-12 — Demander une combinaison d'éléments de la bibliothèque (« combine le
   // Lick 3 avec le II–V–I », « enchaîne… », « mets la main droite de… sur… »), c'est demander à l'entendre.
   if (/\b(?:combin\w*|enchain\w*|superpos\w*|melang\w*|assembl\w*)\b/.test(text) && !/\b(?:comment|pourquoi|qu'est-ce)\b/.test(text)) return true;
+  // « Plus lent », « ralentis », « plus vite », « recommence », « encore une fois » : refaire l'exemple
+  // (règle 8 des consignes) ; c'est une demande d'écoute.
+  if (/^(?:ok |bon |alors |et )?(?:un peu )?(?:plus (?:lent|lentement|vite|doucement)|ralenti\w*|accelere\w*|recommence\w*|encore une fois|une autre fois|rejoue\w*)\b/.test(text.trim())) return true;
   // « Essaye au moins », « essaie-le », « lance-les », « vas-y, essaie » : faire entendre ce dont on parle.
   if (/\b(?:essa(?:y|i)e?s?|tente|lance)(?:[- ](?:les?|la|ca)\b|\s+(?:au moins|quand meme|pour voir)\b|\s*[.!]*$)/.test(text)) return true;
   return EXAMPLE_PATTERNS.some((re) => re.test(text));
@@ -1647,7 +1650,7 @@ function buildChatCompletionPayload(config, payloadMessages, { includeTools = tr
     if (consultTool) body.tools.push(CONSULT_CONVERSATION_TOOL);
     if (rememberTool) body.tools.push(REMEMBER_TOOL);
     // [Claude] — 2026-11-12 — Toute la bibliothèque (exercices, tutoriels relevés) : détail et combinaisons.
-    if (libraryTools) body.tools.push(CONSULT_LIBRARY_TOOL, COMBINE_LIBRARY_TOOL);
+    if (libraryTools) body.tools.push(...(usesCompactPrompt(config.baseUrl) ? [COMPACT_COMBINE_LIBRARY_TOOL] : [CONSULT_LIBRARY_TOOL, COMBINE_LIBRARY_TOOL]));
     body.tool_choice = 'auto';
   }
   return body;
@@ -1993,7 +1996,7 @@ async function retryWithInternalReminder(config, payloadMessages, originalAssist
   return result.ok && !hasCompletionOutput(result.choice) ? completionFailure(result, 'retry') : result;
 }
 
-export function finalizeContent(content, toolResult, requestedDemo = false) {
+export function finalizeContent(content, toolResult, requestedDemo = false, { heldBack = false } = {}) {
   // [Claude] — 2026-09-24 — Un exemple s'entend même clavier masqué : on garde
   // l'explication et on précise seulement comment voir les touches (avant, la
   // réponse entière était remplacée par « Le clavier MIDI virtuel est masqué »).
@@ -2009,7 +2012,22 @@ export function finalizeContent(content, toolResult, requestedDemo = false) {
   if (requestedDemo && toolResult.keyboardCollapsed) {
     return 'Le clavier MIDI virtuel est masqué. Pour voir la démonstration, veuillez l\'afficher.';
   }
-  return content;
+  // Pas d'exemple : rien ne doit en annoncer un (voir withoutPhantomExample).
+  return withoutPhantomExample(content, { played: (toolResult.played || []).length > 0, heldBack });
+}
+
+// [Claude] — 2026-11-12 — Règle d'honnêteté : sans exemple sous la réponse, aucune phrase n'en
+// annonce un (« Écoute l'exemple ci-dessous », « je te joue… », « je tente l'enchaînement »).
+// Mesuré dans la conversation de Narcisse : ces phrases restaient alors que rien n'était préparé.
+const PHANTOM_EXAMPLE = /(?:[ée]coute[sz]?|r[ée]écoute[sz]?) (?:l['’]exemple|l['’]enchaînement|ci-dessous|le r[ée]sultat)|ci-dessous\s*:|\bje (?:vais )?(?:te |vous )?(?:joue[rs]?|fais entendre|faire entendre|lance[rs]?|pr[ée]pare[rs]?|tente[rs]?|retente[rs]?|r[ée]essaie)\b|\bvoici (?:l['’]exemple|l['’]enchaînement|ce que [çc]a donne)/i;
+export function withoutPhantomExample(content, { played = false, heldBack = false } = {}) {
+  const text = String(content || '');
+  if (played || !PHANTOM_EXAMPLE.test(text)) return content;
+  const kept = text.split(/\n{2,}/).map((block) => block.split(/(?<=[.!?…])\s+/).filter((sentence) => !PHANTOM_EXAMPLE.test(sentence)).join(' ')).filter((block) => block.trim()).join('\n\n');
+  const note = 'Je n’ai pas pu préparer d’exemple à écouter pour cette demande : redis-moi précisément ce que tu veux entendre.';
+  // Exemple retenu exprès (pas demandé) : la phrase part, sans note ; « Fais-le-moi entendre » est proposé.
+  if (heldBack) return kept.trim() || content;
+  return kept.trim() ? `${kept}\n\n_(${note})_` : note;
 }
 
 // [Claude] — 2026-11-11 — Provenance des exemples calculés par l'application.
@@ -2337,7 +2355,14 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   // tutoriels relevés. Catalogue dans les consignes ; avec les petits budgets (Groq, OpenRouter),
   // seulement quand la demande touche la bibliothèque.
   const libraryTutorials = await loadTutorialLibrary().catch(() => []);
-  const libraryAsked = libraryRequest(message, messages);
+  // [Claude] — 2026-11-12 — Banc réel chez Groq : le catalogue ajouté dès qu'un mot comme « exercice »
+  // ou « lick » apparaissait faisait dépasser 8 000 jetons par minute. Petits budgets : seulement si la
+  // phrase nomme un élément, demande une combinaison, ou fait suite à une combinaison jouée.
+  const recentLibrary = (Array.isArray(messages) ? messages : []).slice(-6).some((m) => m?.toolResult?.example?.kind === 'library')
+    || (Array.isArray(messages) ? messages : []).filter((m) => m?.role === 'user').slice(-3).some((m) => libraryPartsFromText(m.content, libraryTutorials));
+  const libraryAsked = usesCompactPrompt(config.baseUrl)
+    ? Boolean(libraryPartsFromText(message, libraryTutorials) || libraryCombination(message) || /biblioth/i.test(message || '') || recentLibrary)
+    : libraryRequest(message, messages) || recentLibrary;
   const libraryTools = !review && (libraryAsked || !usesCompactPrompt(config.baseUrl));
   const library = libraryTools ? { tutorials: libraryTutorials } : null;
   const toolOptions = { tutorialTools: Boolean(tutorialData), exerciseTools: Boolean(exerciseData), playingTools: Boolean(playingData), consultTool, rememberTool, harmonizeTool, libraryTools };
@@ -2352,7 +2377,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   const knownScale = scaleRequest ? buildScaleNotes(scaleRequest) : null;
   const scaleFacts = knownScale ? `\n\nRéférence calculée par l'application pour cette question : ${knownScale.title}, ${knownScale.names.join(' – ')}. Ces notes priment sur toute supposition. Pour une gamme demandée, utiliser play_scale, pas play_lick.` : '';
   const payloadMessages = normalizePayloadMessages([
-    { role: 'system', content: `${usesCompactPrompt(config.baseUrl) ? COMPACT_COPILOT_SYSTEM_PROMPT : COPILOT_SYSTEM_PROMPT}\n\nInstrument de cette application : PIANO. Décris le clavier et les touches, pas un manche, des frettes ou des positions de guitare. Ne propose pas de doigté précis sans données pour le justifier. Ne recopie aucune instruction de génération de suggestions dans ta réponse.${usesCompactPrompt(config.baseUrl) ? `\n\n${LEVEL_GUIDANCE_COMPACT}` : ''}\n\n## Bibliothèque de mouvements de référence\n${usesCompactPrompt(config.baseUrl) ? compactMovementsReference(movementsLibrary.movements) : MOVEMENTS_REFERENCE}\n\n${library ? `${LIBRARY_GUIDANCE}\n${libraryCatalogue(library.tutorials)}\n\n` : ''}${contextText}${scaleFacts}` },
+    { role: 'system', content: `${usesCompactPrompt(config.baseUrl) ? COMPACT_COPILOT_SYSTEM_PROMPT : COPILOT_SYSTEM_PROMPT}\n\nInstrument de cette application : PIANO. Décris le clavier et les touches, pas un manche, des frettes ou des positions de guitare. Ne propose pas de doigté précis sans données pour le justifier. Ne recopie aucune instruction de génération de suggestions dans ta réponse.${usesCompactPrompt(config.baseUrl) ? `\n\n${LEVEL_GUIDANCE_COMPACT}` : ''}\n\n## Bibliothèque de mouvements de référence\n${usesCompactPrompt(config.baseUrl) ? compactMovementsReference(movementsLibrary.movements) : MOVEMENTS_REFERENCE}\n\n${library ? (usesCompactPrompt(config.baseUrl) ? `${COMPACT_LIBRARY_GUIDANCE}\n${libraryCatalogue(library.tutorials, { compact: true })}\n\n` : `${LIBRARY_GUIDANCE}\n${libraryCatalogue(library.tutorials)}\n\n`) : ''}${contextText}${scaleFacts}` },
     ...sanitized,
   ]);
   // [Claude] — 2026-10-09 — « Fais-le-moi entendre » renvoie à la question et à la réponse d'avant.
@@ -2401,7 +2426,21 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       }
     }
 
-    if (!first.ok) return first;
+    if (!first.ok) {
+      // [Claude] — 2026-11-12 — Banc réel chez Groq : un quota atteint (429) faisait échouer des demandes
+      // que l'application sait réaliser seule. Des éléments de la bibliothèque nommés (ou repris) :
+      // l'enchaînement est joué quand même, et la réponse dit que le commentaire du modèle manque.
+      const hearRequest = message && !review && asksForExample(message);
+      const offline = hearRequest && library ? libraryRequestCall(message, library.tutorials, libraryHistory(messages)) : null;
+      const played = offline ? executeToolCalls([offline.call], '', toolContext) : null;
+      if (played?.example) {
+        const why = first.error === 'AI_API_ERROR_429' || first.error === 'AI_PROVIDER_BUSY' ? 'le service d’IA est saturé pour l’instant'
+          : first.error === 'AI_API_ERROR_402' ? 'le fournisseur refuse la demande (crédit ou budget)' : 'le service d’IA n’a pas répondu';
+        return { ok: true, content: `${offline.text}\n\n_(Sans commentaire cette fois : ${why}. L’enchaînement vient de la bibliothèque, sans le modèle.)_`,
+          toolResult: { ...played, providerError: first.error }, suggestedActions: [], autoplay: true };
+      }
+      return first;
+    }
     // [Claude] — 2026-11-11 — Le modèle demande à relire des messages d'origine : on les lui rend
     // comme des DONNÉES (jamais des consignes) et il répond. Une seule consultation par tour.
     const consultCalls = toolsMode ? (first.choice.tool_calls || []).filter((c) => c?.function?.name === 'consult_conversation') : [];
@@ -2439,6 +2478,41 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       if (!completed.ok) return completed;
       if (!String(completed.choice.content || '').trim()) return completionFailure(completed, 'text-retry');
       first = { ...completed, choice: { ...completed.choice, tool_calls: suggestions } };
+    }
+
+    // [Claude] — 2026-11-12 — Mécanisme GÉNÉRAL (Narcisse : « je vais poser d'autres demandes, ça va
+    // encore poser problème »). Cause commune des échecs mesurés : le pianiste demande à entendre,
+    // le modèle répond en texte (« je tente », « écoute l'exemple ci-dessous ») sans appeler d'outil,
+    // puis un secours générique joue autre chose. Avant tout secours, UNE relance lui rappelle de
+    // faire l'appel. Sauf quand l'application a déjà la réponse exacte (son jeu, melody chords,
+    // éléments de la bibliothèque nommés).
+    const AUDIO_TOOL_NAMES = ['play_voicing', 'play_lick', 'play_scale', 'play_progression', 'play_note', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords', 'combine_library'];
+    const askedToHear = toolsMode && message && !review && asksForExample(message);
+    const calledAudio = (first.choice.tool_calls || []).some((c) => AUDIO_TOOL_NAMES.includes(c?.function?.name));
+    // Un accord ou une progression écrits en toutes lettres : le routage d'intention les joue sans
+    // le modèle. Un accord que la phrase ne contient pas (le « Lick sur G7b9 » du 12/11) ne compte pas.
+    const heardRequest = hearIt ? previousQuestion || '' : message || '';
+    const intentNow = askedToHear ? classifyIntent(heardRequest) : null;
+    const literal = (name) => Boolean(name) && heardRequest.replace(/\s+/g, '').toLowerCase().includes(String(name).replace(/\s+/g, '').toLowerCase());
+    const intentIsLiteral = Boolean(intentNow && (literal(intentNow.params?.chordSymbol) || (intentNow.params?.chords?.length > 1 && intentNow.params.chords.every(literal))));
+    const appKnowsAnswer = Boolean(intentIsLiteral || myPlayingRequest(message || '', { session: Boolean(playingData?.session) }) || wantsMelodyChords(message || '')
+      || (library && libraryRequestCall(hearIt ? `${previousQuestion || ''} ${message}` : message, library.tutorials, libraryHistory(messages))));
+    // Groq gratuit : une relance doublerait les jetons de la minute (refus 429) ; les secours
+    // déterministes et la règle d'honnêteté s'appliquent quand même.
+    if (askedToHear && !calledAudio && !appKnowsAnswer && !/api\.groq\.com/.test(String(config.baseUrl))) {
+      const tools = [exerciseData && 'play_exercise (l’exercice affiché)', tutorialData && 'play_tutorial_passage (les notes du prof)', playingData && 'play_my_playing (son jeu)', library && 'combine_library (éléments de la bibliothèque, enchaînés ou superposés)', 'play_voicing, play_progression, play_lick, play_scale ou play_note'].filter(Boolean).join(' ; ');
+      const again = await retryWithInternalReminder(config, payloadMessages, first.choice.content || '',
+        `Le pianiste a demandé à ENTENDRE quelque chose, et ta réponse n'a appelé aucun outil : rien ne sera joué. Appelle maintenant l'outil qui réalise exactement sa demande (${tools}), avec une réponse courte qui renvoie à l'exemple. Si aucun outil ne peut la réaliser, dis-le en une phrase, sans prétendre jouer quoi que ce soit.`,
+        { includeTools: true, ...toolOptions, consultTool: false, maxTokens: 2400 });
+      if (again.ok && (again.choice.tool_calls || []).some((c) => AUDIO_TOOL_NAMES.includes(c?.function?.name))) {
+        // Le texte d'origine reste, sauf s'il disait ne pas pouvoir jouer (il serait démenti par l'exemple).
+        const original = String(first.choice.content || '');
+        const saidCannot = !original.trim() || /ne (?:peux|pourrai|suis) pas|n['’]arrive (?:toujours )?pas|je ne lance pas|pas (?:été |pu )?(?:lanc|jou|déclench)|impossible/i.test(original);
+        first = { ...again, choice: { ...again.choice, content: saidCannot ? again.choice.content || original : original } };
+      } else if (again.ok && String(again.choice.content || '').trim() && !String(first.choice.content || '').trim()) {
+        // Toujours aucun outil : l'explication d'origine reste (les annonces d'exemple seront retirées).
+        first = { ...first, choice: { ...first.choice, content: again.choice.content } };
+      }
     }
 
     let content = first.choice.content || '';
@@ -2724,7 +2798,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       }
     }
 
-    content = finalizeContent(content, toolResult, requestedDemo);
+    content = finalizeContent(content, toolResult, requestedDemo, { heldBack: exampleHeldBack });
 
     // Sous-chantier 3.3 : correction active si le nom annoncé ne correspond
     // pas aux notes réellement jouées. Désactivé en mode texte (pas de tools).

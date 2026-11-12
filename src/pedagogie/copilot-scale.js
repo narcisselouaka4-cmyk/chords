@@ -58,7 +58,10 @@ function tonicFromText(value) {
 /** Ne reprend le contexte que pour une référence explicite, jamais une gamme/tonalité inventée. */
 export function resolveScaleRequest(message, history = []) {
   const text = folded(message);
-  const explicit = /gamme|scale|pentaton|blues/.test(text);
+  // [Claude] — 2026-11-12 — « blues » seul est souvent la FORME (« une walking bass sur un blues »,
+  // « le blues jazz », « Slow Gospel Blues ») : seule « la/une blues », « blues scale » ou une
+  // gamme nommée appellent la gamme.
+  const explicit = /gamme|scale|pentaton|\b(?:la|une) blues\b/.test(text);
   if (/\blick|\briff|\bfill|\bphrase/.test(text)) return null;
   const referential = /cette gamme|cette pentatonique|la meme|fais.le.moi entendre|joue.la|et en\b/.test(text);
   if (!explicit && !referential) return null;

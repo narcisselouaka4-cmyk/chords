@@ -136,6 +136,9 @@ export function classifyProviderFailure({ status, bodyText = '', retryAfter = nu
   if (status === 404) return done('AI_MODEL_UNAVAILABLE');
   if (status === 413) return done('AI_REQUEST_TOO_LARGE');
   if (status === 400 || status === 422) {
+    // [Claude] — 2026-11-12 — Anthropic signale un crédit épuisé en HTTP 400 (« Your credit balance is
+    // too low… Plans & Billing ») : c'est le compte qu'il faut recharger, pas une demande mal formée.
+    if (/credit balance|purchase credits|plans? (?:&|and) billing|insufficient (?:funds|balance|credits?)|out of credits?/.test(haystack)) return done('AI_API_ERROR_402');
     if (tooLarge) return done('AI_REQUEST_TOO_LARGE');
     if (modelMissing) return done('AI_MODEL_UNAVAILABLE');
     const parameter = rejectedParameter(bodyText);

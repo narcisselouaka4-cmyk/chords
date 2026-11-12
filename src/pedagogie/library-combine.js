@@ -128,7 +128,12 @@ export function loadTutorialLibrary({ files = globalThis.window?.electronAPI?.fi
 
 /** Le catalogue court donné au modèle (une ligne par élément). */
 let exerciseLines = null;
-export function libraryCatalogue(tutorials = []) {
+export function libraryCatalogue(tutorials = [], { compact = false } = {}) {
+  // Petits budgets (Groq gratuit : 8 000 jetons par minute) : identifiant et nom seulement.
+  if (compact) {
+    return ['Exercices (transposables) :', ...movementsLibrary.movements.map((m) => `- ${m.id} : ${m.name}`),
+      'Tutoriels relevés :', ...tutorials.filter((t) => t.notes.length).map((t) => `- ${t.id} : ${t.title}${t.key ? ` (${t.key})` : ''}`)].join('\n');
+  }
   if (!exerciseLines) exerciseLines = buildExerciseLines();
   const lines = [...exerciseLines];
   lines.push('', '### Tutoriels relevés (Pédagogie IA : notes lues dans la vidéo du prof)');
@@ -323,6 +328,17 @@ function mentionAt(text, phrase) {
   return m ? m.index : -1;
 }
 
+const LIBRARY_CUE = /\b(?:passage|lick|exercice|etude|biblioth\w*|montuno|groove|cadence|mouvement|geste|progression|grille)\b/;
+let wordOwners = null;
+/** Mots d'au moins 8 lettres qu'un seul exercice porte dans son nom. */
+function distinctiveWords(movement) {
+  if (!wordOwners) {
+    wordOwners = new Map();
+    for (const m of movementsLibrary.movements) for (const w of new Set(plainText(m.name).split(' ').filter((x) => x.length >= 8))) wordOwners.set(w, [...(wordOwners.get(w) || []), m.id]);
+  }
+  return [...new Set(plainText(movement.name).split(' '))].filter((w) => w.length >= 8 && wordOwners.get(w)?.length === 1);
+}
+
 /**
  * Les éléments de la bibliothèque nommés dans la phrase du pianiste, dans l'ordre où il les dit
  * (« joue le Lick 1 puis enchaîne avec le Montuno mineur »). Sert quand le modèle n'a pas appelé
@@ -338,7 +354,10 @@ export function libraryPartsFromText(message, tutorials = []) {
     // Premier mot assez parlant et propre à cet exercice (« Turnaround », « Suspension »).
     const head = plainText(m.name).split(' ')[0];
     const own = head.length >= 8 && movementsLibrary.movements.filter((o) => plainText(o.name).split(' ')[0] === head).length === 1 ? head : '';
-    const at = [m.name, m.id, short.length >= 6 ? short : '', own, ...(m.aliases || [])].map((n) => mentionAt(text, n)).filter((i) => i >= 0);
+    // Un mot qui n'appartient qu'à cet exercice (« tritonique », « backdoor », « appoggiatures »),
+    // seulement si la phrase parle d'un élément de bibliothèque (passage, lick, exercice…).
+    const distinctive = LIBRARY_CUE.test(text) ? distinctiveWords(m) : [];
+    const at = [m.name, m.id, short.length >= 6 ? short : '', own, ...(m.aliases || []), ...distinctive].map((n) => mentionAt(text, n)).filter((i) => i >= 0);
     if (at.length) found.push({ id: m.id, at: Math.min(...at), length: plainText(m.name).length });
   }
   for (const t of tutorials) {
@@ -374,7 +393,7 @@ export function tempoFromText(message) {
 }
 
 // « Joue-les », « essaie », « fais-le-moi entendre », « rejoue » : la combinaison dont on parlait.
-const REFERS_BACK = /\b(?:les|les deux|l'enchainement|la combinaison|enchain\w*|combin\w*|essai\w*|essay\w*|rejou\w*|refai\w*|fais.le|joue.les|entendre|ecouter|recommence\w*)\b/;
+const REFERS_BACK = /\b(?:les|les deux|l'enchainement|la combinaison|enchain\w*|combin\w*|essai\w*|essay\w*|rejou\w*|refai\w*|fais.le|joue.les|joue.le|joue.la|entendre|ecouter|recommence\w*|plus lent\w*|ralenti\w*|plus vite|accelere\w*|encore)\b/;
 const NAMES_A_CHORD = /\b[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add|°|ø)?\d{0,2}\b(?! (?:mineur|majeur))/;
 
 /**
@@ -395,6 +414,13 @@ export function libraryRequestCall(message, tutorials = [], { previous = null, r
     const keyNow = libraryPartsFromText(`x ${message}`, [])?.key || /(?:^| )en (do|re|mi|fa|sol|la|si|[a-g])( ?(?:#|b|diese|bemol))?( mineur| majeur|m)?(?= |$)/.exec(text)?.slice(1, 3).join('') || null;
     asked = { ...base, key: keyNow || base.key || base.prevKey || recent.map((t) => libraryPartsFromText(t, tutorials)?.key).find(Boolean) || null };
     tempo = tempo || previous?.tempo || recent.map(tempoFromText).find(Boolean) || null;
+    // « Plus lent » / « plus vite » : le même enchaînement, à 75 % ou 125 % de sa vitesse.
+    const slower = /plus lent|ralenti|doucement/.test(text), faster = /plus vite|accelere/.test(text);
+    if (slower || faster) {
+      const factor = slower ? 0.75 : 1.25;
+      if (tempo) tempo = Math.round(tempo * factor);
+      else asked = { ...asked, parts: asked.parts.map((p) => ({ ...p, speed: factor })) };
+    }
   }
   if (!asked) return null;
   const first = exerciseEntry(asked.parts[0].id);
@@ -459,6 +485,27 @@ export const COMBINE_LIBRARY_TOOL = {
         },
       },
       required: ['parts'],
+    },
+  },
+};
+
+export const COMPACT_LIBRARY_GUIDANCE = `## Bibliothèque (exercices, tutoriels)
+Pour faire entendre des éléments de la bibliothèque, seuls ou combinés (enchaînés, superposés, transposés, au même tempo), appelle combine_library avec leurs identifiants ; ne dis jamais que tu ne peux pas les jouer. Nomme-les par leur nom.`;
+
+/** Version courte de l'outil, pour les petits budgets. */
+export const COMPACT_COMBINE_LIBRARY_TOOL = {
+  type: 'function',
+  function: {
+    name: 'combine_library',
+    description: 'Joue des éléments de la bibliothèque (identifiants du catalogue) : chain = bout à bout, overlay = ensemble. Notes des sources, rien d\'inventé.',
+    parameters: {
+      type: 'object', additionalProperties: false, required: ['parts'],
+      properties: {
+        mode: { type: 'string', enum: ['chain', 'overlay'] },
+        tempo: { type: 'number' },
+        parts: { type: 'array', maxItems: MAX_PARTS, items: { type: 'object', additionalProperties: false, required: ['id'], properties: {
+          id: { type: 'string' }, key: { type: 'string' }, hand: { type: 'string', enum: ['both', 'left', 'right'] }, speed: { type: 'number' }, start: { type: 'number' }, end: { type: 'number' }, repeat: { type: 'integer' } } } },
+      },
     },
   },
 };

@@ -252,6 +252,15 @@ await check('… mais « Fais-moi entendre un Cmaj7 » ne rejoue pas la combinai
   assert.notEqual(autre.toolResult.example?.kind, 'library');
 });
 
+const { libraryRequestCall: requestCall } = await import('./library-combine.js');
+await check('Banc réel (12/11) : « joue le » après « parle moi du lick 3 », « plus lent » après le passage tritonique', () => {
+  assert.deepEqual(JSON.parse(requestCall('joue le', [], { recent: ['parle moi du lick 3'] }).call.function.arguments).parts.map((p) => p.id), ['latin-ellen-lick-3']);
+  const slow = JSON.parse(requestCall('plus lent', [], { recent: ['joue le passage tritonique en Mi'] }).call.function.arguments);
+  assert.deepEqual(slow.parts, [{ id: 'passage-tritone', speed: 0.75, key: 'mi' }]);
+  assert.equal(JSON.parse(requestCall('plus vite', [], { previous: { mode: 'chain', parts: [{ id: 'latin-ellen-lick-1' }], tempo: 160 } }).call.function.arguments).tempo, 200);
+  assert.equal(requestCall('c’est quoi une appoggiature ?', [], {}), null);
+});
+
 const { libraryPartsFromText } = await import('./library-combine.js');
 await check('Éléments nommés reconnus dans l’ordre dit, mains et tonalité comprises ; rien pour une question générale', () => {
   assert.deepEqual(libraryPartsFromText('joue le turnaround puis le blues jazz').parts.map((p) => p.id), ['study-turnaround', 'study-jazz-blues']);

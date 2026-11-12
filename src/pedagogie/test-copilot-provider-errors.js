@@ -29,6 +29,7 @@ const quiet = async (fn) => { const { log, warn } = console; console.log = () =>
 const code = (status, body, retryAfter = null) => classifyProviderFailure({ status, bodyText: typeof body === 'string' ? body : JSON.stringify(body), retryAfter }).code;
 
 // ── 1. Lecture pure des refus, avec des corps réalistes ─────────────────────
+check('400 Anthropic « credit balance is too low » → compte à recharger, pas une demande mal formée (12/11)', code(400, { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.' } }) === 'AI_API_ERROR_402');
 check('401 → clé refusée', code(401, { error: { message: 'Invalid API Key', code: 'invalid_api_key' } }) === 'AI_API_KEY_INVALID');
 check('401 Anthropic → clé refusée', code(401, { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }) === 'AI_API_KEY_INVALID');
 check('402 → crédit, pas la clé', code(402, 'Add usage credits or subscribe') === 'AI_API_ERROR_402' && userActionFor('AI_API_ERROR_402') === 'verifier-compte');
