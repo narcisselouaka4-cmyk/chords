@@ -29,6 +29,7 @@
 
 import { createPracticeExercise, TECHNIQUES, TECHNIQUE_LABELS, isGridChordPlayable } from '../practice-exercise.js';
 import { buildDemo, demoHands, DEMO_STYLES } from '../practice-demo.js';
+import { buildGospelComping, seedOf } from './gospel-comping.js';
 import { parseChordSymbol, chordSymbolToPitchClasses } from './chord-parser-v2.js';
 
 // Style du Copilote → style de démo. « Auto » : la Ballade, posée et claire.
@@ -249,10 +250,29 @@ function playedHands(chord, demoStyle) {
  * exercices.
  * @returns {{kind: string, title: string, subtitle: string, style: string, tempo: number, events: object[], beats: number, chords: object[]}|null}
  */
-export function buildChordExample(symbols, { styleId = 'auto', technique = 'auto', pattern } = {}) {
+export function buildChordExample(symbols, { styleId = 'auto', technique = 'auto', pattern, variation = 0 } = {}) {
   const chords = buildExampleChords(symbols, { technique });
   if (!chords?.length) return null;
   const style = demoStyleFor(styleId, pattern);
+  // [Claude] — 2026-11-12 — Progression gospel / worship : un vrai jeu d'accompagnement, différent
+  // d'une mesure à l'autre et d'une demande à l'autre (gospel-comping.js), au lieu de la même
+  // texture « posée » à chaque accord. Une technique ou un jeu plaqué demandés gardent l'ancien rendu.
+  if (style === 'gospel' && chords.length >= 2 && technique === 'auto') {
+    const comping = buildGospelComping(chords, { seed: seedOf(chords.map((c) => c.name), variation), feel: styleId === 'worship' ? 'worship' : 'gospel' });
+    if (comping) {
+      return {
+        kind: 'progression',
+        title: chords.map((c) => c.name).join(' → '),
+        subtitle: `${styleId === 'worship' ? 'Worship' : 'Gospel'} · ${chords.length} accords · ${comping.gestures.join(' ; ')}`,
+        style,
+        tempo: EXAMPLE_TEMPO[style] || DEMO_STYLES[style].tempo,
+        events: comping.events,
+        beats: comping.beats,
+        chords: chords.map((c, i) => ({ name: c.name, technique: c.voicing?.technique, leftHand: [...comping.hands[i].lh], rightHand: [...comping.hands[i].rh] })),
+        comping: { variation, feel: styleId === 'worship' ? 'worship' : 'gospel', bars: comping.bars },
+      };
+    }
+  }
   // Plaqué sans technique demandée : les deux mains quand même (la basse sous
   // un rootless), comme les autres styles. Un rootless demandé reste seul.
   if (style === 'plaque' && technique === 'auto') {

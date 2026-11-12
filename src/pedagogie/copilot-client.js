@@ -152,6 +152,21 @@ function libraryHistory(messages = []) {
   return { previous: lastLibrary?.toolResult.example.source.request || null, recent };
 }
 
+/**
+ * « Joue-la d'une autre façon », « autrement », « varie » : la dernière progression gospel / worship
+ * de la conversation, rejouée avec d'autres gestes. null si la phrase nomme autre chose.
+ */
+function anotherTakeCall(message, messages = []) {
+  const text = String(message || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (!/\b(?:autre (?:facon|maniere|version|interpretation)|autrement|differemment|varie\w*|plus riche|encore une)\b/.test(text)) return null;
+  if (chordSymbolsInText(message).length) return null;
+  const last = [...(Array.isArray(messages) ? messages : [])].reverse().find((m) => m?.role === 'assistant' && m.toolResult?.example?.comping);
+  const example = last?.toolResult?.example;
+  if (!example?.chords?.length) return null;
+  return { call: { function: { name: 'play_progression', arguments: JSON.stringify({ chords: example.chords.map((c) => c.name), styleId: example.comping.feel === 'worship' ? 'worship' : 'gospel', focus: 'full' }) } },
+    variation: (Number(example.comping.variation) || 0) + 1 + Math.floor(Math.random() * 3) };
+}
+
 /** Une demande d'assembler des éléments (« combine », « enchaîne », « superpose », « mélange »). */
 function libraryCombination(message) {
   return /\b(?:combin|encha[iîï]n|superpos|m[ée]lang|assembl)\w*/i.test(String(message || ''));
@@ -710,7 +725,7 @@ const PLAY_PROGRESSION_TOOL = {
   type: 'function',
   function: {
     name: 'play_progression',
-    description: 'Joue une progression ou un enchaînement d\'accords (ex. ii-V-I, 7→3, guide tones). Tu ne peux appeler play_progression qu\'UNE SEULE FOIS par réponse. L\'application génère automatiquement les notes de chaque accord avec main gauche (basse) et main droite (accord / guide tone).',
+    description: 'Joue une progression ou un enchaînement d\'accords (ex. ii-V-I, 7→3, guide tones). Tu ne peux appeler play_progression qu\'UNE SEULE FOIS par réponse. L\'application génère automatiquement les notes de chaque accord avec main gauche (basse) et main droite (accord / guide tone). Avec styleId "gospel" ou "worship", elle joue un vrai accompagnement de pianiste d\'église, différent à chaque demande (basse qui marche, coquille, contretemps, anticipations, retards, accords de passage, fin variée) : pour une progression gospel ou worship, donne toujours ce styleId, et commente les gestes listés sous l\'exemple plutôt que d\'en inventer.',
     parameters: {
       type: 'object',
       additionalProperties: false,
@@ -726,7 +741,7 @@ const PLAY_PROGRESSION_TOOL = {
         },
         styleId: {
           type: 'string',
-          description: 'Style musical : "auto", "worship", "gospel", "jazz" (défaut), "neoSoul".',
+          description: 'Style musical : "auto", "worship", "gospel", "jazz" (défaut), "neoSoul". "gospel" et "worship" donnent le jeu d\'accompagnement riche.',
         },
         pattern: {
           type: 'string',
@@ -1106,7 +1121,10 @@ const TECHNIQUE_TO_EXERCISE = {
  * @param {{styleId?: string}} [options] - style choisi dans le Copilote
  * @returns {{played: object[], ignored: number, suggestions: object[], voicing: object|null, example: object|null, content?: string}}
  */
-export function executeToolCalls(toolCalls, assistantContent = '', { styleId = 'auto', tutorial = null, exercise = null, playing = null, library = null } = {}) {
+// Nombre de progressions gospel / worship déjà jouées dans cette séance : chacune sonne autrement.
+let compingTakes = 0;
+
+export function executeToolCalls(toolCalls, assistantContent = '', { styleId = 'auto', tutorial = null, exercise = null, playing = null, library = null, variation = null } = {}) {
   // [Claude] — 2026-11-12 — Diagnostic, inactif par défaut (localStorage « pjc.debug.copilot ») :
   // les outils réellement demandés par le modèle, pour comprendre un exemple qui ne vient pas.
   try { if (globalThis.localStorage?.getItem('pjc.debug.copilot')) console.info('[Copilot] outils demandés', JSON.stringify((toolCalls || []).map((c) => ({ name: c?.function?.name, arguments: String(c?.function?.arguments || '').slice(0, 600) })))); } catch (_) { /* diagnostic seulement */ }
@@ -1312,7 +1330,10 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       const focus = ['7-to-3', '3-to-7', 'guide-tones-only', 'full'].includes(args.focus) ? args.focus : 'full';
       const chosenStyle = args.styleId && args.styleId !== 'auto' ? args.styleId : styleId;
       if (focus === 'full') {
-        example = buildChordExample(chords, { styleId: chosenStyle, pattern: args.pattern });
+        // Chaque progression jouée prend une autre façon de jouer (voir gospel-comping.js) : celle
+        // demandée (« une autre façon »), sinon la suivante de cette séance.
+        example = buildChordExample(chords, { styleId: chosenStyle, pattern: args.pattern, variation: Number.isInteger(variation) ? variation : compingTakes++ });
+        if (example?.comping) suggestions.push({ label: 'Une autre façon de la jouer', message: 'Joue-la d’une autre façon' });
         if (example) continue;
       }
       // Guide tones (ou accords inconnus du moteur) : le générateur pédagogique,
@@ -2206,6 +2227,20 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     if(args.technique||(args.styleId&&args.styleId!=='auto'))return call;
     return {...call,function:{...call.function,arguments:JSON.stringify({...args,technique:'close'})}};
   };
+  // [Claude] — 2026-11-12 — Essai réel : « joue-moi une progression gospel en Do » sortait en accords
+  // PLAQUÉS, parce que le modèle (gpt-oss) avait ajouté pattern « block » de lui-même. Le style dit
+  // par le pianiste prime : gospel / worship demandés → ce style, et un jeu plaqué seulement s'il
+  // l'a écrit (« plaqué », « en accords plaqués »).
+  const styledProgression=(call,askedText)=>{
+    if(call?.function?.name!=='play_progression')return call;
+    let args={};try{args=typeof call.function.arguments==='string'?JSON.parse(call.function.arguments||'{}'):(call.function.arguments||{});}catch{return call;}
+    const text=String(askedText||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const asked=/\b(?:worship|adoration|louange)\b/.test(text)?'worship':/\bgospel\b/.test(text)?'gospel':null;
+    const next={...args};
+    if(asked)next.styleId=asked;
+    if(next.pattern==='block'&&!/\b(?:plaque\w*|block|en bloc)\b/.test(text))delete next.pattern;
+    return {...call,function:{...call.function,arguments:JSON.stringify(next)}};
+  };
   const personalScope=review||scope.kind==='personal';
   // « Joue-moi un Cmaj7 en position fermée », « … ma mélodie en melody chords » : ni l'un ni
   // l'autre ne demande de convertir la prise dans un style (« en <mots> » était lu comme tel).
@@ -2448,6 +2483,19 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
         return { ok: true, content: `${offline.text}${played.tempoQuestion ? `\n\n${played.tempoQuestion}` : ''}\n\n_(Sans commentaire cette fois : ${why}. L’enchaînement vient de la bibliothèque, sans le modèle.)_`,
           toolResult: { ...played, providerError: first.error }, suggestedActions: (played.suggestions || []).slice(0, 4), autoplay: true };
       }
+      // De même, une progression écrite en toutes lettres (« joue-moi Cmaj7 Am7 Dm7 G7, gospel ») ou
+      // « joue-la d'une autre façon » : l'application sait la jouer sans le modèle.
+      const again = message && !review ? anotherTakeCall(message, messages) : null;
+      const intent = !again && hearRequest ? classifyIntent(message) : null;
+      const written = intent?.params?.chords?.length > 1 && intent.params.chords.every((c) => String(message).replace(/\s+/g, '').toLowerCase().includes(String(c).replace(/\s+/g, '').toLowerCase()));
+      const call = again?.call || (written ? { function: { name: 'play_progression', arguments: JSON.stringify({ chords: intent.params.chords, focus: 'full', styleId: intent.params.styleId || copilotStyleId || 'auto' }) } } : null);
+      const alone = call ? namedExample(executeToolCalls([call], '', again ? { ...toolContext, variation: again.variation } : toolContext)) : null;
+      if (alone?.example) {
+        const why = first.error === 'AI_API_ERROR_429' || first.error === 'AI_PROVIDER_BUSY' ? 'le service d’IA est saturé pour l’instant'
+          : first.error === 'AI_API_ERROR_402' ? 'le fournisseur refuse la demande (crédit ou budget)' : 'le service d’IA n’a pas répondu';
+        return { ok: true, content: `Écoute l'exemple ci-dessous : ${alone.example.title}.\n\n_(Sans commentaire cette fois : ${why}. L’exemple est joué par l’application, sans le modèle.)_`,
+          toolResult: { ...alone, providerError: first.error }, suggestedActions: (alone.suggestions || []).slice(0, 4), autoplay: true };
+      }
       return first;
     }
     // [Claude] — 2026-11-11 — Le modèle demande à relire des messages d'origine : on les lui rend
@@ -2504,7 +2552,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     const intentNow = askedToHear ? classifyIntent(heardRequest) : null;
     const literal = (name) => Boolean(name) && heardRequest.replace(/\s+/g, '').toLowerCase().includes(String(name).replace(/\s+/g, '').toLowerCase());
     const intentIsLiteral = Boolean(intentNow && (literal(intentNow.params?.chordSymbol) || (intentNow.params?.chords?.length > 1 && intentNow.params.chords.every(literal))));
-    const appKnowsAnswer = Boolean(intentIsLiteral || myPlayingRequest(message || '', { session: Boolean(playingData?.session) }) || wantsMelodyChords(message || '')
+    const appKnowsAnswer = Boolean(intentIsLiteral || anotherTakeCall(message, messages) || myPlayingRequest(message || '', { session: Boolean(playingData?.session) }) || wantsMelodyChords(message || '')
       || (library && libraryRequestCall(hearIt ? `${previousQuestion || ''} ${message}` : message, library.tutorials, libraryHistory(messages))));
     // Groq gratuit : une relance doublerait les jetons de la minute (refus 429) ; les secours
     // déterministes et la règle d'honnêteté s'appliquent quand même.
@@ -2559,6 +2607,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // (l'appliquer à une progression, l'entendre dans une autre tonalité, « ce voicing »)
     // reçoit l'outil qui reprend SES notes ; « qu'a-t-il voulu dire ? » : l'explication seule.
     let libraryAsk = null;
+    let takeAsk = null;
     const tutorialAsk = tutorialData && message && !review ? parseTutorialRequest(message) : null;
     const tutorialCalls = toolsMode && tutorialAsk ? tutorialToolCalls(tutorialAsk, rawToolCalls, tutorialData) : null;
     const usedTeacherTool = Array.isArray(rawToolCalls) && rawToolCalls.some((c) => ['play_tutorial_passage', 'apply_tutorial_passage'].includes(c?.function?.name));
@@ -2574,6 +2623,9 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       forcedToolCalls = [{ function: { name: 'play_melody_chords', arguments: JSON.stringify(chordsRequest) } }];
     } else if (toolsMode && mine && playingData && !chordsAsked) {
       forcedToolCalls = [{ function: { name: 'play_my_playing', arguments: JSON.stringify(mine) } }];
+    } else if (toolsMode && message && !review && !mine && !chordsAsked && (takeAsk = anotherTakeCall(message, messages))) {
+      // « Joue-la d'une autre façon » : la même progression, avec d'autres gestes d'accompagnement.
+      forcedToolCalls = [takeAsk.call];
     } else if (toolsMode && library && message && !review && !mine && !chordsAsked && asksForExample(message)
       && !(rawToolCalls || []).some((c) => c?.function?.name === 'combine_library') && (libraryAsk = libraryRequestCall(hearIt ? `${previousQuestion || ''} ${message}` : message, library.tutorials, libraryHistory(messages)))) {
       // [Claude] — 2026-11-12 — Conversation de Narcisse : « joue "Lick 1…" puis t'enchaîne avec
@@ -2639,7 +2691,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // passage joué (review) aussi.
     const AUDIO_TOOLS = ['play_voicing', 'play_lick', 'play_scale', 'play_progression', 'play_note', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords', 'combine_library'];
     let effectiveToolCalls = forcedToolCalls || rawToolCalls;
-    if (Array.isArray(effectiveToolCalls) && scope.kind !== 'personal') effectiveToolCalls = effectiveToolCalls.map((call) => plainVoicing(call, hearIt ? previousQuestion : message));
+    if (Array.isArray(effectiveToolCalls) && scope.kind !== 'personal') effectiveToolCalls = effectiveToolCalls.map((call) => styledProgression(plainVoicing(call, hearIt ? previousQuestion : message), hearIt ? previousQuestion : message));
     const personalFocus = Boolean(playingData?.passage && (review || /\b(?:mon jeu|ma prise|mon passage|mes accords|mes arp[eè]ges|mes voicings|ma fa[çc]on)\b/i.test(message || '')));
     const proposedAudio = [...(effectiveToolCalls || []), ...extractTextToolCalls(content).calls];
     if (personalFocus && !chordsAsked && proposedAudio.some((c) => AUDIO_TOOLS.includes(c?.function?.name) && c.function.name !== 'play_my_playing')) {
@@ -2661,7 +2713,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       effectiveToolCalls = kept;
     }
     let toolResult = personalFocus && !toolsMode ? { played: [], ignored: 0, suggestions: [], example: null, voicing: null } : toolsMode
-      ? executeToolCalls(effectiveToolCalls, content, toolContext)
+      ? executeToolCalls(effectiveToolCalls, content, takeAsk ? { ...toolContext, variation: takeAsk.variation } : toolContext)
       : parsePlayNoteAnnotations(content);
     if (toolResult.content) content = toolResult.content;
     // Combinaison montée par l'application : le texte du modèle qui disait ne rien pouvoir jouer
