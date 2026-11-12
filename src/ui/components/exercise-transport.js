@@ -21,9 +21,9 @@ export function createExerciseTransport({ onRate, onToggle, onSeek, onBack }) {
   back.addEventListener('click', onBack);
   // En pause, seek montre les notes sans les jouer, comme dans le Copilote.
   range.addEventListener('input', () => onSeek(Number(range.value)));
-  return { root, update({ active, paused, at = 0, duration = 0, tempo, rate, section = '' }) {
+  return { root, update({ active, paused, at = 0, duration = 0, tempo, rate, pulseBeats = 1, section = '' }) {
     if (speed.dataset.value !== String(rate)) setSpeedMenuValue(speed, rate);
-    root.querySelector('[data-tempo]').textContent = tempo ? `${Math.round(tempo * rate)} BPM` : '';
+    root.querySelector('[data-tempo]').textContent = tempo ? `${Math.round(tempo * rate / pulseBeats)} BPM${pulseBeats === 2 ? ' · à la blanche' : ''}` : '';
     root.querySelector('.exercise-transport-controls').hidden = !active;
     pause.textContent = paused ? 'Reprendre' : 'Pause';
     pause.setAttribute('aria-label', paused ? 'Reprendre l’exercice' : 'Mettre l’exercice en pause');

@@ -24,6 +24,7 @@ import {
   createDrumLoop, drumKitFor, drumTempoFor, drumStyles, setDrumManifest,
 } from './audio/drum-loop.js';
 import { createExerciseTransport } from './ui/components/exercise-transport.js';
+import { studyTempo, studyPulse, phraseGestures } from './exercise-study-view.js';
 import { clampSpeed } from './ui/components/speed-menu.js';
 import { initGlobalMetronome } from './ui/global-metronome.js';
 import {bindPlaybackDrums} from './audio/playback-drums.js';
@@ -1599,7 +1600,7 @@ function renderExerciseProgressPanel(exState) {
   if (els.exerciseKeyStrip) els.exerciseKeyStrip.hidden = !prog;
   if (els.exerciseChordsEyebrow) {
     els.exerciseChordsEyebrow.hidden = !prog;
-    els.exerciseChordsEyebrow.textContent = prog?.movement.score?.practice === 'notes' ? 'GESTES DE LA PHRASE' : 'ACCORDS';
+    els.exerciseChordsEyebrow.textContent = prog?.movement.score?.preserveTexture && !prog.movement.phraseStudy ? 'GESTES DE LA PHRASE' : 'ACCORDS';
   }
   // [Claude] — 2026-09-24 (nuit) — Accords de passage = étapes à jouer (règle de
   // Narcisse : les tensions ne se jouent qu'en passage ; le niveau se lit aux passages).
@@ -1643,19 +1644,26 @@ function renderExerciseProgressPanel(exState) {
         : '';
     };
     const notes = (list) => list.map((n) => `${noteName(((n % 12) + 12) % 12)}${Math.floor(n / 12) - 1}`).join(' ');
+    const escapeHarmony = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     // Accords de passage (entre deux accords) : des étapes comme les autres,
     // cliquables, allumés aussi quand la démo les joue.
-    path.innerHTML = prog.chords.map((chord, i) => {
-      const current = i === stepIndex && !onPassing;
+    const expanded = prog.movement.score?.preserveTexture && !prog.movement.phraseStudy && prog.movement.score.practice !== 'notes';
+    const pathChords = expanded ? phraseGestures(prog.chords) : prog.chords;
+    let firstCurrent = false;
+    path.innerHTML = pathChords.map((chord, index) => {
+      const i = chord.pathStep ?? index;
+      const current = i === stepIndex && !onPassing && (!expanded || !firstCurrent);
+      if (current) firstCurrent = true;
       const state = current ? 'is-active' : i < stepIndex || (i === stepIndex && onPassing) ? 'is-done' : '';
       const role = { departure: 'Départ', passing: 'Passage écrit', arrival: 'Arrivée' }[chord.harmonicRole];
       // [Claude] — 2026-11-07 — Le rôle/minutage (« Départ · 1 temps ») ne
       // s'affiche plus sous le nom de l'accord (Narcisse) : gardé seulement
       // dans l'info-bulle (title), pas perdu, juste moins visible d'un coup d'œil.
       const timing = chord.studyStep ? `${role ? `${role} · ` : ''}${chord.studyStep.beats.toLocaleString('fr-FR')} temps` : '';
-      const gestureName = chord.studyStep?.practice === 'notes'
+      const gestureName = prog.movement.score?.preserveTexture && !prog.movement.phraseStudy
         ? chord.notes.map(n => writtenNoteLabel(n, chord, { keyPc: prog.currentKey, minor })).join(' ') : chord.name;
-      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}${timing ? ` · ${timing}` : ''}"${current ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${gestureName || '—'}</strong>${topTag(chord)}</div></button>`;
+      const harmony = prog.movement.phraseStudy ? '' : chord.studyStep?.cellName || chord.studyStep?.harmonyName;
+      const row = `<button type="button" class="${state}" data-step="${i}"${expanded ? ` data-phrase-beat="${chord.phraseBeat}"` : ''} title="Afficher ${chord.name}${timing ? ` · ${timing}` : ''}"${current ? ' aria-current="step"' : ''}><span>${index + 1}</span><div><strong>${gestureName || '—'}</strong>${harmony ? `<small>${escapeHarmony(harmony)}</small>` : ''}${topTag(chord)}</div></button>`;
       const p = chord.passingChord;
       if (!p) return row;
       const onIt = onPassing && i === stepIndex;
@@ -1666,7 +1674,7 @@ function renderExerciseProgressPanel(exState) {
     }).join('');
     // Les licks peuvent comporter plusieurs dizaines de gestes. Leur cible
     // reste visible pendant la lecture et après une recherche dans la phrase.
-    if (prog.movement.score?.practice === 'notes') {
+    if (prog.movement.score?.preserveTexture && !prog.movement.phraseStudy) {
       const active = path.querySelector('[aria-current="step"]');
       const bounds = path.getBoundingClientRect();
       if (active && bounds.width) path.scrollLeft += active.getBoundingClientRect().left - bounds.left - (bounds.width - active.offsetWidth) / 2;
@@ -2129,6 +2137,12 @@ function initPracticeExercise() {
     }
     const step = e.target.closest('[data-step]');
     if (!step || practiceExercise.getState().mode !== 'movement') return;
+    if (step.dataset.phraseBeat != null && demoContext?.kind === 'movement' && demoPlayer.isActive()) {
+      demoPlayer.pause();
+      demoPlayer.seek(Number(step.dataset.phraseBeat));
+      updateExerciseTransports();
+      return;
+    }
     practiceExercise.goToStep(Number(step.dataset.step));
     feedbackDiv.textContent = '';
     render();
@@ -2861,31 +2875,51 @@ function initPracticeExercise() {
   const playingHighlights = createPlayingHighlights(document);
   demoHooks.onVisual = () => {
     if (demoContext?.kind === 'copilot') playingHighlights.show(demoContext.comparison, demoPlayer.position(), { pedal: demoContext.pedal });
+    if (demoContext?.kind === 'movement') updatePhraseCursor();
   };
+  function updatePhraseCursor() {
+    const path = document.getElementById('exercise-progress-path');
+    const buttons = [...path.querySelectorAll('[data-phrase-beat]')];
+    if (!buttons.length || !demoPlayer.isActive()) return;
+    const steps = practiceExercise.getState().progression?.movement.score?.steps || [];
+    const cycle = steps.reduce((sum, s) => sum + s.beats, 0);
+    const at = demoPlayer.position() % cycle;
+    const active = buttons.findLast(b => Number(b.dataset.phraseBeat) <= at + .01) || buttons[0];
+    for (const b of buttons) {
+      b.classList.toggle('is-active', b === active);
+      if (b === active) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+    }
+    const bounds = path.getBoundingClientRect(), rect = active.getBoundingClientRect();
+    if (rect.left < bounds.left || rect.right > bounds.right) path.scrollLeft += rect.left - bounds.left - (bounds.width - rect.width) / 2;
+  }
   let previewId = null;
   // Envoi régulier de la position de l'exemple du Copilote à sa carte (barre de lecture).
   let exampleTicker = null;
   let exampleFrame = null;
 
   let exerciseRate = 1;
-  try { exerciseRate = clampSpeed(window.localStorage?.getItem('exercise-playback-rate'), 1); } catch (_) { /* Séance seulement. */ }
+  let exerciseRates = {};
+  try { const saved = JSON.parse(window.localStorage?.getItem('exercise-playback-rates-v2') || '{}'); if (saved && typeof saved === 'object' && !Array.isArray(saved)) exerciseRates = saved; } catch (_) { /* Séance seulement. */ }
+  const rateFor = entry => clampSpeed(exerciseRates[entry?.id], 1);
   const exerciseIsActive = () => ['movement', 'preview'].includes(demoContext?.kind) && demoPlayer.isActive();
-  function setExerciseRate(value) {
-    exerciseRate = value;
-    try { window.localStorage?.setItem('exercise-playback-rate', String(value)); } catch (_) { /* Séance seulement. */ }
-    if (exerciseIsActive()) demoPlayer.setRate(value);
+  function setExerciseRate(value, kind) {
+    const entry = kind === 'preview' ? getLibraryItems().find(item => item.id === librarySelected) : practiceExercise.getState().progression?.movement;
+    if (entry?.id) exerciseRates[entry.id] = value;
+    try { window.localStorage?.setItem('exercise-playback-rates-v2', JSON.stringify(exerciseRates)); } catch (_) { /* Séance seulement. */ }
+    if (exerciseIsActive() && demoContext.entryId === entry?.id) { exerciseRate = value; demoPlayer.setRate(value); }
     updateExerciseTransports();
   }
-  const makeTransport = () => createExerciseTransport({ onRate: setExerciseRate,
+  const makeTransport = kind => createExerciseTransport({ onRate: value => setExerciseRate(value, kind),
     onToggle: () => { if (!exerciseIsActive()) return; if (demoPlayer.isPaused()) demoPlayer.resume(); else demoPlayer.pause(); updateExerciseTransports(); },
     onSeek: (beat) => { if (exerciseIsActive()) { demoPlayer.seek(beat); updateExerciseTransports(); } },
     onBack: () => { if (exerciseIsActive()) { demoPlayer.seek(Math.max(0, demoPlayer.position() - 4)); updateExerciseTransports(); } },
   });
-  const workTransport = makeTransport();
-  const libraryTransport = makeTransport();
+  const workTransport = makeTransport('movement');
+  const libraryTransport = makeTransport('preview');
   document.getElementById('exercise-demo-transport')?.append(workTransport.root);
   function updateExerciseTransports() {
     const active = exerciseIsActive();
+    if (active && demoContext.kind === 'movement') updatePhraseCursor();
     const state = practiceExercise.getState();
     const selected = movementsLibrary.movements.find(item => item.id === librarySelected);
     const at = active ? demoPlayer.position() : 0;
@@ -2896,8 +2930,9 @@ function initPracticeExercise() {
     }
     for (const [transport, own, entry] of [[workTransport, demoContext?.kind === 'movement', state.progression?.movement], [libraryTransport, demoContext?.kind === 'preview' && previewId === librarySelected, selected]]) {
       transport.update({ active: active && own, paused: demoPlayer.isPaused(), at,
-        duration: active ? demoPlayer.duration() : 0, rate: exerciseRate, section,
-        tempo: active && own ? demoContext.tempo : entry?.score?.tempo });
+        duration: active ? demoPlayer.duration() : 0, rate: active && own ? exerciseRate : rateFor(entry), section,
+        pulseBeats: studyPulse(entry),
+        tempo: active && own ? demoContext.tempo : entry ? entryTempo(entry) : null });
     }
   }
   setInterval(updateExerciseTransports, 150);
@@ -2910,6 +2945,7 @@ function initPracticeExercise() {
   try {
     if (window.localStorage?.getItem(STUDY_PLAYBACK_STORAGE) === 'plaque') studyPlayback = 'plaque';
   } catch (_) { /* Préférence de cette séance seulement. */ }
+  practiceExercise.setStudyPlayback(studyPlayback);
   try {
     const saved = window.localStorage?.getItem(DEMO_STYLE_STORAGE);
     if (saved && (saved === 'auto' || DEMO_STYLES[saved])) demoStyle = saved;
@@ -2917,6 +2953,10 @@ function initPracticeExercise() {
     // Stockage indisponible : « Selon le mouvement ».
   }
   const resolveDemoStyle = (movementStyle) => (demoStyle === 'auto' ? defaultDemoStyle(movementStyle) : demoStyle);
+  function entryTempo(entry) {
+    const styleId = entry?.score ? 'gospel' : resolveDemoStyle(entry?.style);
+    return studyTempo(entry, drumTempoFor(entry?.score ? entry.style : styleId) || DEMO_STYLES[styleId].tempo);
+  }
   const variationSelect = document.getElementById('exercise-demo-variation');
   const variationChoices = {};
   const nextVariation = {};
@@ -2938,15 +2978,16 @@ function initPracticeExercise() {
   });
   const demoStyleSelects = [...document.querySelectorAll('[data-demo-style]')];
   function renderDemoStyleMenu(select, written, notePractice = false) {
-    const menu = notePractice ? 'phrase' : written ? 'study' : 'free';
+    const menu = written ? 'study' : 'free';
     if (select.dataset.menu !== menu) {
-      select.innerHTML = notePractice ? '<option value="auto">Phrase écrite</option>' : written
+      select.innerHTML = written
         ? '<option value="auto">Étude écrite</option><option value="plaque">Accords seuls</option>'
         : '<option value="auto">Accompagnement automatique</option>' + DEMO_STYLE_IDS.map((id) => `<option value="${id}">${DEMO_STYLES[id].label} · ${DEMO_STYLES[id].tempo}</option>`).join('');
       select.dataset.menu = menu;
     }
-    select.disabled = notePractice;
-    select.value = notePractice ? 'auto' : written ? studyPlayback : demoStyle;
+    select.disabled = false;
+    select.value = written ? studyPlayback : demoStyle;
+    if (written) select.querySelector('[value="auto"]').textContent = notePractice ? 'Phrase écrite' : 'Étude écrite';
   }
   // Options posées une fois (un menu reconstruit à chaque rendu se refermerait
   // pendant la démo) ; seul le libellé « Selon le mouvement » suit le mouvement.
@@ -2963,8 +3004,9 @@ function initPracticeExercise() {
       } catch (e) {
         // Choix gardé pour cette séance seulement.
       }
-      demoStyleSelects.forEach((other) => renderDemoStyleMenu(other, other.dataset.menu === 'study'));
       demoPlayer.stop();
+      if (written) practiceExercise.setStudyPlayback(studyPlayback);
+      demoStyleSelects.forEach((other) => renderDemoStyleMenu(other, other.dataset.menu === 'study'));
       // Carte (notes ajoutées par la démo) et liste (accords de passage) suivent le style.
       render();
     });
@@ -2975,8 +3017,8 @@ function initPracticeExercise() {
    * (salsa, danzon…) ou un identifiant de style (gospel, montuno…) ; sans
    * motif connu, la démo joue simplement sans batterie.
    */
-  function startDemoDrums(name, tempo) {
-    demoRhythm.setKit(drumKitFor(name)?name:null,tempo);
+  function startDemoDrums(name, tempo, pulseBeats = 1) {
+    demoRhythm.setKit(drumKitFor(name)?name:null,tempo,pulseBeats);
     refreshDrumsToggle();
   }
 
@@ -3016,14 +3058,13 @@ function initPracticeExercise() {
     // écrite, c'est son GENRE qui choisit le kit (salsa, merengue, danzón…) ;
     // pour une grille libre, l'identifiant du style joué.
     const kitName = written ? (entry?.style || styleId) : styleId;
-    // Deux genres imposent leur tempo (danzón, merengue) : leurs études
-    // tombaient trop loin de toute boucle enregistrée, et étirer un
-    // enregistrement de plus d'un quart le rend faux. Le PIANO suit ce tempo
-    // aussi, sinon les deux ne seraient plus ensemble.
-    const tempo = drumTempoFor(kitName) || entry?.score?.tempo || DEMO_STYLES[styleId].tempo;
-    demoContext = { ...context, tempo, steps: chords.map(c => c.studyStep).filter(Boolean) };
+    // Piano et batterie partagent l'horloge ; la salsa compte deux noires
+    // écrites par pulsation. Les vitesses de présentation sont le nouveau 1×.
+    const tempo = entryTempo(entry);
+    exerciseRate = rateFor(entry);
+    demoContext = { ...context, tempo, entryId: entry?.id, pulseBeats: studyPulse(entry), steps: chords.map(c => c.studyStep).filter(Boolean) };
     demoPlayer.play(buildDemo(chords, styleId, { variation }), { tempo, rate: exerciseRate });
-    startDemoDrums(kitName, tempo);
+    startDemoDrums(kitName, tempo, studyPulse(entry));
     updateExerciseTransports();
     previewId = context.kind === 'preview' ? context.previewId : null;
     refreshDemoButtons(practiceExercise.getState());
@@ -3247,7 +3288,7 @@ function initPracticeExercise() {
     const written = Boolean(entry?.score);
     demoStyleSelects.forEach((select) => {
       const score = select.id === 'exercise-library-style'
-        ? getLibraryItems().find((item) => item.id === librarySelected)?.score : entry?.score;
+        ? getLibraryItems().find((item) => item.id === librarySelected)?.score : (entry?.phraseStudy || entry)?.score;
       renderDemoStyleMenu(select, Boolean(score), score?.practice === 'notes');
     });
     // [Claude] — 2026-11-07 — #exercise-study-info (route, dessus, repères,
@@ -3257,7 +3298,7 @@ function initPracticeExercise() {
     const movementStyle = exState.progression?.movement?.style;
     const autoStyle = DEMO_STYLES[defaultDemoStyle(movementStyle)];
     const autoOption = document.querySelector('#exercise-demo-style option[value="auto"]');
-    if (autoOption) autoOption.textContent = entry?.score?.practice === 'notes' ? 'Phrase écrite' : written ? 'Étude écrite' : `Automatique · ${autoStyle.label}`;
+    if (autoOption) autoOption.textContent = (entry?.phraseStudy || entry)?.score?.practice === 'notes' ? 'Phrase écrite' : written ? 'Étude écrite' : `Automatique · ${autoStyle.label}`;
     const styleId = resolveDemoStyle(movementStyle);
     const style = DEMO_STYLES[styleId];
     const variations = DEMO_VARIATIONS[styleId];
@@ -3278,7 +3319,7 @@ function initPracticeExercise() {
         ? `${active ? 'En écoute' : 'Prochaine écoute'} : ${variations[take].label}. ${variations[take].description}`
         : variations[take].description;
     }
-    btn.title = written ? `Étude écrite à ${entry.score.tempo} à la noire ; les accords et leur durée sont conservés` : `Accompagnement ${style.label} (${style.tempo} à la noire)`;
+    btn.title = `${Math.round(entryTempo(entry) * rateFor(entry) / studyPulse(entry))} BPM à la ${studyPulse(entry) === 2 ? 'blanche' : 'noire'} · ${studyPlayback === 'plaque' && written ? 'Accords seuls' : written ? 'Étude écrite' : style.label}`;
     const playing = demoContext?.kind === 'movement';
     btn.classList.toggle('is-playing', playing);
     btn.innerHTML = `${playing ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${playing ? 'Arrêter la démo' : written ? 'Écouter l’étude' : 'Écouter la grille'}</span>`;
@@ -3291,7 +3332,7 @@ function initPracticeExercise() {
   // sur un accord, une tonalité, une technique…) arrête la démo d'abord.
   const exercisesView = document.getElementById('practice-view-exercices');
   const interruptDemo = (e) => {
-    if (!demoPlayer.isActive() || e.target.closest('#exercise-demo-btn, .exercise-transport, #exercise-demo-drums, [data-preview], #exercise-library')) return;
+    if (!demoPlayer.isActive() || e.target.closest('#exercise-demo-btn, .exercise-transport, #exercise-demo-drums, [data-phrase-beat], [data-preview], #exercise-library')) return;
     if (e.type === 'change' || e.target.closest('button, select, input, [data-step], [data-key-index], [role="button"]')) demoPlayer.stop();
   };
   exercisesView?.addEventListener('click', interruptDemo, true);

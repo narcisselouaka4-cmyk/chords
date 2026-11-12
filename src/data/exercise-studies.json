@@ -121,7 +121,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "aliases": [
         "Cadence II-V-I majeur"
@@ -237,7 +238,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "aliases": [
         "II-V-I altéré en mineur"
@@ -413,7 +415,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "aliases": [
         "Turnaround I-VI7-II-V-I"
@@ -620,7 +623,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "aliases": [
         "I-V-vi-IV (pop / worship)"
@@ -1125,7 +1129,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "aliases": [
         "Blues jazz 12 mesures"
@@ -1245,7 +1250,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "roles": [
         "departure",
@@ -1362,7 +1368,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "roles": [
         "departure",
@@ -1510,7 +1517,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "roles": [
         "departure",
@@ -1628,7 +1636,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "roles": [
         "departure",
@@ -1747,7 +1756,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "roles": [
         "departure",
@@ -1890,7 +1900,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "roles": [
         "departure",
@@ -2016,7 +2027,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "aliases": [
         "V7sus4-V7-I"
@@ -2161,7 +2173,8 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3
       },
       "aliases": [
         "Ligne chromatique mineure (line cliché)"
@@ -2590,7 +2603,9 @@
           }
         ],
         "fixedPitches": true,
-        "repeats": 4
+        "repeats": 4,
+        "performanceRate": 1.5,
+        "pulseBeats": 2
       },
       "focus": "Garder le même cycle de huit temps, ses silences et les octaves : ce sont les notes et les attaques du motif qui conduisent le jeu."
     },
@@ -2600,7 +2615,7 @@
       "kind": "study",
       "category": "Latino",
       "pattern": "1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-5:7#9-5:7#9-5:7#9-5:7#9-5:7#9-5:7#9-5:7#9-5:7#9-5:7#9-5:7#9-1:m",
-      "route": "i → V7♯9 → i · mains alternées et glissé",
+      "route": "i → V7♯9 → i · appoggiatures et arrastre",
       "context": "La troisième phrase d’Ellen Pelé : appoggiatures en octaves à droite, accords inversés à gauche, puis glissé et résolution.",
       "description": "La troisième phrase d’Ellen Pelé : appoggiatures en octaves à droite, accords inversés à gauche, puis glissé et résolution. À utiliser comme phrase de solo dans le dialogue i–V du pregón, et non comme nouvelle grille ou accompagnement générique.",
       "focus": "Écouter la phrase, ralentir puis travailler les mains et les attaques écrites. Aucun accord ni fill automatique.",
@@ -3506,6 +3521,52 @@
             ],
             "allowedHeld": []
           }
+        ],
+        "performanceRate": 1.8,
+        "pulseBeats": 2,
+        "harmony": [
+          {
+            "from": 0,
+            "to": 15,
+            "token": "1:m",
+            "lh": [
+              36,
+              43
+            ],
+            "rh": [
+              48,
+              51,
+              55
+            ]
+          },
+          {
+            "from": 15,
+            "to": 25,
+            "token": "5:7#9",
+            "lh": [
+              31,
+              41
+            ],
+            "rh": [
+              47,
+              50,
+              58
+            ]
+          },
+          {
+            "from": 25,
+            "to": 26,
+            "token": "1:m",
+            "lh": [
+              36,
+              43
+            ],
+            "rh": [
+              48,
+              51,
+              55
+            ]
+          }
         ]
       }
     },
@@ -3954,7 +4015,9 @@
               }
             ]
           }
-        ]
+        ],
+        "performanceRate": 1.3,
+        "pulseBeats": 2
       }
     },
     {
@@ -6085,1431 +6148,9 @@
               }
             ]
           }
-        ]
-      }
-    },
-    {
-      "id": "latin-montuno-one-minute",
-      "name": "Montuno mineur · dominante secondaire",
-      "kind": "study",
-      "category": "Latino",
-      "pattern": "1:m-2:7b9-5:7-1:m",
-      "route": "i → II7♭9 → V7 → i · deux mesures",
-      "context": "Le motif de Piano Freak en Do mineur, avec Ré7♭9 puis Sol7. Le Fa♯ appartient ici à la dominante secondaire.",
-      "description": "Le motif de Piano Freak en Do mineur, avec Ré7♭9 puis Sol7. Le Fa♯ appartient ici à la dominante secondaire.",
-      "focus": "Écouter la phrase, ralentir puis travailler les mains et les attaques écrites. Aucun accord ni fill automatique.",
-      "style": "salsa",
-      "tags": [
-        "Salsa",
-        "Montuno",
-        "Piano Freak"
-      ],
-      "aliases": [
-        "Montuno In One Minute #shorts"
-      ],
-      "preserveQualities": true,
-      "noAutoPassing": true,
-      "writtenKey": 0,
-      "provenance": {
-        "kind": "source-excerpt",
-        "label": "Relevé de la démonstration fournie",
-        "sources": [
-          {
-            "title": "Montuno In One Minute #shorts",
-            "url": "https://www.youtube.com/watch?v=9hZqZsO__gE",
-            "supports": "Démonstration et explication des notes, des mains et du placement rythmique de ce motif."
-          }
         ],
-        "video": {
-          "id": "9hZqZsO__gE",
-          "title": "Montuno In One Minute #shorts",
-          "author": "Piano Freak",
-          "url": "https://www.youtube.com/watch?v=9hZqZsO__gE",
-          "excerptSeconds": [
-            0.9667,
-            5.5
-          ],
-          "inspection": "Relevé visuel des touches ou des mains, recoupé avec une estimation des notes audio. Pas de validation auditive humaine.",
-          "adaptation": "Hauteurs normalisées en Do puis transposables ; rythme quantifié, durées articulées d’après le relevé. Un seul passage, sans suite composée ni remplissage automatique."
-        }
-      },
-      "score": {
-        "tempo": 106,
-        "meter": [
-          4,
-          4
-        ],
-        "preserveTexture": true,
-        "fixedPitches": true,
-        "carryAcrossSteps": true,
-        "repeats": 1,
-        "steps": [
-          {
-            "beats": 1.5,
-            "lh": [
-              36
-            ],
-            "rh": [
-              67,
-              72,
-              75
-            ],
-            "label": "Tonique mineure · départ",
-            "attacks": [
-              {
-                "at": 0,
-                "hand": "lh",
-                "notes": [
-                  36
-                ],
-                "duration": 0.706,
-                "velocity": 0.61
-              },
-              {
-                "at": 0,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 0,
-                "hand": "rh",
-                "notes": [
-                  79
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  72
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  75
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "lh",
-                "notes": [
-                  43
-                ],
-                "duration": 0.588,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  79
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  72
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  75
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              }
-            ]
-          },
-          {
-            "beats": 2.0,
-            "lh": [
-              38
-            ],
-            "rh": [
-              66,
-              72,
-              75
-            ],
-            "label": "Dominante secondaire · octaves",
-            "attacks": [
-              {
-                "at": 0.0,
-                "hand": "lh",
-                "notes": [
-                  38
-                ],
-                "duration": 1.235,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  66
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  78
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  72
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  75
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  44
-                ],
-                "duration": 0.471,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  66
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  78
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.5,
-                "hand": "rh",
-                "notes": [
-                  75
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              }
-            ]
-          },
-          {
-            "beats": 2.0,
-            "lh": [
-              43
-            ],
-            "rh": [
-              65,
-              71,
-              74
-            ],
-            "label": "Dominante · résolution",
-            "attacks": [
-              {
-                "at": 0.0,
-                "hand": "lh",
-                "notes": [
-                  43
-                ],
-                "duration": 1.177,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  66
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  78
-                ],
-                "duration": 0.118,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  65
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  77
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  71
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.0,
-                "hand": "rh",
-                "notes": [
-                  74
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  38
-                ],
-                "duration": 0.471,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  65
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  77
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.75,
-                "hand": "rh",
-                "notes": [
-                  71
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.75,
-                "hand": "rh",
-                "notes": [
-                  74
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              }
-            ]
-          },
-          {
-            "beats": 2.5,
-            "lh": [
-              36
-            ],
-            "rh": [
-              67,
-              72,
-              75
-            ],
-            "label": "Tonique mineure · relance chromatique",
-            "attacks": [
-              {
-                "at": 0.0,
-                "hand": "lh",
-                "notes": [
-                  36
-                ],
-                "duration": 1.176,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  79
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  72
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  75
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  43
-                ],
-                "duration": 0.588,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  80
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.5,
-                "hand": "rh",
-                "notes": [
-                  72
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.5,
-                "hand": "rh",
-                "notes": [
-                  75
-                ],
-                "duration": 0.294,
-                "velocity": 0.66
-              },
-              {
-                "at": 2.0,
-                "hand": "lh",
-                "notes": [
-                  36
-                ],
-                "duration": 0.485,
-                "velocity": 0.61
-              },
-              {
-                "at": 2.0,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.176,
-                "velocity": 0.66
-              },
-              {
-                "at": 2.0,
-                "hand": "rh",
-                "notes": [
-                  80
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "latin-essential-montuno",
-      "name": "Montuno mineur · accords en contretemps",
-      "kind": "study",
-      "category": "Latino",
-      "pattern": "1:m-4:m-5:maj-4:m",
-      "route": "i → iv → V → iv · une mesure",
-      "context": "Les accords de chaque main alternent avec les octaves de la main droite. Une cellule courte en Do mineur, d’après Piano Freak.",
-      "description": "Les accords de chaque main alternent avec les octaves de la main droite. Une cellule courte en Do mineur, d’après Piano Freak.",
-      "focus": "Écouter la phrase, ralentir puis travailler les mains et les attaques écrites. Aucun accord ni fill automatique.",
-      "style": "salsa",
-      "tags": [
-        "Salsa",
-        "Montuno",
-        "Piano Freak"
-      ],
-      "aliases": [
-        "Essential Salsa Montuno Breakdown (EASY!) #shorts"
-      ],
-      "preserveQualities": true,
-      "noAutoPassing": true,
-      "writtenKey": 0,
-      "provenance": {
-        "kind": "source-excerpt",
-        "label": "Relevé de la démonstration fournie",
-        "sources": [
-          {
-            "title": "Essential Salsa Montuno Breakdown (EASY!) #shorts",
-            "url": "https://www.youtube.com/watch?v=nrgrwJjPhv0",
-            "supports": "Démonstration et explication des notes, des mains et du placement rythmique de ce motif."
-          }
-        ],
-        "video": {
-          "id": "nrgrwJjPhv0",
-          "title": "Essential Salsa Montuno Breakdown (EASY!) #shorts",
-          "author": "Piano Freak",
-          "url": "https://www.youtube.com/watch?v=nrgrwJjPhv0",
-          "excerptSeconds": [
-            3.3333,
-            6.1667
-          ],
-          "inspection": "Relevé visuel des touches ou des mains, recoupé avec une estimation des notes audio. Pas de validation auditive humaine.",
-          "adaptation": "Hauteurs normalisées en Do puis transposables ; rythme quantifié, durées articulées d’après le relevé. Un seul passage, sans suite composée ni remplissage automatique."
-        }
-      },
-      "score": {
-        "tempo": 85,
-        "meter": [
-          4,
-          4
-        ],
-        "preserveTexture": true,
-        "fixedPitches": true,
-        "carryAcrossSteps": true,
-        "repeats": 1,
-        "steps": [
-          {
-            "beats": 1,
-            "lh": [
-              48,
-              51,
-              55
-            ],
-            "rh": [
-              67,
-              72,
-              75
-            ],
-            "label": "Tonique mineure · doubles attaques",
-            "attacks": [
-              {
-                "at": 0,
-                "hand": "lh",
-                "notes": [
-                  48
-                ],
-                "duration": 0.141,
-                "velocity": 0.61
-              },
-              {
-                "at": 0,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.094,
-                "velocity": 0.66
-              },
-              {
-                "at": 0,
-                "hand": "rh",
-                "notes": [
-                  79
-                ],
-                "duration": 0.094,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.25,
-                "hand": "lh",
-                "notes": [
-                  48
-                ],
-                "duration": 0.377,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.188,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  79
-                ],
-                "duration": 0.188,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "lh",
-                "notes": [
-                  51
-                ],
-                "duration": 0.282,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  72
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "lh",
-                "notes": [
-                  55
-                ],
-                "duration": 0.141,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  75
-                ],
-                "duration": 0.141,
-                "velocity": 0.66
-              }
-            ]
-          },
-          {
-            "beats": 1,
-            "lh": [
-              53,
-              56,
-              60
-            ],
-            "rh": [
-              68,
-              72,
-              75
-            ],
-            "label": "Sous-dominante mineure · contretemps",
-            "attacks": [
-              {
-                "at": 0.0,
-                "hand": "lh",
-                "notes": [
-                  53
-                ],
-                "duration": 0.518,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.424,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  80
-                ],
-                "duration": 0.424,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "lh",
-                "notes": [
-                  56
-                ],
-                "duration": 0.282,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.5,
-                "hand": "lh",
-                "notes": [
-                  60
-                ],
-                "duration": 0.329,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  72
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  75
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              }
-            ]
-          },
-          {
-            "beats": 1,
-            "lh": [
-              55,
-              59,
-              62
-            ],
-            "rh": [
-              67,
-              71,
-              74
-            ],
-            "label": "Dominante · réponse",
-            "attacks": [
-              {
-                "at": 0.0,
-                "hand": "lh",
-                "notes": [
-                  55
-                ],
-                "duration": 0.518,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.424,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  79
-                ],
-                "duration": 0.424,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "lh",
-                "notes": [
-                  59
-                ],
-                "duration": 0.282,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.5,
-                "hand": "lh",
-                "notes": [
-                  62
-                ],
-                "duration": 0.282,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  71
-                ],
-                "duration": 0.235,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  74
-                ],
-                "duration": 0.282,
-                "velocity": 0.66
-              }
-            ]
-          },
-          {
-            "beats": 1,
-            "lh": [
-              53,
-              56,
-              60
-            ],
-            "rh": [
-              65,
-              68,
-              72
-            ],
-            "label": "Sous-dominante mineure · retour",
-            "attacks": [
-              {
-                "at": 0.0,
-                "hand": "lh",
-                "notes": [
-                  53
-                ],
-                "duration": 0.518,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  65
-                ],
-                "duration": 0.471,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  77
-                ],
-                "duration": 0.471,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "lh",
-                "notes": [
-                  56
-                ],
-                "duration": 0.329,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.5,
-                "hand": "lh",
-                "notes": [
-                  60
-                ],
-                "duration": 0.282,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.282,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  72
-                ],
-                "duration": 0.329,
-                "velocity": 0.66
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "latin-montuno-tumbao-koala",
-      "name": "Montuno et tumbao · deux mains indépendantes",
-      "kind": "progression",
-      "category": "Latino",
-      "pattern": "1:m-5:maj-5:maj-1:m",
-      "route": "i → V → V → i · deux mesures",
-      "context": "La main gauche tumbao et la figure de main droite du tutoriel Koala Piano, en Sol mineur. Les Mi♭ de la dominante restent dans la phrase.",
-      "description": "La main gauche tumbao et la figure de main droite du tutoriel Koala Piano, en Sol mineur. Les Mi♭ de la dominante restent dans la phrase.",
-      "focus": "Écouter la phrase, ralentir puis travailler les mains et les attaques écrites. Aucun accord ni fill automatique.",
-      "style": "salsa",
-      "tags": [
-        "Salsa",
-        "Montuno",
-        "Koala Piano"
-      ],
-      "aliases": [
-        "How To Play Salsa Piano - Montuno & Tumbao With Both Hands"
-      ],
-      "preserveQualities": true,
-      "noAutoPassing": true,
-      "writtenKey": 7,
-      "provenance": {
-        "kind": "source-excerpt",
-        "label": "Relevé de la démonstration fournie",
-        "sources": [
-          {
-            "title": "How To Play Salsa Piano - Montuno & Tumbao With Both Hands",
-            "url": "https://www.youtube.com/watch?v=t8NRHcTfHr0",
-            "supports": "Démonstration et explication des notes, des mains et du placement rythmique de ce motif."
-          }
-        ],
-        "video": {
-          "id": "t8NRHcTfHr0",
-          "title": "How To Play Salsa Piano - Montuno & Tumbao With Both Hands",
-          "author": "Koala Piano",
-          "url": "https://www.youtube.com/watch?v=t8NRHcTfHr0",
-          "excerptSeconds": [
-            5.2,
-            10.5333
-          ],
-          "inspection": "Relevé visuel des touches ou des mains, recoupé avec une estimation des notes audio. Pas de validation auditive humaine.",
-          "adaptation": "Hauteurs normalisées en Do puis transposables ; rythme quantifié, durées articulées d’après le relevé. Un seul passage, sans suite composée ni remplissage automatique."
-        }
-      },
-      "score": {
-        "tempo": 90,
-        "meter": [
-          4,
-          4
-        ],
-        "preserveTexture": true,
-        "fixedPitches": true,
-        "carryAcrossSteps": true,
-        "repeats": 1,
-        "steps": [
-          {
-            "beats": 2,
-            "lh": [
-              36
-            ],
-            "rh": [
-              55,
-              60,
-              63
-            ],
-            "label": "Tonique mineure · montuno",
-            "attacks": [
-              {
-                "at": 0,
-                "hand": "lh",
-                "notes": [
-                  36
-                ],
-                "duration": 0.7,
-                "velocity": 0.61
-              },
-              {
-                "at": 0,
-                "hand": "rh",
-                "notes": [
-                  60
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 0,
-                "hand": "rh",
-                "notes": [
-                  63
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  55
-                ],
-                "duration": 0.25,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.25,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.0,
-                "hand": "rh",
-                "notes": [
-                  60
-                ],
-                "duration": 0.25,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  43
-                ],
-                "duration": 0.25,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  51
-                ],
-                "duration": 0.2,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  63
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.75,
-                "hand": "rh",
-                "notes": [
-                  56
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.75,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              }
-            ]
-          },
-          {
-            "beats": 2,
-            "lh": [
-              31
-            ],
-            "rh": [
-              55,
-              59,
-              62
-            ],
-            "label": "Dominante · première mesure",
-            "attacks": [
-              {
-                "at": 0.0,
-                "hand": "lh",
-                "notes": [
-                  31
-                ],
-                "duration": 0.5,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  55
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  59
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.0,
-                "hand": "rh",
-                "notes": [
-                  62
-                ],
-                "duration": 0.1,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  38
-                ],
-                "duration": 0.35,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  47
-                ],
-                "duration": 0.3,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  56
-                ],
-                "duration": 0.15,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.5,
-                "hand": "rh",
-                "notes": [
-                  56
-                ],
-                "duration": 0.25,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.5,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.25,
-                "velocity": 0.66
-              }
-            ]
-          },
-          {
-            "beats": 2,
-            "lh": [
-              31
-            ],
-            "rh": [
-              55,
-              59,
-              62
-            ],
-            "label": "Dominante · relance",
-            "attacks": [
-              {
-                "at": 0.0,
-                "hand": "lh",
-                "notes": [
-                  31
-                ],
-                "duration": 0.7,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  59
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.0,
-                "hand": "rh",
-                "notes": [
-                  62
-                ],
-                "duration": 0.25,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  55
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.5,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.25,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.0,
-                "hand": "rh",
-                "notes": [
-                  59
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  38
-                ],
-                "duration": 0.4,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  47
-                ],
-                "duration": 0.4,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  62
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.75,
-                "hand": "rh",
-                "notes": [
-                  56
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.75,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              }
-            ]
-          },
-          {
-            "beats": 2,
-            "lh": [
-              36
-            ],
-            "rh": [
-              55,
-              60,
-              63
-            ],
-            "label": "Tonique mineure · retour",
-            "attacks": [
-              {
-                "at": 0.0,
-                "hand": "lh",
-                "notes": [
-                  36
-                ],
-                "duration": 0.5,
-                "velocity": 0.61
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  55
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.25,
-                "hand": "rh",
-                "notes": [
-                  67
-                ],
-                "duration": 0.25,
-                "velocity": 0.66
-              },
-              {
-                "at": 0.75,
-                "hand": "rh",
-                "notes": [
-                  60
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.0,
-                "hand": "rh",
-                "notes": [
-                  63
-                ],
-                "duration": 0.1,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  43
-                ],
-                "duration": 0.25,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "lh",
-                "notes": [
-                  51
-                ],
-                "duration": 0.2,
-                "velocity": 0.61
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  56
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.25,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.5,
-                "hand": "rh",
-                "notes": [
-                  56
-                ],
-                "duration": 0.2,
-                "velocity": 0.66
-              },
-              {
-                "at": 1.5,
-                "hand": "rh",
-                "notes": [
-                  68
-                ],
-                "duration": 0.25,
-                "velocity": 0.66
-              }
-            ]
-          }
-        ]
+        "performanceRate": 1.3,
+        "pulseBeats": 2
       }
     },
     {
@@ -7518,7 +6159,7 @@
       "kind": "study",
       "category": "Latino",
       "pattern": "5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-1:m-1:m",
-      "route": "V7 → i · octaves, dixièmes et triolets",
+      "route": "V7 → i → V7 → i · arpège de sensible diminuée",
       "context": "La première phrase d’Ellen Pelé : montée en octaves puis en dixièmes, descente en triolets et retour au mineur. Chaque geste se travaille séparément.",
       "description": "La première phrase d’Ellen Pelé : montée en octaves puis en dixièmes, descente en triolets et retour au mineur. Chaque geste se travaille séparément. À utiliser comme phrase de solo dans le dialogue i–V du pregón, et non comme nouvelle grille ou accompagnement générique.",
       "focus": "Écouter la phrase, ralentir puis travailler les mains et les attaques écrites. Aucun accord ni fill automatique.",
@@ -7604,7 +6245,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7635,7 +6277,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7666,7 +6309,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7697,7 +6341,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7728,7 +6373,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7759,7 +6405,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7790,7 +6437,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7821,7 +6469,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7852,7 +6501,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7883,7 +6533,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7914,7 +6565,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7945,7 +6597,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -7976,7 +6629,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -8007,7 +6661,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.5,
@@ -8038,7 +6693,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 1,
@@ -8727,6 +7383,66 @@
             ],
             "allowedHeld": []
           }
+        ],
+        "performanceRate": 1.8,
+        "pulseBeats": 2,
+        "harmony": [
+          {
+            "from": 0,
+            "to": 15,
+            "token": "5:7",
+            "lh": [
+              31,
+              41
+            ],
+            "rh": [
+              47,
+              50,
+              53
+            ]
+          },
+          {
+            "from": 15,
+            "to": 26,
+            "token": "1:m",
+            "lh": [
+              36,
+              43
+            ],
+            "rh": [
+              48,
+              51,
+              55
+            ]
+          },
+          {
+            "from": 26,
+            "to": 35,
+            "token": "5:7",
+            "lh": [
+              31,
+              41
+            ],
+            "rh": [
+              47,
+              50,
+              53
+            ]
+          },
+          {
+            "from": 35,
+            "to": 37,
+            "token": "1:m",
+            "lh": [
+              36,
+              43
+            ],
+            "rh": [
+              48,
+              51,
+              55
+            ]
+          }
         ]
       }
     },
@@ -8736,7 +7452,7 @@
       "kind": "study",
       "category": "Latino",
       "pattern": "1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-1:m-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-5:7b9-1:m",
-      "route": "i ↔ V7 · triolets de noires, octaves et dyades",
+      "route": "i ↔ V7 → i · triolets et octaves",
       "context": "La deuxième phrase d’Ellen Pelé : triolets de noires, arpèges, octaves et dyades sur le dialogue mineur–dominante. La démonstration lente est conservée jusqu’à son arrivée.",
       "description": "La deuxième phrase d’Ellen Pelé : triolets de noires, arpèges, octaves et dyades sur le dialogue mineur–dominante. La démonstration lente est conservée jusqu’à son arrivée. À utiliser comme phrase de solo dans le dialogue i–V du pregón, et non comme nouvelle grille ou accompagnement générique.",
       "focus": "Écouter la phrase, ralentir puis travailler les mains et les attaques écrites. Aucun accord ni fill automatique.",
@@ -9198,7 +7914,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.666667,
@@ -9229,7 +7946,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 0.666667,
@@ -9260,7 +7978,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 3.0,
@@ -9293,7 +8012,8 @@
                 "velocity": 0.69
               }
             ],
-            "allowedHeld": []
+            "allowedHeld": [],
+            "cellToken": "7:dim7"
           },
           {
             "beats": 1.0,
@@ -10983,6 +9703,108 @@
               }
             ],
             "allowedHeld": []
+          }
+        ],
+        "performanceRate": 1.8,
+        "pulseBeats": 2,
+        "harmony": [
+          {
+            "from": 0,
+            "to": 12,
+            "token": "1:m",
+            "lh": [
+              36,
+              43
+            ],
+            "rh": [
+              48,
+              51,
+              55
+            ]
+          },
+          {
+            "from": 12,
+            "to": 20,
+            "token": "5:7",
+            "lh": [
+              31,
+              41
+            ],
+            "rh": [
+              47,
+              50,
+              53
+            ]
+          },
+          {
+            "from": 20,
+            "to": 32,
+            "token": "1:m",
+            "lh": [
+              36,
+              43
+            ],
+            "rh": [
+              48,
+              51,
+              55
+            ]
+          },
+          {
+            "from": 32,
+            "to": 44,
+            "token": "5:7",
+            "lh": [
+              31,
+              41
+            ],
+            "rh": [
+              47,
+              50,
+              53
+            ]
+          },
+          {
+            "from": 44,
+            "to": 56,
+            "token": "1:m",
+            "lh": [
+              36,
+              43
+            ],
+            "rh": [
+              48,
+              51,
+              55
+            ]
+          },
+          {
+            "from": 56,
+            "to": 67,
+            "token": "5:7",
+            "lh": [
+              31,
+              41
+            ],
+            "rh": [
+              47,
+              50,
+              53
+            ]
+          },
+          {
+            "from": 67,
+            "to": 68,
+            "token": "1:m",
+            "lh": [
+              36,
+              43
+            ],
+            "rh": [
+              48,
+              51,
+              55
+            ]
           }
         ]
       }

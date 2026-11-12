@@ -32,6 +32,7 @@ import { applyDoublings, DOUBLING_MODES, DOUBLING_LABELS } from './voicing-engin
 import { styleLeftHand, LEFT_HAND_STYLES } from './practice-demo.js';
 import { spellDegreeInKey, spellPcInKey, keyLabel, isMinorProgression } from './practice-key-spelling.js';
 import { playingDifficulty } from './voicing-engine/playing-difficulty.js';
+import { studyForPlayback, harmonyTokenAt } from './exercise-study-view.js';
 
 // Identifiants historiques des recettes harmoniques (qualités et passages).
 // Ils ne représentent pas un niveau du pianiste ; conservés pour les données existantes.
@@ -1882,6 +1883,10 @@ function parseMovementToken(token) {
  * simplement parce que VoicingLab n'en propose pas de variante. */
 function writtenMovementChords(movement, keyPc) {
   const minor = isMinorMovement(movement);
+  const tokenName = (token) => {
+    const p = parseMovementToken(token);
+    return p ? `${spellDegreeInKey((keyPc + p.offset) % 12, p.degree, keyPc, minor)}${p.quality}` : '';
+  };
   return movement.pattern.split('-').map((token, i) => {
     const parsed = parseMovementToken(token);
     const step = movement.score.steps[i];
@@ -1900,6 +1905,8 @@ function writtenMovementChords(movement, keyPc) {
       quality: parsed.quality, token, degree: parsed.degree,
       harmonicRole: movement.roles?.[i] || 'structural',
       studyStep: { ...step, keyPc, writtenVoicing: true, preserveTexture: true,
+        harmonyName: tokenName(harmonyTokenAt(movement, i)),
+        cellName: tokenName(step.cellToken),
         fixedPitches: Boolean(movement.score.fixedPitches), repeatCount: movement.score.repeats || 1,
         practice: movement.score.practice || null, carryAcrossSteps: Boolean(movement.score.carryAcrossSteps) },
       passingChord: null,
@@ -2237,6 +2244,7 @@ export function createPracticeExercise({ library = movementsLibrary } = {}) {
     score: 0,
     attempts: 0,
     technique: 'auto',
+    studyPlayback: 'auto',
     difficulty: 3,
     variant: 0,
     topNote: {
@@ -2322,15 +2330,16 @@ export function createPracticeExercise({ library = movementsLibrary } = {}) {
   function findMovement(name) {
     if (!name) return null;
     if (name === CUSTOM_GRID_NAME) return state.customGrid ? customGridMovement(state.customGrid, state.customGridName) : null;
-    return library === movementsLibrary ? findCatalogueEntry(name)
+    const entry = library === movementsLibrary ? findCatalogueEntry(name)
       : library.movements.find((m) => m.name === name || m.id === name) || null;
+    return studyForPlayback(entry, state.studyPlayback);
   }
 
   function generateMovementTarget() {
     // Mouvement explicitement choisi par l'utilisateur, sinon tirage au sort.
     const chosen = findMovement(state.movementChoice);
     // Chaque mouvement reste accessible : les couleurs choisies ne classent pas le pianiste.
-    const pool = chosen ? [chosen] : library.movements;
+    const pool = chosen ? [chosen] : library.movements.map(m => studyForPlayback(m, state.studyPlayback));
     // Grille tapée jouable : ses accords impossibles sont ignorés, et l'écran le dit.
     // Grille tapée sans aucun accord jouable : un autre mouvement, annoncé.
     const gridImpossible = !chosen && state.movementChoice === CUSTOM_GRID_NAME;
@@ -2867,6 +2876,26 @@ export function createPracticeExercise({ library = movementsLibrary } = {}) {
     return next();
   }
 
+  /** Change de vue à la même position musicale et dans la même tonalité. */
+  function setStudyPlayback(mode) {
+    state.studyPlayback = mode === 'plaque' ? 'plaque' : 'auto';
+    const prog = state.progression;
+    if (!prog?.movement.score?.preserveTexture) return;
+    const at = prog.chords.slice(0, prog.stepIndex).reduce((sum, c) => sum + c.studyStep.beats, 0);
+    prog.movement = studyForPlayback(prog.movement, state.studyPlayback);
+    prog.pattern = prog.movement.pattern;
+    prog.anchors = {}; prog.topIntervals = {};
+    prog.chords = writtenMovementChords(prog.movement, prog.currentKey);
+    let start = 0, index = 0;
+    for (let i = 0; i < prog.chords.length; i++) {
+      if (start <= at + .0001) index = i;
+      start += prog.chords[i].studyStep.beats;
+    }
+    prog.stepIndex = index; prog.onPassing = false;
+    state.stepIndex = index; state.attempts = 0;
+    state.target = attachMovementContext(stepTarget(prog), prog);
+  }
+
   /**
    * Aperçu d'un mouvement (démo de la bibliothèque) sans rien changer à
    * l'exercice : ses accords dans la tonalité `keyPc`, avec la technique, le
@@ -3078,6 +3107,7 @@ export function createPracticeExercise({ library = movementsLibrary } = {}) {
     previewGrid,
     goToPassing,
     setContentChoice,
+    setStudyPlayback,
     clearContentChoice,
     setCustomGrid,
     previewMovement,
@@ -3205,7 +3235,7 @@ export function renderExerciseTarget(target, options = {}) {
       <div class="exercise-target-header">
         <div class="exercise-target-title">
           <div class="exercise-target-name">${escapeHtml(target.studyStep?.practice === 'notes' ? cardNotes.map(noteLabel).join(' · ') : target.name)}</div>
-          ${target.studyStep?.practice === 'notes' ? `<div class="exercise-target-passing">${escapeHtml(target.studyStep.label || 'Geste écrit')} · sur ${escapeHtml(target.name)}</div>` : ''}
+          ${target.studyStep?.practice === 'notes' ? `<div class="exercise-target-passing">${escapeHtml(target.studyStep.label || 'Geste écrit')} · sur ${escapeHtml(target.studyStep.harmonyName || target.name)}${target.studyStep.cellName ? ` · arpège ${escapeHtml(target.studyStep.cellName)} (sensible diminuée)` : ''}</div>` : ''}
           ${target.passing ? `<div class="exercise-target-passing">↳ Accord de passage${options.passingTo ? `, vers ${escapeHtml(options.passingTo)}` : ''}</div>` : ''}
         </div>
       </div>

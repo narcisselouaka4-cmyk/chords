@@ -76,7 +76,7 @@
   grid-row: 1;
   min-height: 460px;
   justify-content: flex-start;
-  padding: 22px 28px;
+  padding: 22px 0;
   background: none;
   overflow: auto;
 }
@@ -103,7 +103,7 @@
   flex-wrap: nowrap;
   align-self: stretch;
   width: 100%;
-  max-width: 640px;
+  max-width: none;
   gap: 8px;
   margin: 0 0 14px;
   padding-bottom: 4px;
@@ -315,7 +315,7 @@
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-brief-head,
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-brief-body { padding: 10px 20px; }
   :root[data-skin] #practice-tab #practice-view-exercices .tr-exercise-brief h2 { font-size: 18px; }
-  :root[data-skin] #practice-tab #practice-view-exercices .tr-chord-arena { min-height: 0; padding: 12px 24px; overflow: auto; }
+  :root[data-skin] #practice-tab #practice-view-exercices .tr-chord-arena { min-height: 0; padding: 12px 0; overflow: auto; }
   :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-card { min-height: 280px; gap: 6px; }
   :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-header { min-height: 54px; }
   :root[data-skin] #practice-tab #practice-view-exercices .exercise-target-name { font-size: 46px; }

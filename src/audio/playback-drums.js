@@ -9,7 +9,11 @@ export function bindPlaybackDrums({player,drumLoop,metronome=()=>null,enabled=()
   function sync() {
     if(metronome()?.isRunning())return;
     if(!kit||!enabled()||!player.isPlaying()){drumLoop.stop();return;}
-    void drumLoop.start({...kit,rate:player.rate(),getBeat:()=>player.position(),getSyncPoint:()=>player.syncPoint()}).then(onChange,onChange);
+    const pulse = kit.pulseBeats || 1;
+    void drumLoop.start({...kit,tempo:kit.tempo / pulse,rate:player.rate(),
+      getBeat:()=>player.position() / pulse,
+      getSyncPoint:()=>{const point=player.syncPoint();return {...point,beat:point.beat / pulse};}
+    }).then(onChange,onChange);
   }
   const play=player.play.bind(player);
   player.play=(...args)=>{
@@ -25,5 +29,5 @@ export function bindPlaybackDrums({player,drumLoop,metronome=()=>null,enabled=()
     const inner=player[method].bind(player);
     player[method]=(...args)=>{const result=inner(...args);sync();return result;};
   }
-  return {sync,end:()=>release(true),setKit:(name,tempo)=>{kit=name?{kit:name,tempo}:null;sync();}};
+  return {sync,end:()=>release(true),setKit:(name,tempo,pulseBeats=1)=>{kit=name?{kit:name,tempo,pulseBeats}:null;sync();}};
 }
