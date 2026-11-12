@@ -31,11 +31,12 @@ export function drawProposalScore(host, score, { formatChord = (name) => name } 
   host.replaceChildren();
   const byUnit = new Map();
   if (!score || score.empty) return { highlight() {} };
-  const available = Math.max(host.clientWidth || 0, 520);
-  // Une mesure chargée (arpèges, doubles croches) a besoin de place : moins de mesures par ligne.
-  const busiest = Math.max(...score.bars.map((bar) => Math.max(bar.treble.length, bar.bass.length)));
-  const comfortable = busiest > 10 ? 380 : busiest > 6 ? 300 : 230;
-  const perSystem = Math.max(1, Math.min(4, Math.floor((available - 24) / comfortable)));
+  // [Claude] — 2026-11-12 — Narcisse : « la partition doit se lire de façon horizontale et pas
+  // verticale, et ça prend trop de place ». Une seule ligne, qui défile de gauche à droite (et suit
+  // la lecture), plus basse ; chaque mesure a la largeur que demandent ses notes.
+  const barWidthOf = (bar) => { const n = Math.max(bar.treble.length, bar.bass.length); return n > 10 ? 330 : n > 6 ? 260 : n > 3 ? 200 : 160; };
+  const perSystem = score.bars.length;
+  const SCALE = 0.72;
   const describe = (bar) => ['treble', 'bass'].map((clef) => `${clef === 'treble' ? 'clé de sol' : 'clé de fa'} ${bar[clef].map((e) => (e.rest ? 'silence' : e.keys.map((k) => `${k.name.replace('b', '♭').replace('#', '♯')}${k.octave}`).join('+'))).join(' ')}`).join(' ; ');
   let carry = { treble: null, bass: null };
   for (let start = 0; start < score.bars.length; start += perSystem) {
@@ -43,23 +44,26 @@ export function drawProposalScore(host, score, { formatChord = (name) => name } 
     const line = document.createElement('div');
     line.className = 'copilot-score-system';
     host.appendChild(line);
-    const width = Math.max(available - 8, group.length * 230);
-    const height = 250;
+    const widths = group.map(barWidthOf);
+    const width = 24 + 70 + widths.reduce((a, b) => a + b, 0);
+    const height = 212;
     const renderer = new Renderer(line, Renderer.Backends.SVG);
     renderer.resize(width, height);
     const context = renderer.getContext();
     const svg = line.querySelector('svg');
-    svg.style.width = '100%';
-    svg.style.height = 'auto';
+    svg.style.width = `${Math.round(width * SCALE)}px`;
+    svg.style.height = `${Math.round(height * SCALE)}px`;
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     svg.setAttribute('role', 'img');
     // Description lisible sans la vue : les notes de chaque mesure, altérations comprises.
     svg.setAttribute('aria-label', `Partition. ${group.map((bar) => `Mesure ${bar.index + 1} : ${describe(bar)}`).join('. ')}`);
-    // Une ligne incomplète ne s'étire pas sur toute la largeur, mais ne se tasse pas non plus.
-    const barWidth = Math.min((width - 24) / group.length, Math.max(comfortable + 80, (width - 24) / perSystem));
+    let x = 12;
     group.forEach((bar, index) => {
-      const top = new Stave(12 + index * barWidth, 34, barWidth);
-      const bottom = new Stave(top.getX(), 138, barWidth);
+      // La première mesure porte les clés et la signature : un peu plus large.
+      const barWidth = widths[index] + (index === 0 ? 70 : 0);
+      const top = new Stave(x, 30, barWidth);
+      const bottom = new Stave(x, 118, barWidth);
+      x += barWidth;
       if (index === 0) { top.addClef('treble'); bottom.addClef('bass'); }
       if (start === 0 && index === 0) { top.addTimeSignature('4/4'); bottom.addTimeSignature('4/4'); }
       top.setContext(context).draw();
@@ -129,7 +133,12 @@ export function drawProposalScore(host, score, { formatChord = (name) => name } 
       current.forEach((el) => el.classList.remove('copilot-score-current'));
       current = unit == null ? [] : byUnit.get(unit) || [];
       current.forEach((el) => el.classList.add('copilot-score-current'));
-      if (current[0]) current[0].closest('.copilot-score-system')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      // La ligne défile pour garder la note en cours à l'écran (sans faire défiler la conversation).
+      const sheet = host.closest?.('.copilot-score-sheet') || host;
+      if (current[0] && sheet.scrollWidth > sheet.clientWidth) {
+        const box = current[0].getBoundingClientRect?.(), frame = sheet.getBoundingClientRect?.();
+        if (box && frame && (box.left < frame.left + 40 || box.right > frame.right - 40)) sheet.scrollLeft += box.left - frame.left - frame.width / 3;
+      }
     },
   };
 }

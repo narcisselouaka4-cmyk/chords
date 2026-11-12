@@ -106,6 +106,14 @@ await check('Transposer un tutoriel vers une tonalité demandée (Do → Ré : +
   assert.match(r.example.subtitle, /transposé de \+2 demi-tons/);
 });
 
+await check('Sans tonalité précisée, tout prend celle du premier élément (Montuno en La après le Lick 1)', () => {
+  const r = combineLibrary({ mode: 'chain', parts: [{ id: 'latin-ellen-lick-1' }, { id: 'latin-montuno-guajeo' }] }, tutos);
+  assert.match(r.summary, /Lick 1 · octaves et dixièmes \(La,/);
+  assert.match(r.summary, /Montuno mineur · octaves et relances \(La, transposé depuis Do/);
+  const kept = combineLibrary({ parts: [{ id: 'latin-ellen-lick-1' }, { id: 'latin-montuno-guajeo', key: 'C' }] }, tutos);
+  assert.match(kept.summary, /Montuno mineur · octaves et relances \(Do,/);
+});
+
 await check('Adapter le tempo : le même exercice à 60 dure plus longtemps qu’à 120', () => {
   const slow = combineLibrary({ parts: [{ id: 'study-ii-v-i-major', tempo: 60 }] }, tutos).example;
   const fast = combineLibrary({ parts: [{ id: 'study-ii-v-i-major', tempo: 120 }] }, tutos).example;
@@ -194,6 +202,27 @@ await check('« … Slow Gospel Blues avec le turnaround » : la combinaison va 
   assert.equal(bodies.length, 1, 'le modèle est appelé');
   assert.equal(chained.toolResult.example?.kind, 'library');
   assert.equal(chained.toolResult.example.title, 'Mon tuto gospel 0:00–0:04 → Turnaround I–VI7–ii–V–I');
+});
+
+// Conversation réelle de Narcisse (12/11) : le modèle n'appelle pas combine_library, prétend ne rien
+// pouvoir jouer, et l'ancien secours fabriquait un « Lick sur G7b9 » générique.
+bodies.length = 0;
+replies.push({ content: 'Je ne peux pas faire entendre l’enchaînement dans cette réponse : l’outil de lecture n’a pas été lancé ici.', tool_calls: [call('play_lick', { target: 'G7b9', hand: 'RH' })] });
+const narcisse = await sendCopilotMessage({ message: 'joue  "Lick 1 · octaves et dixièmes V7 → i → V7 → i" puis t\'enchaine avec "Montuno mineur · octaves et relances i → ♭VI → V7" je veux entendre ce que ça fait', messages: [] });
+await check('« joue Lick 1 puis t’enchaîne avec Montuno mineur » : l’enchaînement est joué, pas un lick générique', () => {
+  assert.equal(narcisse.toolResult.example?.kind, 'library', JSON.stringify(narcisse.toolResult.example?.title));
+  assert.equal(narcisse.toolResult.example.title, 'Lick 1 · octaves et dixièmes → Montuno mineur · octaves et relances');
+  assert.match(narcisse.toolResult.example.subtitle, /Montuno mineur · octaves et relances \(La, transposé depuis Do/);
+  assert.ok(!/ne peux pas|pas été lancé/.test(narcisse.content), narcisse.content);
+  assert.match(narcisse.content, /Voici, enchaînés : Lick 1 · octaves et dixièmes → Montuno mineur · octaves et relances[\s\S]*tout est en La/);
+});
+const { libraryPartsFromText } = await import('./library-combine.js');
+await check('Éléments nommés reconnus dans l’ordre dit, mains et tonalité comprises ; rien pour une question générale', () => {
+  assert.deepEqual(libraryPartsFromText('joue le turnaround puis le blues jazz').parts.map((p) => p.id), ['study-turnaround', 'study-jazz-blues']);
+  const o = libraryPartsFromText('Superpose la main droite du Lick 3 sur la main gauche du II–V–I majeur en Ré');
+  assert.equal(o.mode, 'overlay'); assert.equal(o.key, 're');
+  assert.deepEqual(o.parts, [{ id: 'latin-ellen-lick-3', hand: 'right' }, { id: 'study-ii-v-i-major', hand: 'left' }]);
+  assert.equal(libraryPartsFromText('Explique-moi un 2-5-1'), null);
 });
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

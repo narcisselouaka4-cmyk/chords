@@ -2513,13 +2513,18 @@
 .copilot-score-tabs[hidden] { display: none; }
 .copilot-score-tab { padding: 4px 10px; border: 1px solid var(--tr-border); border-radius: 7px; background: var(--tr-surface); color: var(--tr-text); font: inherit; font-size: 12px; cursor: pointer; }
 .copilot-score-tab.is-active { border-color: var(--tr-text); font-weight: 600; }
-.copilot-score-sheet { max-height: 420px; overflow: auto; border-radius: 8px; background: #fbfaf6; }
-.copilot-score-system { padding: 2px 4px; }
+.copilot-score-sheet { overflow-x: auto; overflow-y: hidden; border-radius: 8px; background: #fbfaf6; scrollbar-width: thin; }
+/* 12/11 : une seule ligne horizontale, qui défile (Narcisse : « horizontale, pas verticale »). */
+.copilot-score-system { padding: 0 4px; width: max-content; }
+.copilot-score-system svg { display: block; }
 .copilot-score-system + .copilot-score-system { border-top: 1px solid #e7e3d8; }
 .copilot-score-chord { font: 600 13px var(--tr-mono, monospace); fill: #1b1b1f; }
 .copilot-score-current, .copilot-score-current * { fill: #b4541a !important; stroke: #b4541a !important; }
 .copilot-score-caption { margin: 8px 2px 0; color: var(--tr-muted); font-size: 11.5px; line-height: 1.45; }
 .copilot-score-caption.is-uncertain { color: var(--tr-text); }
+.copilot-score-limits { display: inline; }
+.copilot-score-limits > summary { display: inline; cursor: pointer; text-decoration: underline dotted; }
+.copilot-score-limits:not([open]) > span { display: none; }
 .copilot-score button:focus-visible, .copilot-score > summary:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
 /* Avis « Retenu… » sous une réponse, avec « Annuler ». */
 .copilot-memory-notice { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 10px; border: 1px solid var(--tr-border); border-radius: 8px; background: var(--tr-inset); color: var(--tr-text); font-size: 12px; line-height: 1.35; }

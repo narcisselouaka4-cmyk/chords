@@ -241,9 +241,14 @@ export function combineLibrary(rawArgs, tutorials = []) {
   // Superposer des exercices : même tempo pour tous (celui demandé, sinon celui du premier).
   const firstExercise = parts.map((p) => exerciseEntry(p?.id)).find(Boolean);
   const commonTempo = Number(args.tempo) > 0 ? Number(args.tempo) : mode === 'overlay' && firstExercise ? exerciseTempo(firstExercise) : null;
+  // [Claude] — 2026-11-12 — Sans tonalité précisée, tout prend celle du premier élément : le modèle
+  // annonçait « les deux sont en La mineur » alors que le Montuno restait en Do (essai réel).
+  const firstPart = findItem(parts[0]?.id, tutorials);
+  const sharedKey = parts[0]?.key || (firstPart.exercise ? NAMES[writtenKeyOf(firstPart.exercise)] : firstPart.tutorial?.key) || null;
   const built = [];
   const problems = [];
-  for (const part of parts) {
+  for (const raw of parts) {
+    const part = raw?.key || !sharedKey ? raw : { ...raw, key: sharedKey };
     const { exercise, tutorial } = findItem(part?.id, tutorials);
     const made = exercise ? exercisePart(exercise, part, commonTempo) : tutorial ? tutorialPart(tutorial, part) : { error: `élément inconnu « ${String(part?.id || '').slice(0, 60)} »` };
     if (made.error) { problems.push(made.error); continue; }
@@ -305,6 +310,77 @@ export function combineLibrary(rawArgs, tutorials = []) {
   return { example, note, summary };
 }
 
+// ── Demande en toutes lettres ─────────────────────────────────────────────
+
+const plainText = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[’']/g, "'").replace(/[·•–—→>|«»"“”]/g, ' ').replace(/[^a-z0-9#' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+function mentionAt(text, phrase) {
+  const p = plainText(phrase);
+  if (p.length < 4) return -1;
+  const re = new RegExp(`(?:^| )${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?= |$)`);
+  const m = re.exec(text);
+  return m ? m.index : -1;
+}
+
+/**
+ * Les éléments de la bibliothèque nommés dans la phrase du pianiste, dans l'ordre où il les dit
+ * (« joue le Lick 1 puis enchaîne avec le Montuno mineur »). Sert quand le modèle n'a pas appelé
+ * combine_library : l'application monte alors la combinaison demandée, jamais un lick générique.
+ * @returns {{mode: 'chain'|'overlay', key: string|null, parts: object[]}|null}
+ */
+export function libraryPartsFromText(message, tutorials = []) {
+  const text = plainText(message);
+  if (!text) return null;
+  const found = [];
+  for (const m of movementsLibrary.movements) {
+    const short = m.name.split(' · ')[0];
+    // Premier mot assez parlant et propre à cet exercice (« Turnaround », « Suspension »).
+    const head = plainText(m.name).split(' ')[0];
+    const own = head.length >= 8 && movementsLibrary.movements.filter((o) => plainText(o.name).split(' ')[0] === head).length === 1 ? head : '';
+    const at = [m.name, m.id, short.length >= 6 ? short : '', own, ...(m.aliases || [])].map((n) => mentionAt(text, n)).filter((i) => i >= 0);
+    if (at.length) found.push({ id: m.id, at: Math.min(...at), length: plainText(m.name).length });
+  }
+  for (const t of tutorials) {
+    const words = plainText(t.title).split(' ');
+    const at = [t.title, words.slice(0, 4).join(' ')].map((n) => mentionAt(text, n)).filter((i) => i >= 0);
+    if (at.length && t.notes.length) found.push({ id: t.id, at: Math.min(...at), length: t.title.length });
+  }
+  // « Lick 1 » ne doit pas aussi compter « Lick 1 · octaves… » deux fois, ni un nom inclus dans un autre.
+  found.sort((a, b) => a.at - b.at || b.length - a.length);
+  const parts = [];
+  for (const f of found) if (!parts.some((p) => p.id === f.id)) parts.push(f);
+  if (!parts.length) return null;
+  const overlay = /superpos|en meme temps|par dessus|ensemble/.test(text);
+  for (const p of parts) {
+    const before = text.slice(Math.max(0, p.at - 30), p.at);
+    if (/main droite d/.test(before)) p.hand = 'right';
+    else if (/main gauche d/.test(before)) p.hand = 'left';
+  }
+  const keyWord = /(?:^| )en (do|re|mi|fa|sol|la|si|[a-g])( ?(?:#|b|diese|bemol))?( mineur| majeur|m)?(?= |$)/.exec(text);
+  return {
+    mode: overlay ? 'overlay' : 'chain',
+    key: keyWord ? `${keyWord[1]}${(keyWord[2] || '').trim().replace('diese', '#').replace('bemol', 'b')}` : null,
+    parts: parts.slice(0, MAX_PARTS).map(({ id, hand }) => ({ id, ...(hand ? { hand } : {}) })),
+  };
+}
+
+/** Arguments de combine_library pour une demande en toutes lettres : même tonalité pour tous
+ * (celle demandée, sinon celle du premier élément), et la phrase qui le dit. */
+export function libraryRequestCall(message, tutorials = []) {
+  const asked = libraryPartsFromText(message, tutorials);
+  if (!asked) return null;
+  const first = exerciseEntry(asked.parts[0].id);
+  const firstTuto = tutorials.find((t) => t.id === asked.parts[0].id);
+  const key = asked.key || (first ? NAMES[writtenKeyOf(first)] : firstTuto?.key) || null;
+  const moved = asked.parts.filter((p) => { const e = exerciseEntry(p.id); return e && key && writtenKeyOf(e) !== keyPcOf(key); });
+  const parts = asked.parts.map((p) => ({ ...p, ...(key ? { key } : {}) }));
+  const names = parts.map((p) => exerciseEntry(p.id)?.name || tutorials.find((t) => t.id === p.id)?.title || p.id);
+  const keyName = key && keyPcOf(key) != null ? NAMES[keyPcOf(key)] : key;
+  const text = `${asked.mode === 'overlay' ? 'Voici, superposés' : names.length > 1 ? 'Voici, enchaînés' : 'Voici'} : ${names.join(asked.mode === 'overlay' ? ' + ' : ' → ')}, avec les notes de la bibliothèque.${moved.length && keyName ? ` Pour qu'ils aillent ensemble, tout est en ${keyName} : ${moved.map((p) => exerciseEntry(p.id).name).join(', ')} ${moved.length > 1 ? 'sont transposés depuis leur tonalité écrite' : 'est transposé depuis sa tonalité écrite'}.` : ''}`;
+  return { call: { function: { name: 'combine_library', arguments: JSON.stringify({ mode: asked.mode, parts }) } }, text };
+}
+
 export const CONSULT_LIBRARY_TOOL = {
   type: 'function',
   function: {
@@ -342,7 +418,7 @@ export const COMBINE_LIBRARY_TOOL = {
             additionalProperties: false,
             properties: {
               id: { type: 'string', description: 'Identifiant du catalogue.' },
-              key: { type: 'string', description: 'Tonalité voulue (« D », « Ré mineur »…), pour transposer.' },
+              key: { type: 'string', description: 'Tonalité voulue (« D », « Ré mineur »…). Sans elle, l\'élément prend la tonalité du premier élément.' },
               hand: { type: 'string', enum: ['both', 'left', 'right'], description: 'Les deux mains (défaut), la gauche ou la droite.' },
               tempo: { type: 'number', description: 'Exercice : tempo de cet élément, à la noire.' },
               speed: { type: 'number', description: 'Vitesse relative, de 0.5 à 1.5.' },
@@ -361,4 +437,4 @@ export const COMBINE_LIBRARY_TOOL = {
 };
 
 export const LIBRARY_GUIDANCE = `## Bibliothèque de l'application (exercices et tutoriels)
-Tu peux puiser dans toute la bibliothèque ci-dessous pour réutiliser son contenu et faire des combinaisons : enchaîner des éléments, les superposer (une main de l'un, une main de l'autre), les transposer dans une autre tonalité, les mettre au même tempo. consult_library donne le détail d'un élément ; combine_library prépare l'exemple à écouter. Pour que des éléments aillent ensemble, mets-les dans la même tonalité et le même tempo, et dis pourquoi ils se marient (accords communs, même fonction). Nomme les éléments par leur nom, jamais par leur identifiant. Les notes viennent des sources : l'application ne compose rien.`;
+Tu peux puiser dans toute la bibliothèque ci-dessous pour réutiliser son contenu et faire des combinaisons : enchaîner des éléments, les superposer (une main de l'un, une main de l'autre), les transposer dans une autre tonalité, les mettre au même tempo. consult_library donne le détail d'un élément ; combine_library prépare l'exemple à écouter. Dès que le pianiste demande d'entendre un ou plusieurs éléments de la bibliothèque (« joue le Lick 1 puis le montuno »), appelle combine_library : ne dis jamais que tu ne peux pas les faire entendre. Pour que des éléments aillent ensemble, mets-les dans la même tonalité et le même tempo, et dis pourquoi ils se marient (accords communs, même fonction). Nomme les éléments par leur nom, jamais par leur identifiant. Les notes viennent des sources : l'application ne compose rien.`;

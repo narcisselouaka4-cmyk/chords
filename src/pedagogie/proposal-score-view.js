@@ -67,10 +67,17 @@ export function renderProposalScore(result, options = {}) {
   const state = { sources, selected: Math.min(sources.length - 1, sources.findIndex((s) => s.label.startsWith('Proposition')) >= 0 ? sources.findIndex((s) => s.label.startsWith('Proposition')) : 0), drawing: null, drawnFor: -1 };
   views.set(details, state);
 
-  const describe = (score) => `${score.limits.join(' ')} La lecture garde le rythme exact.`;
   async function draw() {
     const source = state.sources[state.selected];
-    caption.textContent = describe(source.score);
+    // [Claude] — 2026-11-12 — Plus léger (Narcisse : « ça prend trop de place ») : la première limite
+    // reste lisible d'emblée ; les autres sont repliées sous « Ce qui est estimé », jamais retirées.
+    const [head, ...rest] = source.score.limits;
+    caption.replaceChildren(document.createTextNode(`${head || ''} La lecture garde le rythme exact.`));
+    if (rest.length) {
+      const more = node('details', 'copilot-score-limits');
+      more.append(node('summary', '', 'Ce qui est estimé'), node('span', '', ` ${rest.join(' ')}`));
+      caption.append(' ', more);
+    }
     caption.classList.toggle('is-uncertain', !source.score.meter.certain);
     [...tabs.children].forEach((button, index) => { button.setAttribute('aria-selected', String(index === state.selected)); button.classList.toggle('is-active', index === state.selected); });
     details.dataset.playbackId = source.playbackId || '';

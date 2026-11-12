@@ -98,6 +98,7 @@ try {
   let s = await openScore();
   check('« Partition » est proposée sous la proposition, avec deux onglets', Boolean(s) && s.tabs.length === 2 && s.tabs[0].startsWith('Ton jeu') && s.tabs[1] === 'Proposition*', JSON.stringify(s?.tabs));
   check('Proposition gravée : deux portées par mesure, sans erreur', s.systems >= 1 && s.staves >= 4 && !s.errors, JSON.stringify(s));
+  check('Partition sur une seule ligne horizontale (pas de lignes empilées)', s.systems === 1, JSON.stringify({ systems: s.systems }));
   check('Les trois accords tenus sont écrits (têtes de notes aux deux portées)', s.heads >= 12, `${s.heads} têtes de notes`);
   check('Les accords sont écrits au-dessus de la portée', s.chords.length >= 3, JSON.stringify(s.chords));
   check('Ce qui est estimé est dit : pulsation, barres supposées, arrondi, portées, rythme exact à la lecture', /Pulsation estimée|Rythme libre|Trop peu de notes/.test(s.caption) && /Barres de mesure supposées/.test(s.caption) && /arrondies à la double croche/.test(s.caption) && /pas la détection des mains/.test(s.caption) && /La lecture garde le rythme exact/.test(s.caption), s.caption);
@@ -145,7 +146,9 @@ try {
   const described = await app.page.evaluate(() => [...document.querySelectorAll('#copilot-messages .copilot-score')].at(-1).querySelector('.copilot-score-sheet svg')?.getAttribute('aria-label') || '');
   check('Les notes écrites sont celles de l\'accord, avec leurs bémols (Mi♭ en clé de fa ; Mi♭, Sol, Si♭, Ré en clé de sol)', /clé de fa E♭3/.test(described) && /E♭4\+G4\+B♭4\+D5/.test(described) && !/[A-G]♯/.test(described), described.slice(0, 260));
   const barBox = await app.page.evaluate(() => { const svg = [...document.querySelectorAll('#copilot-messages .copilot-score')].at(-1).querySelector('.copilot-score-sheet svg'); const stave = svg.querySelector('.vf-stave'); return { sheet: svg.getBoundingClientRect().width, stave: stave.getBoundingClientRect().width }; });
-  check('Une mesure seule n\'est pas tassée dans un coin (au moins 340 px de large)', barBox.stave >= 340, JSON.stringify(barBox));
+  // 12/11 : partition sur une ligne compacte qui défile (Narcisse : « horizontale, plus légère ») ;
+  // une mesure d'un accord reste lisible à partir de 200 px, sans être écrasée dans un coin.
+  check('Une mesure seule n\'est pas tassée dans un coin (au moins 200 px de large, ligne compacte)', barBox.stave >= 200 && barBox.sheet >= barBox.stave, JSON.stringify(barBox));
   await app.page.screenshot({ path: path.join(root, '3-partition-accord-nomme.png') }).catch(() => {});
 
   // ── 4. Fenêtre plus étroite : l'affichage reste stable ──

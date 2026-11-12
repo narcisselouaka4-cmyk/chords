@@ -37,7 +37,7 @@ import { onlySpeech, activitySummary } from './teacher-activity.js';
 import { exerciseContextLines } from './exercise-context.js';
 import { buildStudyDemo } from '../practice-demo.js';
 import movementsLibrary from '../exercise-catalogue.js';
-import { loadTutorialLibrary, libraryCatalogue, consultLibrary, combineLibrary, CONSULT_LIBRARY_TOOL, COMBINE_LIBRARY_TOOL, LIBRARY_GUIDANCE } from './library-combine.js';
+import { loadTutorialLibrary, libraryCatalogue, consultLibrary, combineLibrary, libraryRequestCall, CONSULT_LIBRARY_TOOL, COMBINE_LIBRARY_TOOL, LIBRARY_GUIDANCE } from './library-combine.js';
 import {
   generateCopilotVoicing,
   voicingToNoteSequence,
@@ -106,7 +106,7 @@ Contexte fourni :
 
 Règles :
 1. Réponds toujours en français, de façon claire et pédagogique.
-2. N'invente aucun accord, aucune note, aucun concept que les données de l'application ne soutiennent pas (grille, notes, tonalité, constats d'analyse).
+2. Sur ce qui vient de l'application (grille, notes relevées, tonalité, constats d'analyse, jeu du pianiste), n'invente aucun accord ni aucune note que ses données ne soutiennent pas. Cette règle ne limite pas tes connaissances musicales générales : théorie, harmonie, styles, histoire, artistes, technique, pratique, matériel.
 3. Un exemple à écouter seulement si le pianiste le demande (« joue-moi », « fais-moi entendre », « montre-moi », « un exemple », « rejoue »). Une question d'explication (« c'est quoi… », « pourquoi… », « quelle est la progression ? ») reçoit une explication, SANS outil audio : l'application lui propose ensuite « Fais-le-moi entendre » d'un clic. Les outils audio (play_progression, play_voicing, play_lick, play_note) ne jouent RIEN pendant que tu réponds : ils ajoutent SOUS ta réponse un exemple qui démarre après elle. Quand il a demandé à entendre : rédige ton explication (courte : règle 4), appelle l'outil, et termine par une phrase qui renvoie à l'exemple (« Écoute l'exemple ci-dessous : … »). N'écris jamais « je te joue… » ou « voici la démonstration » en tête de réponse.
 4. Applique le cadre pédagogique ci-dessus à toutes les réponses, y compris les détails : raison simple, effet audible et vocabulaire accessible. Le tempo en BPM et un moment à réécouter sont autorisés ; les chiffres d'analyse interne ne le sont pas. Les modes Posé, Arpégé, Rythmé et Plaqué décrivent un placement des notes, pas une conversion de genre musical.
 5. Quand un exemple est demandé, l'application le joue comme un pianiste : voicings réels enchaînés d'un accord à l'autre, à deux mains, dans le style choisi (Posé, Arpégé, Rythmé, Plaqué). Tu n'as donc PAS à choisir les notes d'un accord ni d'une progression :
@@ -118,7 +118,7 @@ Règles :
 6. Ne rajoute pas de complexité pour paraître compétent. Respecte les accords et les notes de la source. Une couleur supplémentaire est une possibilité liée au but du pianiste, jamais une obligation ni une preuve de niveau.
 7. Quand tu décris un voicing, décris la répartition réelle des mains sans inventer de notes. Conventions : close = accord resserré à la main droite, la basse à la main gauche ; drop 2 = la 2e voix depuis le haut descend d'une octave, la fondamentale reste à la main droite ; rootless = sans fondamentale (la main gauche la joue à part ou la basse la tient) ; quartal = empilement de quartes.
 8. Si le pianiste dit « ralentis », « recommence », « plus lent » : refais l'exemple avec le même outil et les mêmes accords (l'application joue posément). Rappelle-lui en une phrase qu'il peut aussi régler la vitesse des exemples sous chaque exemple, dans sa barre de lecture (« Vitesse » : de 0,25× à 2×, par pas de 0,05) : son choix est gardé pour les exemples suivants.
-9. Si le pianiste pose une question sans rapport avec la musique ou le tutoriel, recentre-le gentiment.
+9. Questions libres : quel que soit le contexte affiché (tutoriel, session, exercice, prise ou rien), réponds à toute question qui touche la musique ou l'application, même si elle ne parle pas de ce contexte (« c'est quoi le mode dorien ? » pendant un exercice, « qui est Herbie Hancock ? » devant une vidéo). Le contexte sert quand la question le concerne ; sinon, réponds directement sans le ramener de force. Seule une question sans aucun rapport avec la musique ni avec l'application (actualité, politique, économie, santé, devoirs…) reçoit une seule phrase aimable : tu es l'assistant musical de l'application et tu ne traites pas ce sujet ; propose une piste musicale. N'y réponds pas, même en partie.
 10. Quand tu cites un moment d'une vidéo ou d'une session, utilise le format mm:ss.
 11. Si le clavier virtuel est masqué, l'exemple s'entend quand même : précise seulement qu'on voit les touches en affichant le clavier.
 12. Distinction entre deux types de correction du pianiste. (a) S'il corrige un raisonnement que tu as toi-même avancé (intervalle, degré, accord diatonique), vérifie ton raisonnement avant de répondre ; si sa correction est juste, accepte-la. (b) S'il affirme une tonalité, un accord ou une note qui contredisent les données de l'application, ne cède pas par politesse : explique ce que disent les données, ou accepte de « raisonner comme si » à sa demande sans prétendre que l'analyse était fausse.
@@ -2462,6 +2462,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // [Claude] — 2026-10-03 — Pédagogie IA : une demande claire sur le passage du prof
     // (l'appliquer à une progression, l'entendre dans une autre tonalité, « ce voicing »)
     // reçoit l'outil qui reprend SES notes ; « qu'a-t-il voulu dire ? » : l'explication seule.
+    let libraryAsk = null;
     const tutorialAsk = tutorialData && message && !review ? parseTutorialRequest(message) : null;
     const tutorialCalls = toolsMode && tutorialAsk ? tutorialToolCalls(tutorialAsk, rawToolCalls, tutorialData) : null;
     const usedTeacherTool = Array.isArray(rawToolCalls) && rawToolCalls.some((c) => ['play_tutorial_passage', 'apply_tutorial_passage'].includes(c?.function?.name));
@@ -2477,6 +2478,13 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       forcedToolCalls = [{ function: { name: 'play_melody_chords', arguments: JSON.stringify(chordsRequest) } }];
     } else if (toolsMode && mine && playingData && !chordsAsked) {
       forcedToolCalls = [{ function: { name: 'play_my_playing', arguments: JSON.stringify(mine) } }];
+    } else if (toolsMode && library && message && !review && !mine && !chordsAsked && asksForExample(message)
+      && !(rawToolCalls || []).some((c) => c?.function?.name === 'combine_library') && (libraryAsk = libraryRequestCall(message, library.tutorials))) {
+      // [Claude] — 2026-11-12 — Conversation de Narcisse : « joue "Lick 1…" puis t'enchaîne avec
+      // "Montuno mineur…" ». Le modèle n'a pas appelé combine_library et l'ancien secours ci-dessous
+      // a fabriqué un « Lick sur G7b9 » générique, sous un texte disant qu'il ne pouvait rien jouer.
+      // Des éléments de la bibliothèque nommés : c'est leur combinaison qui est jouée.
+      forcedToolCalls = [libraryAsk.call];
     } else if (toolsMode && noAudioToolCalled && message && !review && !mine && !chordsAsked && asksForExample(message)) {
       // [Claude] — 2026-10-09 — Seulement s'il demande à entendre (voir asksForExample).
       // « Fais-le-moi entendre » (proposé sous une explication) : l'exemple de la question d'avant.
@@ -2560,6 +2568,12 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       ? executeToolCalls(effectiveToolCalls, content, toolContext)
       : parsePlayNoteAnnotations(content);
     if (toolResult.content) content = toolResult.content;
+    // Combinaison montée par l'application : le texte du modèle qui disait ne rien pouvoir jouer
+    // (ou qui parlait d'autre chose) laisse la place à ce qui est réellement préparé.
+    if (libraryAsk && toolResult.example?.kind === 'library') {
+      const refusal = /ne (?:peux|pourrai|suis) pas|pas (?:été |pu )?(?:lanc|jou|fair)|impossible|il faut demander/i.test(content || '');
+      content = refusal || !String(content || '').trim() ? libraryAsk.text : `${content}\n\n${libraryAsk.text}`;
+    }
     // Son jeu demandé, mais pas confié au Copilote : comment le lui confier.
     if (mine && !playingData && !chordsAsked && !toolResult.example) {
       const { note } = myPlayingExample(null);
