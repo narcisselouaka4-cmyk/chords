@@ -1,5 +1,6 @@
 import {applyArrangement} from './arrangement-edit.js';
 import { applyFixedHarmony } from './fixed-harmony-edit.js';
+import { applyProposalPedal } from './proposal-pedal.js';
 // Les éditions restent indexées sur la prise originale, même quand plusieurs changements sont combinés.
 const SOURCE_INDEX = Symbol('copilot-source-event');
 
@@ -53,6 +54,14 @@ export function applyTakeEdit(take, edit) {
       if (!changed) return null;
     }
     return changed;
+  }
+  // [Claude] — 2026-11-13 — La pédale seule, posée après des passages : elle est appliquée en
+  // dernier pour ne pas décaler les positions des notes que les passages désignent.
+  if (edit.type === 'pedal') {
+    if (!Array.isArray(edit.pedal) || !edit.pedal.length) return null;
+    const duration = Math.max(take.duration || 0, ...take.events.map(e => e.time));
+    const events = applyProposalPedal(take.events, {pedal: edit.pedal, replacePedal: true}, duration);
+    return events ? {...take, events: events.sort((a, b) => a.time - b.time)} : null;
   }
   if (edit.type === 'plan') return applyTakePlan(take, edit.edits);
   const pairs = notePairs(take.events);
