@@ -162,44 +162,24 @@ runTest('C. CSS — sélection et lecture priment sur la hiérarchie', () => {
 
 // ── D. L'utilisateur peut comprendre et désactiver ──
 
-runTest('D. Interface — légende et bascule présentes', () => {
+// [Claude] — 2026-11-13 — Refonte d'Analyse des 27-28/10 (4787af7, 7a7eead ; coffre :
+// features/analyse-ia/2026-10-27-vue-ensemble-accords-principaux) : lecture structurelle seule,
+// sans bascule « Vue détaillée », sans légende passage / incertain, sans ligne « Rôle » dans
+// l'inspecteur. Les rôles restent calculés (parties A à C) ; l'interface ne les affiche plus.
+runTest('D. Interface — lecture structurelle seule, sans bascule ni légende de détail', () => {
   const html = read('src/index.html');
-  assert(
-    html.includes('analyzer-timeline-legend'),
-    'la légende de hiérarchie existe dans le DOM',
-  );
-  assert(
-    html.includes('analyzer-hierarchy-toggle'),
-    'la bascule vers les détails existe',
-  );
-  assert(!/id="analyzer-hierarchy-toggle"[^>]*\bchecked\b/.test(html), 'la vue détaillée est désactivée par défaut');
-  assert(html.includes('Vue détaillée'), 'la bascule annonce clairement les détails');
-  for (const label of ['Accords structurels', 'Accord de passage', 'Incertain']) {
-    assert(html.includes(label), `la légende nomme « ${label} »`);
+  assert(html.includes('analyzer-timeline-legend'), 'la légende existe dans le DOM');
+  assert(html.includes('Accords structurels'), 'la légende nomme « Accords structurels »');
+  assert(!html.includes('analyzer-hierarchy-toggle') && !html.includes('Vue détaillée'), 'plus de bascule « Vue détaillée »');
+  for (const label of ['Accord de passage', 'Incertain']) {
+    assert(!html.includes(`</i>${label}</span>`), `plus d’entrée « ${label} » dans la légende`);
   }
 });
 
-runTest('D. Interface — la bascule re-rend la timeline', () => {
+runTest('D. Interface — aucun reste de la bascule ni de la ligne « Rôle »', () => {
   const js = read('src/ui/analyzer-tab.js');
-  assert(js.includes('function bindHierarchyToggle('), 'bindHierarchyToggle existe');
-  const start = js.indexOf('function bindHierarchyToggle(');
-  const body = js.slice(start, js.indexOf('\n}\n', start));
-  assert(
-    body.includes('rerenderTimeline()'),
-    'basculer la hiérarchie redessine la timeline',
-  );
-  assert(
-    js.includes('bindHierarchyToggle();'),
-    'bindHierarchyToggle est appelée à l’initialisation',
-  );
-});
-
-runTest("D. Interface — l'inspecteur affiche le rôle de l'accord sélectionné", () => {
-  const js = read('src/ui/analyzer-tab.js');
-  assert(
-    /rows\.push\(\['Rôle'/.test(js),
-    "renderInspector ajoute une ligne « Rôle »",
-  );
+  assert(!js.includes('bindHierarchyToggle'), 'bindHierarchyToggle a disparu avec la bascule');
+  assert(!/rows\.push\(\['Rôle'/.test(js), 'l’inspecteur n’a plus de ligne « Rôle »');
 });
 
 // ── E. Accessibilité ──

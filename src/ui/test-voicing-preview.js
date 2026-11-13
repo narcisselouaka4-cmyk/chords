@@ -852,13 +852,14 @@ run('Notation enharmonique E7/D# → D#, G# (pas Eb, Ab) quel que soit le style'
 });
 
 // Test 23
-run('HTML statique contient le sélecteur accessible', () => {
-  assertTrue(indexHtml.includes('analyzer-voicing-style-selector'), 'id manquant');
-  assertTrue(indexHtml.includes('voicing-style-selector'), 'classe manquante');
-  assertTrue(indexHtml.includes('role="group"'), 'role manquant');
-  assertTrue(indexHtml.includes('aria-label="Style de voicing"'), 'aria-label manquant');
-  assertTrue(indexHtml.includes('data-voicing-style="close"'), 'bouton Close manquant');
-  assertTrue(indexHtml.includes('data-voicing-style="simple"'), 'bouton Simple manquant');
+// [Claude] — 2026-11-13 — Le sélecteur Close / Simple et le branchement de ce module ont quitté
+// l'onglet Analyse le 23/09 (d975709) ; l'onglet a été refait depuis (27-28/10) sans lui. Ce
+// module n'est plus importé par l'application : les tests ci-dessus et ci-dessous portent sur le
+// module seul. S'il est rebranché, rétablir ici la présence du sélecteur dans la page.
+run('Le sélecteur n’est plus dans la page, et le module n’est branché nulle part', () => {
+  assertTrue(!indexHtml.includes('analyzer-voicing-style-selector'), 'sélecteur encore présent sans module branché');
+  const analyzerTab = fs.readFileSync(path.join(path.dirname(indexHtmlPath), 'ui/analyzer-tab.js'), 'utf8');
+  assertTrue(!analyzerTab.includes("from './voicing-preview.js'"), 'module rebranché : rétablir le contrôle du sélecteur');
 });
 
 // Test 24

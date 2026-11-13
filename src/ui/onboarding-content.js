@@ -108,54 +108,42 @@ export const CHAPTERS = [
           + "mis en avant automatiquement. Le curseur de zoom, au-dessus, étale ou "
           + "resserre la grille.",
       },
-      {
-        id: 'chordify-legend',
-        target: '#analyzer-timeline-legend',
-        title: 'Tous les accords ne se valent pas',
-        body:
-          "Un **accord structurel** porte la progression : il est encadré nettement. "
-          + "Un **accord de passage** est bref et relie deux piliers : il reste lisible "
-          + "mais discret. Un accord **incertain** signale une détection peu sûre — "
-          + "c'est souvent là qu'une correction est utile. La case « Hiérarchiser » "
-          + "désactive ce codage si vous préférez une grille uniforme.",
-      },
+      // [Claude] — 2026-11-13 — Étapes réécrites d'après l'onglet Analyse actuel. Depuis la refonte
+      // des 27-28/10 (4787af7, 7a7eead, adc803c), il n'y a plus de légende passage / incertain ni
+      // de case « Hiérarchiser », ni d'inspecteur sous la frise : la visite décrivait des éléments
+      // disparus et deux de ses étapes ne montraient plus rien (#analyzer-inspector-empty,
+      // #analyzer-inspector-edit-btn). Les sous-onglets restants sont « Grille d'accords » et
+      // « Corriger ».
       {
         id: 'chordify-select',
-        target: '#analyzer-inspector-empty',
+        target: '#analyzer-chord-timeline',
         title: 'Sélectionner un accord',
         body:
-          "Cliquez sur un bloc de la timeline : ses détails s'affichent ici — "
-          + "fondamentale, qualité, basse, notes, degré, confiance, et son rôle "
-          + "harmonique. La sélection est indépendante de la lecture : vous pouvez "
-          + "examiner un accord pendant que le morceau tourne.",
+          "Cliquez sur un bloc : la lecture se place sur cet accord, et le sous-onglet "
+          + "« Corriger » affiche ses détails — les notes détectées et les candidats "
+          + "proposés par le moteur. Un accord que vous avez corrigé porte un crayon ✏.",
       },
       {
         id: 'chordify-edit',
-        target: '#analyzer-inspector-edit-btn',
+        target: '#analyzer-section-tabs',
         title: 'Corriger un accord',
         body:
-          "Quand la détection se trompe, corrigez-la : bouton « Modifier », ou "
-          + "double-clic sur le bloc, ou touche Entrée quand il a le focus. Vous "
-          + "choisissez fondamentale, qualité et basse. L'accord corrigé porte un "
-          + "crayon, et Ctrl+Z annule.",
-      },
-      {
-        id: 'chordify-sections',
-        target: '#analyzer-section-tabs',
-        title: 'Aller plus loin',
-        body:
-          "Le sous-onglet « Corriger » vous laisse ajuster chaque accord à la main. "
-          + "Tout s'appuie sur la grille que vous venez de lire — et donc sur vos corrections.",
+          "Quand la détection se trompe : double-clic sur le bloc (ou Entrée quand il a "
+          + "le focus), ou le sous-onglet « Corriger » — symbole corrigé, « Écouter en "
+          + "boucle », puis « Appliquer la correction ». Ctrl+Z annule. « Grille "
+          + "d'accords » montre la même grille en entier, mesure par mesure.",
       },
       {
         id: 'chordify-save',
         target: '#analyzer-reanalyze-btn',
         title: 'Vos corrections sont conservées',
         body:
+          // [Claude] — 2026-11-13 — Plus de badge « Analyse enregistrée » depuis le 28/10 (demande de
+          // Narcisse) : un message le dit à la réouverture ; Ctrl+S enregistre aussi.
           "L'analyse et vos corrections sont enregistrées automatiquement à côté du "
-          + "fichier audio. Rouvrir le morceau les restitue sans recalcul — le badge "
-          + "« ↺ Analyse enregistrée » vous l'indique. « ↻ Relancer l'analyse » "
-          + "recalcule tout depuis l'audio si vous le souhaitez.",
+          + "fichier audio (Ctrl+S le fait aussi). Rouvrir le morceau les restitue sans "
+          + "recalcul : un message vous le confirme. Ce bouton recalcule tout depuis "
+          + "l'audio si vous le souhaitez.",
       },
     ],
   },

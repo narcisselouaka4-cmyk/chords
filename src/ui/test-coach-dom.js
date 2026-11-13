@@ -118,12 +118,20 @@ const v2Rules = (practiceCss.match(/:root\[data-skin='v2'\] #practice-view-coach
 check('practice.css habille la vue Coach en skin Global', globalRules > 20, `${globalRules} règles`);
 check('practice.css habille la vue Coach en skin v2', v2Rules > 20, `${v2Rules} règles`);
 
-for (const selector of ['.coach-layout', '.coach-card', '.segmented', '.coach-countdown', '.coach-track-item']) {
+for (const selector of ['.coach-layout', '.coach-card', '.segmented', '.coach-countdown']) {
   const inGlobal = practiceCss.includes(`:root[data-skin='global'] #practice-view-coach ${selector}`);
   const inV2 = practiceCss.includes(`:root[data-skin='v2'] #practice-view-coach ${selector}`);
   check(`« ${selector} » est stylé dans les deux skins`, inGlobal && inV2,
     `global=${inGlobal} v2=${inV2}`);
 }
+
+// [Claude] — 2026-11-13 — Depuis les bibliothèques unifiées (089ddef, 15/09), un morceau du Coach
+// est une ligne de bibliothèque commune (.tr-library-row.coach-track-row), stylée une fois pour
+// toutes les bibliothèques (astra-training.css) ; l'ancienne .coach-track-item n'existe plus.
+check('Les morceaux du Coach sont des lignes de la bibliothèque commune, stylées',
+  /className: `tr-library-row coach-track-row/.test(coachCode)
+  && readFileSync(resolve(projectRoot, 'src/ui/refonte/astra-training.css'), 'utf-8').includes('.tr-library-row {')
+  && readFileSync(resolve(projectRoot, 'src/ui/refonte/astra-bridge.css'), 'utf-8').includes('#coach-track-list .coach-track-row {'));
 
 // ---------------------------------------------------------------------------
 // 6. Invariants audio du projet
@@ -148,8 +156,10 @@ check('Le Coach s\'enregistre auprès du gestionnaire de focus audio',
 
 check('Le Coach n\'importe rien de recording-tab.js (flux séparés, sans pont)',
   !coachCode.includes('recording-tab.js'));
-check('Le bouton « Analyser cette session » de Sessions MIDI est intact',
-  html.includes('id="midi-session-analyze-btn"'));
+// [Claude] — 2026-11-13 — Le bouton « Analyser cette session » a laissé place, le 12/09 (40aebce),
+// au carnet de session, qui montre directement l'analyse de la session choisie.
+check('Sessions MIDI garde son analyse : le carnet de session est dans la page',
+  html.includes('id="midi-session-carnet"') && !html.includes('id="midi-session-analyze-btn"'));
 
 // ---------------------------------------------------------------------------
 // 8. Le clavier virtuel existant n'a pas été redessiné

@@ -86,9 +86,15 @@ runTest('E bis — pistes du Studio : ni bips, ni région partielle', () => {
   assert(/SIMULATED_MARK/.test(fn) && /hasLegacyBeepStems\(stemsDir\)/.test(fn), 'les bips sont écartés');
   assert(/region\.start <= FULL_COVERAGE_TOLERANCE/.test(fn) && /region\.end >= duration - FULL_COVERAGE_TOLERANCE/.test(fn),
     'une région partielle est écartée');
+  // [Claude] — 2026-11-13 — Depuis a742271 (27/10), les accords sont lus sur le MIX, plus sur le
+  // piano séparé (lv-chordia est entraîné sur des mix complets ; le piano isolé donnait « N » sur
+  // 1:17 de « You Are Yahweh »). Les pistes ne servent plus qu'à la basse, avec les mêmes gardes.
   const pipe = main.slice(main.indexOf('async function runAnalysisPipeline'));
-  assert(pipe.indexOf("runAudioProcessor(['probe', filePath])") < pipe.indexOf("findStudioStemForFile(filePath, 'piano', duration)"),
-    'la durée est lue avant de choisir les pistes');
+  assert(!pipe.includes("findStudioStemForFile(filePath, 'piano'") && /const pianoStem = null;/.test(pipe),
+    'les accords sont lus sur le mix, pas sur le piano séparé');
+  const probe = pipe.indexOf("runAudioProcessor(['probe', filePath])");
+  const bass = pipe.indexOf("findStudioStemForFile(filePath, 'bass', duration)");
+  assert(probe >= 0 && bass > probe, 'la durée est lue avant de choisir la piste de basse');
 });
 
 // ── AUDIO_PREP / VIDEO_TYPE / MIDI_CAPTURE → Nouvelle analyse → HOME ──

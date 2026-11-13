@@ -105,7 +105,9 @@ runTest('B. HTML — #analyzer-import-screen a la classe analyzer-state', () => 
 
 runTest('B. HTML — #analyzer-results contient la timeline', () => {
   const htmlPath = resolve(projectRoot, 'src/index.html');
-  const html = readFileSync(htmlPath, 'utf-8');
+  // [Claude] — 2026-11-13 — Sans les commentaires : un commentaire qui cite « <div> » (menu des
+  // modèles d'IA, 10/11) était compté comme une balise et l'équilibre n'était jamais retrouvé.
+  const html = readFileSync(htmlPath, 'utf-8').replace(/<!--[\s\S]*?-->/g, '');
 
   // Extraire le contenu de #analyzer-results par équilibre de divs.
   // [Corrigé 03/09/2026] — l'ancienne regex s'arrêtait sur

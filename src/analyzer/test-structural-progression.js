@@ -132,6 +132,8 @@ function controller(chords = structuredClone(source)) {
     harmonicRole, selectChordProgression, getEffectiveChord,
     fitChordLabel: (text) => ({ text, fontPx: 14 }), escapeHtml: (s) => s,
     formatTime: String, keyDisplayLabel: String,
+    // [Claude] — 2026-11-13 — Notation des accords (0fcdef6, 29/10) : le symbole tel quel.
+    formatMusicChord: (name) => name, formatMusicNote: String, notationOptions: () => ({}),
     highlightSelectedSegment() {}, seekToSegment() {}, renderMasterclass() {}, renderCorriger() {},
   });
   context.renderHeroChord = (chord) => { context.hero = chord; };
@@ -140,15 +142,22 @@ function controller(chords = structuredClone(source)) {
   context.renderOverview = (analysis) => { context.overview = analysis; };
   context.renderStats = (analysis) => { context.stats = analysis; };
   context.openChordEditor = (index) => { context.editIndex = index; };
+  // [Claude] — 2026-11-13 — Sans bindHierarchyToggle : la bascule « Vue détaillée » a été retirée
+  // le 28/10 (7a7eead) avec la refonte d'Analyse ; la frise est en lecture structurelle seule.
   vm.runInContext(['getDisplayChords', 'getDisplayAnalysis', 'segmentRole', 'renderTimeline',
-    'bindHierarchyToggle', 'selectSegment', 'rerenderTimeline', 'updatePlaybackPosition']
+    'selectSegment', 'rerenderTimeline', 'updatePlaybackPosition']
     .map(controllerFunction).join('\n'), context);
-  context.bindHierarchyToggle();
   context.rerenderTimeline();
   return context;
 }
 
-test('frise, vue d’ensemble et édition utilisent les bonnes identités après filtrage', () => {
+// [Claude] — 2026-11-13 — Depuis la refonte du 28/10 (adc803c, 7a7eead), plus de vue d'ensemble
+// avec « accord en cours » ni de bascule de détails : l'accord joué est marqué dans la frise même
+// (classe « current », remplissage progressif). Les cas ci-dessous protègent les mêmes propriétés
+// sur cet affichage.
+const current = (c) => c.els.chordTimelineInner.querySelectorAll().find((b) => b.classes.has('current'))?.dataset.segmentId ?? null;
+
+test('frise et édition utilisent les bonnes identités après filtrage', () => {
   const c = controller();
   const blocks = c.els.chordTimelineInner.querySelectorAll();
   assert.deepEqual(blocks.map((b) => b.dataset.segmentId), ['a', 'b', 'c', 'd']);
@@ -156,7 +165,7 @@ test('frise, vue d’ensemble et édition utilisent les bonnes identités après
   assert.equal(blocks[3].style.left, '240px');
   blocks[3].listeners.dblclick({ stopPropagation() {} });
   assert.equal(c.editIndex, 3);
-  assert.equal(c.hero.segmentId, 'd');
+  assert.equal(c.selectedSegmentId, 'd');
   assert.deepEqual(c.overview.chords.map((s) => s.segmentId), ['a', 'b', 'c', 'd']);
   assert.equal(c.currentAnalysis.chords.length, 5);
 });
@@ -164,24 +173,23 @@ test('frise, vue d’ensemble et édition utilisent les bonnes identités après
 test('lecture : chaque instant joué a son accord, sauf le silence final', () => {
   const c = controller();
   c.updatePlaybackPosition(1);
-  assert.equal(c.hero.segmentId, 'a');
+  assert.equal(current(c), 'a');
   c.updatePlaybackPosition(2);
-  assert.equal(c.hero.segmentId, 'b', 'un accord de passage est lu comme les autres');
+  assert.equal(current(c), 'b', 'un accord de passage est lu comme les autres');
   c.updatePlaybackPosition(2.75);
-  assert.equal(c.hero.segmentId, 'c');
+  assert.equal(current(c), 'c');
   c.updatePlaybackPosition(3);
-  assert.equal(c.hero.segmentId, 'd');
-  // De 5 à 6 s il n'y a aucun accord joué : le « N » reste sans étiquette.
+  assert.equal(current(c), 'd');
+  // De 5 à 6 s il n'y a aucun accord joué : aucune case n'est marquée.
   c.updatePlaybackPosition(5);
-  assert.equal(c.hero, null);
+  assert.equal(current(c), null);
 });
 
-test('le nombre de blocs ne décale pas les accords ; aucun marqueur de modulation dans la frise', () => {
+test('un redessin ne décale pas les accords ; aucun marqueur de modulation dans la frise', () => {
   const c = controller();
   c.currentAnalysis.keys = [{ key: 'C', start: 0 }, { key: 'G', start: 3 }];
-  for (const detailed of [false, true, false]) {
-    c.els.hierarchyToggle.checked = detailed;
-    c.els.hierarchyToggle.listeners.change();
+  for (let k = 0; k < 3; k += 1) {
+    c.rerenderTimeline();
     const children = c.els.chordTimelineInner.children;
     assert.equal(children.find((b) => b.dataset.segmentId === 'd').style.left, '240px');
     assert.equal(children.some((b) => b.className === 'analyzer-timeline-modkey'), false);
@@ -189,17 +197,10 @@ test('le nombre de blocs ne décale pas les accords ; aucun marqueur de modulati
   }
 });
 
-test('le bouton des détails ne fait plus disparaître la sélection', () => {
+test('la sélection survit au redessin de la frise, accord incertain compris', () => {
   const c = controller();
-  c.els.hierarchyToggle.checked = true;
-  c.els.hierarchyToggle.listeners.change();
-  assert.equal(c.getDisplayChords().length, 4);
   c.selectSegment('c');
-  assert.equal(c.hero.chord, 'B');
-  c.els.hierarchyToggle.checked = false;
-  c.els.hierarchyToggle.listeners.change();
-  // Un accord incertain reste affiché : la sélection survit au basculement.
-  assert.equal(c.hero.chord, 'B');
+  c.rerenderTimeline();
   assert.equal(c.selectedSegmentId, 'c');
   assert.deepEqual(c.getDisplayAnalysis().chords.map((s) => s.chord), ['F', 'F#dim', 'B', 'G']);
 });
@@ -209,14 +210,14 @@ test('une grille faite de seuls accords douteux les montre quand même', () => {
   const blocks = c.els.chordTimelineInner.querySelectorAll();
   assert.deepEqual(blocks.map((b) => b.dataset.segmentId), ['b', 'c']);
   c.updatePlaybackPosition(2.75);
-  assert.equal(c.hero.segmentId, 'c');
+  assert.equal(current(c), 'c');
 });
 
 test('une grille sans aucun accord reste vide', () => {
   const c = controller([segment('z', 'N', 'silence', 0, 6)]);
   assert.equal(c.els.chordTimelineInner.children.length, 0);
   c.updatePlaybackPosition(3);
-  assert.equal(c.hero, null);
+  assert.equal(current(c), null);
 });
 
 // La projection musicale suit sa propre ligne, avec le même temps que le lecteur.
@@ -226,9 +227,9 @@ test('grille agrandie : le contrôleur transmet aussi les retours arrière à la
   c.els.chordTimeline.lastScroll = undefined;
   const times = []; c.musicalGridView = { update: (t) => times.push(t) };
   c.updatePlaybackPosition(3.5);
-  assert.equal(c.hero.segmentId, 'd');
+  assert.equal(current(c), 'd');
   c.updatePlaybackPosition(1);
-  assert.equal(c.hero.segmentId, 'a');
+  assert.equal(current(c), 'a');
   assert.deepEqual(times, [3.5, 1]);
   assert.equal(c.els.chordTimeline.lastScroll, undefined, 'la frise cachée ne déplace pas la grille');
 });
