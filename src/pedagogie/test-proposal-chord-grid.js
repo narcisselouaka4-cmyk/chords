@@ -18,7 +18,11 @@ const take=JSON.parse(fs.readFileSync(new URL('./fixtures/copilot-session017.jso
 assert.equal(gridMoment(9.0674,true),'0:09,0');assert.equal(gridMoment(9.5975,true),'0:09,5');assert.equal(gridMoment(61.4),'1:01');
 const response=await sendCopilotMessage({message:'Fais-moi des propositions',context:{type:'session',playing:{session:take}},messages:[]});
 const result=response.toolResult,before=JSON.stringify(result),grid=proposalChordGrid(result);
-assert.equal(grid.rows.length,2);assert.equal(grid.columns.length,16);
+// [Claude] — 2026-11-13 — 15 positions et non plus 16 : depuis 998565a (07/11, « accompagnement
+// maintenu sous la mélodie »), le La mineur 9 rejoué à l'identique à 0:11,08 est tenu, plus
+// réattaqué ; la colonne en double disparaît. Aucune proposition n'a deux colonnes identiques de suite.
+assert.equal(grid.rows.length,2);assert.equal(grid.columns.length,15);
+assert(grid.columns.every((c,i)=>!i||c.cells[1].name!==grid.columns[i-1].cells[1].name||c.cells[0].name!==grid.columns[i-1].cells[0].name),'aucune colonne répétée à l’identique');
 assert.equal(grid.columns[0].cells[0].name,'Fadd9');assert.equal(grid.columns[0].cells[1].name,'Fmaj9');
 for(const p of result.variants[0].harmony)assert(grid.columns.some(c=>Math.abs(c.at-p.at)<=.18&&c.cells[1]?.fullName===p.chord),p.chord);
 assert(grid.columns.some(c=>c.cells[1].name==='Bm7b5'&&c.cells[0].name==='Em'));
@@ -45,4 +49,4 @@ const variants=buildPhraseVariants(fixed,{message:'En do majeur, enrichis mes ac
 const multi=proposalChordGrid({originalTake:fixed,variants});
 assert.equal(multi.rows.length,variants.length+1);
 assert(multi.columns.every(c=>c.cells.length===multi.rows.length));
-console.log('✓ Grilles : noms anglais/latins et basses, 16 positions réelles dont 7–3, comparaison alignée, passages rapprochés, accords conservés, plusieurs versions, persistance sans mutation et absence de grille inventée');
+console.log('✓ Grilles : noms anglais/latins et basses, 15 positions réelles dont 7–3, comparaison alignée, passages rapprochés, accords conservés, plusieurs versions, persistance sans mutation et absence de grille inventée');

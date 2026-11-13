@@ -8,7 +8,7 @@ import {personalStyleCapabilityAnswer} from './style-capabilities.js';
 import {playingHarmonyFacts} from './playing-harmony-facts.js';
 import {sessionAdjustmentAnswer} from './session-adjustments.js';
 import {personalContext,samePlayingSource,restoreConversationPlaying} from './personal-source.js';
-import {personalDemoAnswer, isPersonalExample, demoScope} from './personal-demo.js';
+import {personalDemoAnswer, isPersonalExample, demoScope, onlyNamedObject} from './personal-demo.js';
 import {buildConversationMemory,conversationMemoryContext,loadPersonalMemories,personalMemoryContext,memoryCommandAnswer,rememberedMessages} from './copilot-memory.js';
 import {isExplanationQuestion,explicitPlaybackRequest,proposalExplanationAnswer} from './proposal-explanation.js';
 // [Claude] — 2026-09-06 — Copilot IA : client de chat avec outil clavier.
@@ -2218,6 +2218,15 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   // nommé, ou une demande libre. Les parcours du jeu personnel ne reçoivent que la première :
   // « fais-moi entendre un Do majeur 7 » va au modèle, avec ou sans prise dans l'échange.
   const scope=demoScope({message,messages,context});
+  // [Claude] — 2026-11-13 — Une technique demandée sur un accord de SA session (« écoute le Gadd9 en
+  // drop 2 ») se joue sous sa mélodie, quelle que soit la tournure : « en drop 2 » partait comme un
+  // accord quelconque au modèle, « avec le voicing drop 2 » visait sa session. Un accord absent de
+  // la session garde la règle du 11/11 (l'accord nommé, seul).
+  if(scope.kind==='named'&&!explanation&&(!context?.type||['autonomous','session'].includes(context.type))){
+    const sessionTake=context?.playing?.passage?.events?.length?context.playing.passage:[...(messages||[])].reverse().find(m=>m?.role==='user'&&m.take?.events?.length)?.take;
+    const targeted=sessionTake?melodyTechniqueAnswer({message,context:{...context,playing:{...context?.playing,passage:sessionTake}}}):null;
+    if(targeted?.toolResult?.example)return targeted;
+  }
   // [Claude] — 2026-11-11 — Du plus simple au plus étendu : un accord simplement NOMMÉ (« fais-moi
   // entendre un Cmaj7 ») s'entend d'abord tel qu'il est nommé (position fermée, ses seules notes).
   // Avant, l'exemple ajoutait une neuvième et retirait la fondamentale de la main droite alors que
@@ -2553,7 +2562,13 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     const heardRequest = hearIt ? previousQuestion || '' : message || '';
     const intentNow = askedToHear ? classifyIntent(heardRequest) : null;
     const literal = (name) => Boolean(name) && heardRequest.replace(/\s+/g, '').toLowerCase().includes(String(name).replace(/\s+/g, '').toLowerCase());
-    const intentIsLiteral = Boolean(intentNow && (literal(intentNow.params?.chordSymbol) || (intentNow.params?.chords?.length > 1 && intentNow.params.chords.every(literal))));
+    // [Claude] — 2026-11-13 — Un nom français (« Do majeur 7 ») compte aussi, quand la phrase ne
+    // nomme QUE cet objet et que c'est celui que l'application va jouer (test-personal-demo.js :
+    // le modèle était relancé pour rien).
+    const named = askedToHear ? onlyNamedObject(heardRequest) : null;
+    const plays = intentNow?.params?.chords?.length > 1 ? intentNow.params.chords.join(' → ') : intentNow?.params?.chordSymbol;
+    const intentIsLiteral = Boolean(intentNow && (literal(intentNow.params?.chordSymbol) || (intentNow.params?.chords?.length > 1 && intentNow.params.chords.every(literal))
+      || (named && plays && named === plays)));
     const appKnowsAnswer = Boolean(intentIsLiteral || anotherTakeCall(message, messages) || myPlayingRequest(message || '', { session: Boolean(playingData?.session) }) || wantsMelodyChords(message || '')
       || (library && libraryRequestCall(hearIt ? `${previousQuestion || ''} ${message}` : message, library.tutorials, libraryHistory(messages))));
     // Groq gratuit : une relance doublerait les jetons de la minute (refus 429) ; les secours

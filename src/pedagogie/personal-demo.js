@@ -33,6 +33,17 @@ const NEUTRAL_WORDS=new Set(`fais fait faire entendre ecouter ecoute reecouter j
 const personalResult=r=>Boolean(r&&(r.originalTake?.events?.length||r.variants?.length||r.playingAdvice||r.harmonyBrief||r.phraseHarmony||isPersonalExample(r)));
 
 /** Portée de la demande, lue seule (sans regarder l'échange). */
+/**
+ * [Claude] — 2026-11-13 — L'objet musical que la phrase nomme, et rien d'autre (« fais-moi entendre
+ * un Do majeur 7 ») : son étiquette (« Cmaj7 », « Dm7 → G7 → Cmaj7 »), sinon null. Tout mot qui
+ * n'est pas une formule de politesse ou de demande (« lick », « puis », « à la place ») : null.
+ */
+export function onlyNamedObject(message){
+  const object=namedMusicalObject(message);
+  if(!object||!['chord','progression'].includes(object.kind))return null;
+  return object.rest.every(word=>NEUTRAL_WORDS.has(word))?object.label:null;
+}
+
 function directScope(message,hasTake){
   const text=plain(message);
   if(OWN_PLAYING.test(text))return {kind:'personal',reason:'son jeu est nommé'};

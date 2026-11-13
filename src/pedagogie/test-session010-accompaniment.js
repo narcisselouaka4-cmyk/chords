@@ -45,8 +45,16 @@ try{
  const targetedGrid=proposalChordGrid(drop.toolResult);assert.equal(activeChordColumn(targetedGrid,1,13,33.867),-1,'La grille cesse de montrer l’accord ajouté après le passage ciblé');
  // Retrouver la position serrée : remonter la voix abaissée, sans inventer une technique.
  assert(h.notes.some((n,i)=>{const close=h.notes.map((m,j)=>j===i?m+12:m).sort((a,b)=>a-b);return close.at(-1)-close[0]<12&&close.at(-2)===n+12;}));
- const absent=await sendCopilotMessage({message:'Écoute le Dm9 en drop 2',messages,context:{type:'autonomous'}});
+ // [Claude] — 2026-11-13 — La tournure ne change rien : « en drop 2 » vise aussi l'accord de sa session.
+ const phrased=await sendCopilotMessage({message:'Écoute le Gadd9 en drop 2',messages,context:{type:'autonomous'}});
+ assert(phrased.toolResult?.example);assert.deepEqual(phrased.toolResult.variants[0].harmony.map(x=>[x.technique,x.rootPc,x.quality,x.at]),drop.toolResult.variants[0].harmony.map(x=>[x.technique,x.rootPc,x.quality,x.at]));
+ // Accord absent de sa session, demandé « avec le voicing » : réponse locale honnête.
+ const absent=await sendCopilotMessage({message:'Écoute le Dm9 avec le voicing drop 2',messages,context:{type:'autonomous'}});
  assert(!absent.toolResult.example);assert.match(absent.content,/bien ta session/);assert.doesNotMatch(absent.content,/Enregistre ton jeu/);
+ // Accord absent, simplement nommé (« le Dm9 en drop 2 ») : règle du 11/11 (39c5e9a), l'accord seul,
+ // sans la prendre pour une proposition sur sa prise — ni demande de réenregistrer.
+ const named=await sendCopilotMessage({message:'Écoute le Dm9 en drop 2',messages,context:{type:'autonomous'}});
+ assert(!named.toolResult?.variants&&!named.toolResult?.originalTake);assert.doesNotMatch(String(named.content||''),/Enregistre ton jeu/);
  assert.equal(calls,0);
 }finally{globalThis.fetch=oldFetch;}
 assert.equal(buildMelodyAccompaniment({...take,key:'',events:take.events.map((e,i)=>e.note!=null?{...e,note:48+(i*7)%25}:e)}),null);
