@@ -52,15 +52,26 @@ const isMinor = (chord) => /^m(?!aj)/.test(String(chord.symbol ?? ''));
 const isDominant = (chord, tones) => tones.has(10) && tones.has(4) && !isMinor(chord);
 const plainFifth = (chord) => !/b5|#5|b13|alt|aug|dim/.test(String(chord.symbol ?? ''));
 
-/** Mains de travail d'un accord : basse (fondamentale grave), main droite montée dans son registre. */
-function barHands(chord) {
+/**
+ * Mains de travail d'un accord : basse (fondamentale grave), main droite montée dans son registre.
+ * [Claude] — 2026-11-13 — `voicing` : les notes d'un pianiste relevé dans un tutoriel
+ * (tutorial-comping.js), gardées dans SON registre ; seule la basse descend d'une octave si elle
+ * gênerait la main droite.
+ */
+function barHands(chord, voicing = null) {
   const hands = demoHands(chord, 'fifth');
+  const tones = new Set([...hands.lh, ...hands.rh].map((n) => pcOf(n - chord.rootPc)));
+  tones.add(0);
+  if (voicing?.rh?.length >= 2 && Number.isFinite(voicing.root)) {
+    const given = [...new Set(voicing.rh)].sort((a, b) => a - b);
+    let low = voicing.root;
+    if (low + 12 > given[0] - 3 && low - 12 >= 28) low -= 12;
+    return { chord, rh: given, root: low, tones, top: given[given.length - 1], given: true };
+  }
   let rh = [...hands.rh].sort((a, b) => a - b);
   // Les voicings de l'application sont écrits près du Do central ; la main droite d'un pianiste
   // d'église chante plus haut.
   while (rh.length && rh[rh.length - 1] < 66 && rh[rh.length - 1] + 12 <= 84) rh = rh.map((n) => n + 12);
-  const tones = new Set([...hands.lh, ...hands.rh].map((n) => pcOf(n - chord.rootPc)));
-  tones.add(0);
   let root = 36 + pcOf(chord.rootPc);
   if (rh.length && root + 12 > rh[0] - 3) root = Math.max(28, root - 12);
   return { chord, rh, root, tones, top: rh.length ? rh[rh.length - 1] : null };
@@ -278,11 +289,16 @@ const pick = (random, list) => list[Math.floor(random() * list.length)];
 /**
  * Joue une progression comme un pianiste gospel / worship.
  * @param {object[]} chords accords de l'application ({name, rootPc, symbol, voicing…})
- * @param {{seed?: number, feel?: 'gospel'|'worship', beatsPerChord?: number}} [options]
+ * @param {{seed?: number, feel?: 'gospel'|'worship', beatsPerChord?: number, overrides?: (object|null)[]}} [options]
+ *   overrides[i] : ce qu'un pianiste relevé apporte à la mesure i —
+ *     `voicing: {rh, root}` : ses notes, que le vocabulaire ci-dessus anime ;
+ *     `play(score, t, v)`   : son passage entier, joué tel quel (aucun geste ajouté) ;
+ *     `plan`                : ce que la carte en dit (source, moment de la vidéo).
  * @returns {{events: object[], beats: number, gestures: string[], bars: {name: string, left: string, right: string, extra?: string}[], hands: {lh: number[], rh: number[]}[]}|null}
  */
-export function buildGospelComping(chords, { seed = 1, feel = 'gospel', beatsPerChord = 4 } = {}) {
-  const bars = (chords || []).map(barHands);
+export function buildGospelComping(chords, { seed = 1, feel = 'gospel', beatsPerChord = 4, overrides = null } = {}) {
+  const over = (i) => (Array.isArray(overrides) ? overrides[i] || null : null);
+  const bars = (chords || []).map((chord, i) => barHands(chord, over(i)?.voicing || null));
   if (bars.length < 2 || bars.some((b) => b.rh.length < 2)) return null;
   const random = rng(seed);
   const score = createScore();
@@ -315,14 +331,24 @@ export function buildGospelComping(chords, { seed = 1, feel = 'gospel', beatsPer
         score.chord(t + 2, bar.rh, v, t + 5, { roll: 0.1, accentTop: 0.09 });
         end = t + 5 + LIFT;
       } else end = ENDINGS[ending].play(score, bar, t, v);
-      plan.push({ name: bar.chord.name, left: 'basse en octaves', right: ENDINGS[ending].label });
+      plan.push({ name: bar.chord.name, left: 'basse en octaves', right: ENDINGS[ending].label, ...(over(i)?.plan || {}) });
       used.add(ENDINGS[ending].label);
+      return;
+    }
+
+    // Le passage d'un pianiste relevé, tel qu'il l'a joué : rien n'est ajouté par-dessus.
+    if (over(i)?.play) {
+      over(i).play(score, t, v);
+      plan.push({ name: bar.chord.name, left: 'comme dans la vidéo', right: 'comme dans la vidéo', ...(over(i).plan || {}) });
+      prevLeft = null;
+      prevRight = null;
+      anticipated = false;
       return;
     }
 
     // Ce qui occupe le 4e temps : un accord de passage, une anticipation, ou une basse qui marche.
     const passing = !worship && passingLeft > 0 && i > 0 && random() < 0.5 ? passingDiminished(bar, next) : null;
-    const push = !passing && i > 0 && next && !(i + 1 === bars.length - 1 && random() < 0.5) && random() < (worship ? 0.45 : 0.35);
+    const push = !passing && i > 0 && next && !over(i + 1)?.play && !(i + 1 === bars.length - 1 && random() < 0.5) && random() < (worship ? 0.45 : 0.35);
     const walk = !passing && random() < (worship ? 0.3 : 0.5) ? walkTo(bar, next) : null;
     const bodyEnd = t + (passing ? 3 : 4) - LIFT;
     const leftEnd = walk ? t + 3 - LIFT : bodyEnd;
@@ -375,12 +401,12 @@ export function buildGospelComping(chords, { seed = 1, feel = 'gospel', beatsPer
       used.add('anticipation');
       anticipated = true;
     }
-    plan.push({ name: bar.chord.name, left: leftLabel, right: rightLabel, ...(extra ? { extra } : {}) });
+    plan.push({ name: bar.chord.name, left: leftLabel, right: rightLabel, ...(extra ? { extra } : {}), ...(over(i)?.plan || {}) });
   });
 
   const { events } = score.finish(end);
   return {
     events, beats: end, gestures: [...used], bars: plan,
-    hands: bars.map((b) => ({ lh: [b.root, b.root + 12], rh: b.rh })),
+    hands: bars.map((b, i) => over(i)?.hands || { lh: [b.root, b.root + 12], rh: b.rh }),
   };
 }

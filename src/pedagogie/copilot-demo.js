@@ -30,6 +30,7 @@
 import { createPracticeExercise, TECHNIQUES, TECHNIQUE_LABELS, isGridChordPlayable } from '../practice-exercise.js';
 import { buildDemo, demoHands, DEMO_STYLES } from '../practice-demo.js';
 import { buildGospelComping, seedOf } from './gospel-comping.js';
+import { buildTutorialComping, shortTitle } from './tutorial-comping.js';
 import { parseChordSymbol, chordSymbolToPitchClasses } from './chord-parser-v2.js';
 
 // Style du Copilote → style de démo. « Auto » : la Ballade, posée et claire.
@@ -250,7 +251,7 @@ function playedHands(chord, demoStyle) {
  * exercices.
  * @returns {{kind: string, title: string, subtitle: string, style: string, tempo: number, events: object[], beats: number, chords: object[]}|null}
  */
-export function buildChordExample(symbols, { styleId = 'auto', technique = 'auto', pattern, variation = 0 } = {}) {
+export function buildChordExample(symbols, { styleId = 'auto', technique = 'auto', pattern, variation = 0, tutorials = null } = {}) {
   const chords = buildExampleChords(symbols, { technique });
   if (!chords?.length) return null;
   const style = demoStyleFor(styleId, pattern);
@@ -258,18 +259,29 @@ export function buildChordExample(symbols, { styleId = 'auto', technique = 'auto
   // d'une mesure à l'autre et d'une demande à l'autre (gospel-comping.js), au lieu de la même
   // texture « posée » à chaque accord. Une technique ou un jeu plaqué demandés gardent l'ancien rendu.
   if (style === 'gospel' && chords.length >= 2 && technique === 'auto') {
-    const comping = buildGospelComping(chords, { seed: seedOf(chords.map((c) => c.name), variation), feel: styleId === 'worship' ? 'worship' : 'gospel' });
+    const feel = styleId === 'worship' ? 'worship' : 'gospel';
+    const seed = seedOf(chords.map((c) => c.name), variation);
+    // [Claude] — 2026-11-13 — D'abord le jeu des pianistes relevés dans ses tutoriels
+    // (tutorial-comping.js : leurs notes, leurs passages) ; sans relevé qui convienne, le
+    // vocabulaire écrit à la main joue seul.
+    const relayed = Array.isArray(tutorials) && tutorials.length ? buildTutorialComping(chords, tutorials, { seed, variation, feel }) : null;
+    const comping = relayed || buildGospelComping(chords, { seed, feel });
     if (comping) {
       return {
         kind: 'progression',
         title: chords.map((c) => c.name).join(' → '),
-        subtitle: `${styleId === 'worship' ? 'Worship' : 'Gospel'} · ${chords.length} accords · ${comping.gestures.join(' ; ')}`,
+        subtitle: `${feel === 'worship' ? 'Worship' : 'Gospel'} · ${chords.length} accords · ${comping.gestures.join(' ; ')}`,
         style,
-        tempo: EXAMPLE_TEMPO[style] || DEMO_STYLES[style].tempo,
+        tempo: comping.tempo || EXAMPLE_TEMPO[style] || DEMO_STYLES[style].tempo,
         events: comping.events,
         beats: comping.beats,
-        chords: chords.map((c, i) => ({ name: c.name, technique: c.voicing?.technique, leftHand: [...comping.hands[i].lh], rightHand: [...comping.hands[i].rh] })),
-        comping: { variation, feel: styleId === 'worship' ? 'worship' : 'gospel', bars: comping.bars },
+        chords: chords.map((c, i) => {
+          const bar = comping.bars[i] || {};
+          // D'où vient la mesure : la vidéo et le moment, pour aller voir le pianiste la jouer.
+          const from = bar.source ? `${bar.how === 'passage' ? 'joué comme dans' : 'voicing de'} « ${shortTitle(bar.source)} » à ${bar.at}` : null;
+          return { name: c.name, technique: c.voicing?.technique, leftHand: [...comping.hands[i].lh], rightHand: [...comping.hands[i].rh], ...(from ? { from } : {}) };
+        }),
+        comping: { variation, feel, bars: comping.bars, ...(relayed ? { sources: relayed.sources } : {}) },
       };
     }
   }

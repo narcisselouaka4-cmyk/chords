@@ -747,6 +747,8 @@ function renderExampleCard(msg) {
       const parts = [];
       if (c.leftHand?.length) parts.push(`main gauche ${c.leftHand.map(frenchNote).join(' ')}`);
       if (c.rightHand?.length) parts.push(`main droite ${c.rightHand.map(frenchNote).join(' ')}`);
+      // [Claude] — 2026-11-13 — Mesure reprise d'un pianiste relevé : la vidéo et le moment.
+      if (c.from) parts.push(c.from);
       list.appendChild(el('li', {}, [el('b', { text: c.name }), document.createTextNode(` — ${parts.join(' · ')}`)]));
     }
     text.appendChild(list);

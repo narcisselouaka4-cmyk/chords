@@ -80,7 +80,12 @@ export function tutorialItem(fileKey, saved) {
     .map((s) => ({ start: s.start, end: s.end, label: s.chord?.label || s.label || null }));
   const title = String(saved?.path || fileKey).split('/').pop().replace(/\.(mp4|mov|mkv|webm)$/i, '').replace(/\s+/g, ' ').replace(/^[\s\-–—_.]+/, '').trim();
   const end = Math.max(0, ...notes.map((n) => n.end || n.start), ...segments.map((s) => s.end || s.start));
-  return { id: `tuto-${fileKey}`, title, key: saved?.key || null, duration: end, notes, segments, savedAt: saved?.savedAt || '' };
+  // [Claude] — 2026-11-13 — Révision de lecture et recoupement au son : la confiance qu'on peut
+  // accorder au relevé (tutorial-comping.js ne reprend pas le jeu d'une lecture ancienne).
+  return {
+    id: `tuto-${fileKey}`, title, key: saved?.key || null, duration: end, notes, segments, savedAt: saved?.savedAt || '',
+    revision: Number(analysis.readingRevision) || 0, soundChecked: analysis.soundCheck?.reliable === true,
+  };
 }
 
 /** Une vidéo relue plusieurs fois (autre dossier, autre date) : le relevé le plus récent et le plus riche. */
@@ -89,7 +94,10 @@ export function uniqueTutorials(items) {
   for (const item of items) {
     const name = item.title.toLowerCase();
     const prev = best.get(name);
-    if (!prev || item.notes.length > prev.notes.length || (item.notes.length === prev.notes.length && item.savedAt > prev.savedAt)) best.set(name, item);
+    // La lecture la plus récente d'abord (une révision corrige des notes fausses), puis la plus riche.
+    const newer = prev && (item.revision || 0) !== (prev.revision || 0) ? (item.revision || 0) > (prev.revision || 0)
+      : prev && (item.notes.length > prev.notes.length || (item.notes.length === prev.notes.length && item.savedAt > prev.savedAt));
+    if (!prev || newer) best.set(name, item);
   }
   return [...best.values()].sort((a, b) => a.title.localeCompare(b.title));
 }

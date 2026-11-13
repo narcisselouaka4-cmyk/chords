@@ -1124,7 +1124,7 @@ const TECHNIQUE_TO_EXERCISE = {
 // Nombre de progressions gospel / worship déjà jouées dans cette séance : chacune sonne autrement.
 let compingTakes = 0;
 
-export function executeToolCalls(toolCalls, assistantContent = '', { styleId = 'auto', tutorial = null, exercise = null, playing = null, library = null, variation = null } = {}) {
+export function executeToolCalls(toolCalls, assistantContent = '', { styleId = 'auto', tutorial = null, exercise = null, playing = null, library = null, variation = null, tutorials = null } = {}) {
   // [Claude] — 2026-11-12 — Diagnostic, inactif par défaut (localStorage « pjc.debug.copilot ») :
   // les outils réellement demandés par le modèle, pour comprendre un exemple qui ne vient pas.
   try { if (globalThis.localStorage?.getItem('pjc.debug.copilot')) console.info('[Copilot] outils demandés', JSON.stringify((toolCalls || []).map((c) => ({ name: c?.function?.name, arguments: String(c?.function?.arguments || '').slice(0, 600) })))); } catch (_) { /* diagnostic seulement */ }
@@ -1332,7 +1332,9 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       if (focus === 'full') {
         // Chaque progression jouée prend une autre façon de jouer (voir gospel-comping.js) : celle
         // demandée (« une autre façon »), sinon la suivante de cette séance.
-        example = buildChordExample(chords, { styleId: chosenStyle, pattern: args.pattern, variation: Number.isInteger(variation) ? variation : compingTakes++ });
+        // [Claude] — 2026-11-13 — Les relevés de ses tutoriels : le jeu gospel reprend d'abord
+        // celui des pianistes qu'il a choisis (tutorial-comping.js).
+        example = buildChordExample(chords, { styleId: chosenStyle, pattern: args.pattern, variation: Number.isInteger(variation) ? variation : compingTakes++, tutorials: tutorials || library?.tutorials || null });
         if (example?.comping) suggestions.push({ label: 'Une autre façon de la jouer', message: 'Joue-la d’une autre façon' });
         if (example) continue;
       }
@@ -2410,7 +2412,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
   const libraryTools = !review && (libraryAsked || !usesCompactPrompt(config.baseUrl));
   const library = libraryTools ? { tutorials: libraryTutorials } : null;
   const toolOptions = { tutorialTools: Boolean(tutorialData), exerciseTools: Boolean(exerciseData), playingTools: Boolean(playingData), consultTool, rememberTool, harmonizeTool, libraryTools };
-  const toolContext = { styleId: copilotStyleId, tutorial: tutorialData, exercise: exerciseData, playing: playingData, library };
+  const toolContext = { styleId: copilotStyleId, tutorial: tutorialData, exercise: exerciseData, playing: playingData, library, tutorials: libraryTutorials };
   // Groq rejette tout champ inconnu dans les messages (timestamp, toolResult,
   // etc.). On ne garde que role et content pour la requête réseau.
   const sanitized = recall.messages
