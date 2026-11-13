@@ -2000,33 +2000,7 @@
   border-color: var(--r-accent);
   color: var(--r-accent-contrast, #fff);
 }
-:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-spacer,
-:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-spacer {
-  flex: 1;
-}
-:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-label,
-:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-label {
-  font-size: 0.72rem;
-  color: var(--r-text-muted);
-}
-/* [Claude] — 2026-10-03 — Libellé et liste du style groupés, sans retour à la ligne entre eux. */
-:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style,
-:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  white-space: nowrap;
-}
-:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-select,
-:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-select {
-  padding: 4px 8px;
-  border: 1px solid var(--r-border);
-  border-radius: var(--r-radius-btn);
-  background: var(--r-surface);
-  color: var(--r-text);
-  font-size: 0.75rem;
-}
+/* [Claude] — 2026-11-13 — Styles du sélecteur « Style » retirés (sélecteur retiré le 04/11, b717592). */
 :root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message-actions,
 :root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message-actions {
   display: flex;

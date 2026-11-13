@@ -811,8 +811,7 @@
   gap: 6px;
   grid-template-columns: none;
 }
-#copilot-quick-actions .copilot-quick-actions-label,
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools .copilot-style-label {
+#copilot-quick-actions .copilot-quick-actions-label {
   color: var(--tr-muted);
   font: 9px var(--tr-mono);
   letter-spacing: .08em;
@@ -824,21 +823,8 @@
   background: var(--tr-inset); color: var(--tr-secondary); font-size: 10.5px;
 }
 #copilot-quick-actions .copilot-chip:hover { color: var(--tr-text); border-color: var(--tr-accent); }
-/* [Claude] — 2026-10-03 — « Style » et sa liste ne se séparent plus. [Claude] — 2026-10-04 —
-   Ils sont sur la ligne de la case, juste avant le bouton d'envoi (la rangée des étiquettes
-   tient ainsi sur une ligne). */
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > .copilot-style {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 8px 0 auto;
-  white-space: nowrap;
-}
-#copilot-style-select {
-  height: 25px; padding: 0 6px;
-  border: 1px solid var(--tr-border); border-radius: 6px;
-  background: var(--tr-inset); color: var(--tr-text); font-size: 10.5px;
-}
+/* [Claude] — 2026-11-13 — Styles du sélecteur « Style » retirés : le sélecteur a quitté la page
+   le 04/11/2026 (b717592 ; le style vient de ce que dit le pianiste). */
 /* ── Historique des conversations (16/10/2026) ───────────────────────────────────
    Narcisse : l'historique « ne fait pas très professionnel ». Les lignes de tableau
    (titre | date | ✕), toutes identiques, deviennent des cartes groupées par jour :

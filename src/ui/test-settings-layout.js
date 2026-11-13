@@ -46,10 +46,18 @@ check('Ports MIDI d\'entrée et de sortie, tolérance, état : dans Réglages',
   ['midi-select', 'midi-output-select', 'tolerance', 'status-bar', 'midi-refresh'].every(inSettings));
 check('« Couleur fondamentale » supprimée (champ et code)', !html.includes('color-tonic') && !main.includes("getElementById('color-tonic')") && !main.includes('els.colorTonic'));
 check('La tolérance a quitté la barre du clavier', !/vk-toolbar[\s\S]*?id="tolerance"[\s\S]*?vk-status/.test(html));
-check('Notation, Début, Fin et Transposition restent sur la barre du clavier', ['notation-select', 'note-start', 'note-end', 'transpose'].every((id) => {
-  const at = html.indexOf(`id="${id}"`);
-  return at >= 0 && at < html.indexOf('class="vk-status"');
-}));
+// [Claude] — 2026-11-13 — Notation, Début et Fin ont quitté la barre du clavier pour Réglages →
+// Clavier MIDI virtuel (91b79cd ; coffre : features/clavier-reglages-et-barre) ; la transposition,
+// elle, reste sur la barre. L'ancien contrôle exigeait encore les quatre sur la barre.
+{
+  const section = html.slice(html.indexOf('id="settings-virtual-keyboard"'), html.indexOf('id="status-bar"'));
+  const bar = html.slice(html.indexOf('class="vk-toolbar"'), html.indexOf('id="keyboard-container-wrap"'))
+    + html.slice(html.indexOf('class="vk-status"'), html.indexOf('class="vk-status"') + 6000);
+  check('Notation, Début et Fin sont dans Réglages → Clavier MIDI virtuel ; la transposition reste sur la barre du clavier',
+    html.includes('id="settings-virtual-keyboard"') && section.length > 0
+    && ['notation-select', 'note-start', 'note-end'].every((id) => section.includes(`id="${id}"`) && !bar.includes(`id="${id}"`))
+    && bar.includes('id="transpose"') && !section.includes('id="transpose"'));
+}
 check('Sélecteur Étendue retiré, sans référence JS ni styles résiduels',
   !html.includes('id="keyboard-size"') && !main.includes('keyboardSize')
   && !main.includes('KEYBOARD_PRESETS') && !main.includes('applyKeyboardPreset')
