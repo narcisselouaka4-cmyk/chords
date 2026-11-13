@@ -1,5 +1,5 @@
 // [OpenCode] — 2026-07-03 — Module moteur harmonique avancé (rootless, quartal, etc.)
-import { CHORD_DEFINITIONS, ROOTLESS_DEFINITIONS, DETECTION_DEFINITIONS } from './chord-defs.js';
+import { CHORD_DEFINITIONS, ROOTLESS_DEFINITIONS, DETECTION_DEFINITIONS, THIRDLESS_DEFINITIONS } from './chord-defs.js';
 
 import { formatNote } from './intervals.js';
 
@@ -224,13 +224,22 @@ function rankReadings(pcSet, uniquePcs, bassPc, definitions) {
       if (reading) readings.push(reading);
     }
   }
-  // À score égal : moins de notes omises, puis la définition la plus riche, puis
-  // l'ordre de la table (le plus jazz d'abord).
-  return readings.sort((a, b) => b.score - a.score || a.omitted - b.omitted || b.def.intervals.length - a.def.intervals.length);
+  // Trois classes formant une triade par tierces complète : priorité sur une
+  // sixième incomplète dont la fondamentale serait à la basse (Cm/E♭ → E♭6
+  // sans quinte, Cdim/E♭ → E♭m6). Les suspensions gardent leurs ambiguïtés
+  // usuelles : Fa–Si♭–Do peut aussi se lire Do7sus4 sans quinte.
+  const completeTriad = (r) => uniquePcs.length === 3 && r.exact && r.omitted === 0
+    && ['', 'm', 'dim', 'aug'].includes(r.def.symbol);
+  // Ensuite : score, notes omises, richesse, ordre de la table.
+  return readings.sort((a, b) => Number(completeTriad(b)) - Number(completeTriad(a))
+    || b.score - a.score || a.omitted - b.omitted || b.def.intervals.length - a.def.intervals.length);
 }
 
 function readingResult(reading, sortedNotes, bassPc, voicing) {
   const { rootPc, def, exact, extras, omitted } = reading;
+  const inversionIntervals = def.omittedIntervals
+    ? [...def.intervals, ...def.omittedIntervals].sort((a, b) => a - b)
+    : def.intervals;
   const result = {
     rootPc,
     symbol: def.symbol,
@@ -238,15 +247,15 @@ function readingResult(reading, sortedNotes, bassPc, voicing) {
     intervals: def.intervals,
     notes: sortedNotes,
     bassPc,
-    inversion: findInversionIndex(bassPc, rootPc, def.intervals),
+    inversion: findInversionIndex(bassPc, rootPc, inversionIntervals),
     isSlash: bassPc !== rootPc,
-    missing: (def.optionalIntervals || []).filter((i) => !sortedNotes.some((n) => pcOf(n) === (rootPc + i) % 12)),
+    missing: [...(def.omittedIntervals || []), ...(def.optionalIntervals || []).filter((i) => !sortedNotes.some((n) => pcOf(n) === (rootPc + i) % 12))],
     confidence: exact ? 1.0 : reading.present / (reading.present + extras.length),
     rootless: false,
     voicing,
   };
   if (extras.length) result.extraPcs = extras;
-  if (omitted) result.omittedIntervals = result.missing;
+  if (omitted || def.omittedIntervals?.length) result.omittedIntervals = result.missing;
   return result;
 }
 
@@ -357,6 +366,14 @@ export function detectChord(activeNotes, { allowRootless = true } = {}) {
         voicing,
       };
     }
+    // Ré–Mi–Si : Mi7 sans tierce / Ré. La fondamentale doit être jouée,
+    // les trois classes de notes doivent correspondre exactement, et aucune
+    // lecture déjà reconnue ne doit être remplacée par cette forme incomplète.
+    if (uniquePcs.length === 3) {
+      const thirdless = rankReadings(pcSet, uniquePcs, bassPc, THIRDLESS_DEFINITIONS)
+        .find((r) => r.exact);
+      if (thirdless) return readingResult(thirdless, sortedNotes, bassPc, voicing);
+    }
     return unknownResult(sortedNotes, bassPc, voicing);
   }
 
@@ -413,6 +430,11 @@ export function chordReadings(activeNotes, { includeRootless = true } = {}) {
   // triade de Ré n'est pas « Bm7 sans fondamentale »).
   for (const reading of rankReadings(pcSet, uniquePcs, bassPc, MATCH_DEFINITIONS)) {
     if (reading.exact && reading.omitted <= 1 && !reading.avoid) push(reading.rootPc, reading.def.symbol, false);
+  }
+  if (out.length === 0 && uniquePcs.length === 3) {
+    for (const reading of rankReadings(pcSet, uniquePcs, bassPc, THIRDLESS_DEFINITIONS)) {
+      if (reading.exact) push(reading.rootPc, reading.def.symbol, false);
+    }
   }
   if (includeRootless && uniquePcs.length >= 4) {
     for (const match of findRootlessMatches(pcSet, uniquePcs, bassPc)) push(match.rootPc, match.def.symbol, true);

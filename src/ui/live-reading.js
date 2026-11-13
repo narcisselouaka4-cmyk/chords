@@ -50,6 +50,7 @@ const QUALITIES = {
   sus2: 'suspendu (sus2)', sus4: 'suspendu (sus4)', dim7: 'diminué 7', m7b5: 'demi-diminué (ø7)',
   m9b5: 'demi-diminué 9', mMaj7: 'mineur majeur 7', mMaj9: 'mineur majeur 9', add9: 'majeur add9',
   madd9: 'mineur add9', 6: 'majeur 6', m6: 'mineur 6', '6/9': 'majeur 6/9', 'm6/9': 'mineur 6/9',
+  '7(no3)': 'septième sans tierce', 'maj7(no3)': 'septième majeure sans tierce',
 };
 
 /** Qualité en français (« dominante 13 », « majeur 7♯11 », « demi-diminué (ø7) »). */
@@ -169,7 +170,23 @@ export function describeLiveReading(notes, result, latin = false) {
   }
   if (!chordKnown) {
     out.title = [...nameOfPc.values()].join(' · ');
-    out.quality = 'non identifié';
+    if (pcs.length === 3) {
+      // Tout groupe de trois notes n'est pas une triade majeure/mineure/etc.
+      // Décrire ce qui est joué, sans inventer de fondamentale ni de qualité.
+      out.quality = 'groupe de trois notes';
+      const seen = new Set([pcOf(sorted[0])]);
+      out.intervals = sorted.filter((n) => {
+        const pc = pcOf(n);
+        if (seen.has(pc)) return false;
+        seen.add(pc);
+        return true;
+      }).map((n) => intervalName(n - sorted[0])).join(' · ');
+      const played = classifyPlayedVoicing(sorted, pcOf(sorted[0]), '?', { allowRootless: false });
+      out.voicing = played.label || '—';
+      out.voicingDetail = 'Intervalles mesurés depuis la basse.';
+    } else {
+      out.quality = 'non identifié';
+    }
     return out;
   }
 

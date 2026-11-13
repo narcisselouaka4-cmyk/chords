@@ -9,7 +9,7 @@
 //   - src/voicing-engine/*
 
 import { noteNameToPc, NOTE_NAMES } from './intervals.js';
-import { CHORD_DEFINITIONS } from './chord-defs.js';
+import { CHORD_DEFINITIONS, THIRDLESS_DEFINITIONS } from './chord-defs.js';
 
 /**
  * Résout la définition canonique d'une qualité publique.
@@ -17,6 +17,7 @@ import { CHORD_DEFINITIONS } from './chord-defs.js';
  *   1. définition normale (non rootless, sans parentSymbol) dont le symbol
  *      correspond exactement à la qualité publique ;
  *   2. si la qualité est vide, retourne la définition de la fondamentale seule.
+ *   3. les symboles explicites « no3 » décrivent uniquement les notes présentes.
  * Les définitions rootless (parentSymbol présent) et les variantes internes ne
  * sont jamais choisies par cette fonction.
  * @param {string} quality
@@ -24,7 +25,8 @@ import { CHORD_DEFINITIONS } from './chord-defs.js';
  */
 export function resolveCanonicalChordDefinition(quality) {
   const trimmed = quality === '' ? '' : quality.trim();
-  return CHORD_DEFINITIONS.find((d) => d.symbol === trimmed && !d.parentSymbol);
+  return CHORD_DEFINITIONS.find((d) => d.symbol === trimmed && !d.parentSymbol)
+    || THIRDLESS_DEFINITIONS.find((d) => d.symbol === trimmed);
 }
 
 /**

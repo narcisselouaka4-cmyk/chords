@@ -45,7 +45,9 @@ check('deux notes : l\'intervalle, pas un faux accord', v.title === 'Tierce mine
 v = view([48, 60]);
 check('deux Do : « C (octaves) »', v.title === 'C (octaves)');
 v = view([60, 61, 62]);
-check('amas : les notes, « non identifié »', v.title === 'C · D♭ · D' && v.quality === 'non identifié');
+check('amas de trois notes : description sans faux accord', v.title === 'C · D♭ · D'
+  && v.quality === 'groupe de trois notes' && !v.titleIsChord && v.root === '—'
+  && v.intervals === 'Seconde mineure · Seconde majeure' && v.voicing === 'Cluster');
 v = view([46, 50, 53, 56]);
 check('B♭7 : fondamentale B♭, basse B♭2, position fondamentale', v.titleIsChord && v.root === 'B♭' && v.bass === 'B♭2' && v.position === 'position fondamentale', JSON.stringify(v));
 check('B♭7 : plus de lignes MIDI ni Fréquence (retirées le 02/10)', !('midi' in v) && !('frequency' in v));

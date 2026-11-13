@@ -164,6 +164,14 @@ export const DETECTION_DEFINITIONS = [
   { name: 'Half-Diminished 9', symbol: 'm9b5', intervals: [0, 3, 6, 10, 14], optionalIntervals: [] },
 ];
 
+// Lectures exactes de trois notes sans tierce. À utiliser seulement en repli :
+// elles ne doivent ni remplacer une triade complète ni ignorer une 4e note.
+// Les intervalles sont ceux réellement présents ; l'omission reste explicite.
+export const THIRDLESS_DEFINITIONS = [
+  { name: 'Seventh without third', symbol: '7(no3)', intervals: [0, 7, 10], omittedIntervals: [4] },
+  { name: 'Major seventh without third', symbol: 'maj7(no3)', intervals: [0, 7, 11], omittedIntervals: [4] },
+];
+
 // Intervals names for pedagogical display
 export const INTERVAL_NAMES = {
   0: 'fondamentale',
