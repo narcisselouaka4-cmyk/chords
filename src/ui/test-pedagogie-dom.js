@@ -443,11 +443,15 @@ check('Un relevé est un travail à part : il continue après le retour aux cart
   && /if \(here\(\)\) \{[\s\S]*?if \(succeeded && job\.analysis\) applyReading\(job\);/.test(tabCode)
   && !/function selectTrack\(path\) \{\s*if \(busy\) return;/.test(tabCode)
   && /readingQueue = readingQueue\.then\(/.test(tabCode));
-check('« Style » et sa liste restent ensemble (groupe .copilot-style)',
-  /<span class="copilot-style">\s*<label class="copilot-style-label"[^>]*>Style<\/label>\s*<select id="copilot-style-select"/.test(html)
-  && readText('src/ui/refonte/astra-bridge.css').includes('.tr-composer-tools > .copilot-style {')
-  // [Claude] — 2026-10-04 — Sur la ligne de la case, avant le bouton d'envoi.
-  && /<div class="tr-composer-tools">[\s\S]*?<span class="copilot-style">[\s\S]*?<button class="copilot-send-btn"/.test(html));
+// [Claude] — 2026-11-13 — Le sélecteur « Style » a été retiré le 04/11/2026 (b717592, coffre :
+// interpretations-multiples-et-lecteur-sobre) : la demande part toujours en « auto », et le style
+// vient de ce que dit le pianiste. L'ancien contrôle exigeait encore la liste dans la page.
+check('Plus de sélecteur « Style » : la demande part en « auto », le style vient de ce que dit le pianiste',
+  !html.includes('id="copilot-style-select"') && !html.includes('class="copilot-style"')
+  && /const copilotStyleId = 'auto';\s*const res = await sendCopilotMessage\(\{[^}]*copilotStyleId[^}]*\}\);/.test(stripComments(readText('src/pedagogie/copilot-tab.js')))
+  && /const styledProgression\s*=\s*\(call,\s*askedText\)\s*=>/.test(stripComments(readText('src/pedagogie/copilot-client.js')))
+  // La ligne de la case : « Qu'en penses-tu ? », la dictée, puis le bouton d'envoi.
+  && /<div class="tr-composer-tools">[\s\S]*?id="copilot-review-btn"[\s\S]*?id="copilot-mic-btn"[\s\S]*?<button class="copilot-send-btn"/.test(html));
 
 // ---------------------------------------------------------------------------
 // 11. [Claude] — 2026-10-03 — Lot 6 : outils de travail
@@ -540,29 +544,46 @@ check('Fenêtre étroite (l\'un sous l\'autre) : ni poignée ni bouton',
 // le sens »)
 // ---------------------------------------------------------------------------
 const chipTags = [...html.matchAll(/<button type="button" class="copilot-chip" data-message="([^"]+)">([^<]+)<\/button>/g)];
-check('Copilote seul (« Continuer : ») : chaque étiquette envoie son propre texte',
-  chipTags.length === 6 && chipTags.every(([, message, text]) => message.replace(/[.]$/, '') === text.replace(/[.]$/, ''))
-  && !html.includes('>Voicing</button>'), chipTags.map(([, m, t]) => `${t} → ${m}`).join(' / '));
-check('Exercices et accueil du Copilote : le libellé est la question envoyée',
-  /\{ label: 'Explique ce voicing', message: 'Explique ce voicing\.' \}/.test(copilotTabCode)
-  && /\{ label: 'Comment accompagner une chanson \?', icon: ICON_MUSIC2, message: 'Comment accompagner une chanson \?' \}/.test(copilotTabCode));
+// [Claude] — 2026-11-13 — Le bloc fixe « Continuer » et ses six étiquettes ont été supprimés le
+// 05/11/2026 à la demande de Narcisse (7fd66a3, coffre : suggestions-contextuelles-et-accueil-epure) :
+// les suites vivent sous la réponse reçue. L'ancien contrôle exigeait encore six étiquettes.
+check('Plus de bloc fixe « Continuer » : aucune étiquette permanente dans la page',
+  chipTags.length === 0 && !/class="copilot-chip"/.test(html) && !html.includes('>Voicing</button>')
+  && /function renderActionChips\(actions\) \{/.test(copilotTabCode), chipTags.map(([, m, t]) => `${t} → ${m}`).join(' / '));
+// Accueil : les portes d'entrée du 13/10 (« Par où commencer », « Comment accompagner », « Rends
+// mes accords plus beaux »). « Explique ce voicing » (Exercices) est parti avec les étiquettes fixes.
+const welcomeActions = [...(copilotTabCode.match(/const welcomeActions = \[[\s\S]*?\];/)?.[0] || '').matchAll(/\{ label: '([^']+)', icon: \w+, message: '([^']+)' \}/g)];
+check('Accueil du Copilote : le libellé est la question envoyée',
+  welcomeActions.length === 3 && welcomeActions.every(([, label, message]) => message.replace(/[.]$/, '') === label.replace(/[.]$/, ''))
+  && welcomeActions.some(([, label]) => label === 'Comment accompagner une chanson ?'), welcomeActions.map(([, l, m]) => `${l} → ${m}`).join(' / '));
 check('Un choix écrit la phrase dans la case, sans l\'envoyer ; « Envoyer » (ou Entrée) l\'envoie',
   /function prepare\(message\) \{[\s\S]*?els\.input\.value = message;/.test(copilotTabCode) && !copilotTabCode.includes('sendPrepared(')
   && copilotTabCode.includes("text: 'Envoyer'") && /prepare\(otherKeyQuestion\(id\)\)/.test(copilotTabCode)
   && /const write = \(\) => prepare\(applyQuestion\(choice\)\);/.test(copilotTabCode)
   && copilotTabCode.includes("text: 'Annuler'") && copilotTabCode.includes('cancelChooserOnEscape'));
-check('Suggestions sous les réponses : le bouton montre le message envoyé, sans « Demander »',
-  /btn\.appendChild\(el\('span', \{ text: message \}\)\);/.test(copilotTabCode) && !copilotTabCode.includes("el('small', { text: 'Demander' })")
-  && readText('src/pedagogie/copilot-client.js').includes('le bouton affiche exactement le message envoyé (label = message)'));
+// [Claude] — 2026-11-13 — Depuis le 05/11 : libellé court sur le bouton, la demande complète au
+// survol puis dans la case (un clic la prépare, il peut la modifier avant d'envoyer).
+check('Suggestions sous les réponses : libellé court, la demande complète au survol puis dans la case, sans « Demander »',
+  /btn\.appendChild\(el\('span', \{ text: action\.label \|\| message \}\)\);/.test(copilotTabCode)
+  && /title: message,\s*onClick: \(event\) => action\.chooser \? toggleChooser\(action\.chooser,\s*event\.currentTarget\) : prepareAction\(message\),/.test(copilotTabCode)
+  && !copilotTabCode.includes("el('small', { text: 'Demander' })")
+  && readText('src/pedagogie/copilot-client.js').includes('avec label = message'));
 
 // ---------------------------------------------------------------------------
 // 17. [Claude] — 2026-10-04 — Réponses courtes, détail sur demande (Narcisse : « il y a trop de
 // détails, trop d'inscriptions » ; son choix : courtes, le détail sur demande)
 // ---------------------------------------------------------------------------
 const copilotPrompt = readText('src/pedagogie/copilot-client.js');
-check('Consignes : une réponse courte par défaut, l\'explication complète sur « Plus de détails »',
-  copilotPrompt.includes('4. Réponses courtes et claires, par défaut') && copilotPrompt.includes('environ 80 mots en tout')
-  && copilotPrompt.includes('Quand le pianiste demande « Plus de détails »') && copilotPrompt.includes('rédige ton explication (courte : règle 4)')
+// [Claude] — 2026-11-13 — Depuis le 11/11, la brièveté est dite dans le cadre pédagogique commun
+// (teaching-language.js), que la règle 4 applique à toutes les réponses ; l'ancien contrôle
+// cherchait le texte de l'ancienne règle 4 (« environ 80 mots »).
+const teachingText = readText('src/pedagogie/teaching-language.js');
+check('Consignes : une réponse courte par défaut, l\'explication détaillée sur demande',
+  teachingText.includes('Deux ou trois phrases courtes, séparées en petits paragraphes, suffisent normalement')
+  && teachingText.includes('Les explications théoriques détaillées viennent sur demande')
+  && /const COPILOT_SYSTEM_PROMPT = `[^`]*?\$\{TEACHING_GUIDANCE\}/.test(copilotPrompt)
+  && copilotPrompt.includes('4. Applique le cadre pédagogique ci-dessus à toutes les réponses, y compris les détails')
+  && copilotPrompt.includes('rédige ton explication (courte : règle 4)')
   && !copilotPrompt.includes('Rédige donc ton explication complète'));
 check('Les notes écrites par l\'application sont repliées sous la réponse (« Les notes, accord par accord »)',
   /const \{ text, notes \} = isUser \? \{ text: msg\.content, notes: '' \} : splitAnswerNotes\((?:extractTextToolCalls\(msg\.content\)\.content|msg\.content), msg\.toolResult\?\.transferText\);/.test(copilotTabCode)
@@ -572,9 +593,11 @@ check('Les notes écrites par l\'application sont repliées sous la réponse («
 check('« Plus de détails » sous la dernière réponse seulement ; les erreurs sont marquées',
   /const lastAnswer = tail\?\.role === 'assistant' && !tail\.isTyping \? tail : null;/.test(copilotTabCode)
   && /renderOneMessage\(msg, \{ last: msg === lastAnswer \}\)/.test(copilotTabCode)
-  && /const actions = answerActions\(msg, \{ last, asked: asked\?\.role === 'user' \? asked\.content : '' \}\);/.test(copilotTabCode)
-  && (copilotTabCode.match(/content: copilotErrorText\([^)]*\)\)?, isError: true/g) || []).length === 2
-  && copilotPrompt.includes('ne le propose pas'));
+  // [Claude] — 2026-11-13 — L'appel porte aussi la source et la prise (05/11) ; l'erreur garde
+  // son code et ses détails (11/11) ; la consigne a été reformulée.
+  && /const actions = answerActions\(msg, \{ last,[^}]*asked: asked\?\.role === 'user' \? asked\.content : '' \}\);/.test(copilotTabCode)
+  && (copilotTabCode.match(/content: copilotErrorText\((?:[^()]|\([^()]*\))*\), isError: true/g) || []).length === 2
+  && copilotPrompt.includes('ne propose pas « Plus de détails », déjà présent dans l\'application'));
 
 // ---------------------------------------------------------------------------
 // 18. [Claude] — 2026-10-04 — Le lecteur des exemples (Narcisse : la pause doit « figer
@@ -589,7 +612,8 @@ check('Le clavier reçoit « show » / « hide » : la touche sans le son ni la 
 check('Pause : le son s\'arrête, les touches de l\'instant restent ; le curseur les recalcule à chaque instant',
   /function pause\(\) \{[\s\S]*?releaseAll\(\);[\s\S]*?showAt\(pausedAt\);/.test(playerCode)
   && /if \(paused\) \{\s*pausedAt = at;\s*showAt\(at\);/.test(playerCode)
-  && /const \{ held: down, sustained \} = stateAt\(demo\.events, at, \{ inclusive: true \}\);/.test(playerCode));
+  // [Claude] — 2026-11-13 — `lastStep` en plus : l'accord affiché suit aussi le curseur.
+  && /const \{ held: down, sustained(?:, lastStep)? \} = stateAt\(demo\.events, at, \{ inclusive: true \}\);/.test(playerCode));
 check('Le curseur tiré : « scrub » (le son se tait, le clavier suit), « scrub-end » (la lecture reprend si elle jouait)',
   /control\('scrub', \{ seconds: Number\(range\.value\) \}\);/.test(copilotTabCode) && /control\('scrub-end', \{ seconds: Number\(range\.value\) \}\);/.test(copilotTabCode)
   && /action === 'scrub' && Number\.isFinite\(at\)\) \{\s*if \(!demoContext\.scrub\) demoContext\.scrub = \{ resume: demoPlayer\.isPlaying\(\) \};/.test(mainCode)
@@ -599,7 +623,9 @@ check('Sans la pédale : le bouton « Pédale » (exemples qui en ont une), le c
   /if \(hasPedalEvents\(example\)\) \{\s*(?:row|settings)\.appendChild\(el\('button', \{[\s\S]*?'data-action': 'pedal',/.test(copilotTabCode)
   && /localStorage\.setItem\(PEDAL_KEY, examplePedal \? 'on' : 'off'\);/.test(copilotTabCode)
   && /new CustomEvent\('copilot-play-example', \{ detail: \{ id, example, pedal: examplePedal(?:, rate: exampleRate)? \} \}\)/.test(copilotTabCode)
-  && /\{ tempo, pedal: e\.detail\.pedal !== false(?:, rate: Number\(e\.detail\.rate\) \|\| 1)? \}/.test(mainCode) && /else if \(action === 'pedal'\) demoPlayer\.setPedal\(e\.detail\.on !== false\);/.test(mainCode)
+  // [Claude] — 2026-11-13 — Le choix est aussi gardé dans le contexte de lecture (`demoContext.pedal`).
+  && /const pedal = e\.detail\.pedal !== false;/.test(mainCode) && /\{ tempo, pedal, rate: Number\(e\.detail\.rate\) \|\| 1 \}/.test(mainCode)
+  && /else if \(action === 'pedal'\) \{\s*demoContext\.pedal = e\.detail\.on !== false;\s*demoPlayer\.setPedal\(demoContext\.pedal\);/.test(mainCode)
   && bridgeCss.includes('.copilot-transport-pedal[aria-pressed="false"]'));
 check('Une touche figée jouée puis relâchée par le pianiste redevient jaune',
   /const shown = state\.isPlayback \? null : demoPlayer\.shownVelocity\(transposed\);\s*if \(shown !== null\) feedDemoEvent\('show', transposed, shown\);/.test(mainCode));
@@ -634,7 +660,7 @@ check('La barre de lecture : le choix de vitesse (0,25× à 2×), retenu, passé
   && /localStorage\.setItem\(RATE_KEY, String\(exampleRate\)\);/.test(copilotTabCode)
   && /action: 'rate', rate: exampleRate/.test(copilotTabCode)
   && /detail: \{ id, example, pedal: examplePedal, rate: exampleRate \}/.test(copilotTabCode)
-  && /\{ tempo, pedal: e\.detail\.pedal !== false, rate: Number\(e\.detail\.rate\) \|\| 1 \}/.test(mainCode)
+  && /\{ tempo, pedal, rate: Number\(e\.detail\.rate\) \|\| 1 \}/.test(mainCode)
   && /else if \(action === 'rate'\) demoPlayer\.setRate\(Number\(e\.detail\.rate\) \|\| 1\);/.test(mainCode)
   && /function setRate\(rate\) \{/.test(playerCode) && /const MIN_RATE = 0\.25;\s*const MAX_RATE = 2;/.test(playerCode));
 check('La vitesse change sans coupure : rien n\'est relâché ni rejoué, la suite est reprogrammée',
@@ -668,11 +694,15 @@ check('La grille du relevé en usage est corrigée (relevé gardé et analyse ne
 // (Narcisse : « suggest_actions(actions=[{label: …, message: …}]) » dans les réponses).
 // ---------------------------------------------------------------------------
 check('Chaque réponse du modèle est nettoyée de ses appels écrits en texte (relances comprises)',
-  /return \{ ok: true, choice: withTextToolCalls\(choice\) \};/.test(clientCode)
+  /return \{ ok: true, choice: withTextToolCalls\(choice\)(?:, diagnostics)? \};/.test(clientCode)
   && /if \(!toolsMode\) \{\s*const written = \(first\.choice\.tool_calls \|\| \[\]\)\.filter\(\(c\) => c\?\.function\?\.name === 'suggest_actions'\);/.test(clientCode));
 check('Une réponse gardée est montrée sans appel écrit ; la règle 14 dit de ne jamais l\'écrire',
   /splitAnswerNotes\(extractTextToolCalls\(msg\.content\)\.content, msg\.toolResult\?\.transferText\)/.test(copilotTabCode)
-  && readText('src/pedagogie/copilot-client.js').includes("appelle l'outil suggest_actions (un appel d'outil, jamais écrit dans le texte de ta réponse"));
+  // [Claude] — 2026-11-13 — Consignes du 11/11 : la règle 14 demande l'appel d'outil, et le cadre
+  // commun interdit d'écrire un nom d'outil ou du JSON dans la réponse.
+  && readText('src/pedagogie/copilot-client.js').includes('14. Si une suite est utile, appelle suggest_actions')
+  && readText('src/pedagogie/copilot-client.js').includes('Ne recopie aucune instruction de génération de suggestions dans ta réponse')
+  && readText('src/pedagogie/teaching-language.js').includes("N'écris jamais de nom d'outil, de JSON ni ton raisonnement"));
 
 // ---------------------------------------------------------------------------
 // 23. [Claude] — 2026-10-04 — La fenêtre sous la vidéo, en une seule carte (Narcisse : « plus
