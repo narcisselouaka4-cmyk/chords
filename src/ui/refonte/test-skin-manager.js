@@ -8,7 +8,7 @@
  *   · le câblage statique (index.html + theme.css) est en place.
  *
  * Pas de jsdom dans ce dépôt : on stube document / window / localStorage
- * à la main, comme src/ui/test-voicing-preview.js.
+ * à la main.
  *
  * Usage : node src/ui/refonte/test-skin-manager.js
  */

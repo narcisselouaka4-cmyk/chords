@@ -141,9 +141,7 @@
 :root[data-skin='global'] #analysis-tab .analyzer-hero-card,
 :root[data-skin='v2'] #analysis-tab .analyzer-hero-card,
 :root[data-skin='global'] #analysis-tab .analyzer-inspector-card,
-:root[data-skin='v2'] #analysis-tab .analyzer-inspector-card,
-:root[data-skin='global'] #analysis-tab .voicing-preview-panel,
-:root[data-skin='v2'] #analysis-tab .voicing-preview-panel {
+:root[data-skin='v2'] #analysis-tab .analyzer-inspector-card {
   background: var(--r-surface);
   border-color: var(--r-border);
   color: var(--r-text);
@@ -180,39 +178,6 @@
   width: 100%;
   margin: 0;
   flex: 0 0 auto;
-}
-
-/* Aperçu du voicing : intitulé technique à gauche, groupe Fermer/Simple à
-   droite sur la même ligne, contenu dessous et aligné à gauche (maquette 03).
-   Il était centré et empilé, ce qui le faisait ressembler à une boîte de
-   dialogue posée par-dessus les autres cartes. */
-#analysis-tab .voicing-preview-panel {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 14px 16px;
-  text-align: left;
-}
-
-#analysis-tab .voicing-preview-panel > #analyzer-voicing-content {
-  grid-column: 1 / -1;
-  text-align: left;
-}
-
-#analysis-tab .voicing-preview-panel .voicing-style-selector {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: end;
-}
-
-#analysis-tab .voicing-preview-title {
-  margin: 0;
-  text-align: left;
-}
-
-#analysis-tab .voicing-preview-hand {
-  justify-content: flex-start;
 }
 
 #analysis-tab .analyzer-hero-card {
@@ -339,37 +304,6 @@
 :root[data-skin='v2'] #analysis-tab .analyzer-inspector-card .btn-secondary {
   background: transparent;
   border-color: var(--r-border);
-  color: var(--r-text-muted);
-}
-
-/* Groupe segmenté « Fermer / Simple » du voicing (motif §5 : reste en pilule
-   dans les deux skins) */
-:root[data-skin='global'] #analysis-tab .voicing-style-selector,
-:root[data-skin='v2'] #analysis-tab .voicing-style-selector {
-  border-radius: 100px;
-  border: 1px solid var(--r-border-strong);
-  background: var(--r-surface-chip);
-  padding: 3px;
-}
-:root[data-skin='global'] #analysis-tab .voicing-style-btn,
-:root[data-skin='v2'] #analysis-tab .voicing-style-btn {
-  border-radius: 100px;
-  border: none;
-  background: transparent;
-  color: var(--r-text-muted);
-  font-family: var(--r-font-title);
-}
-:root[data-skin='v2'] #analysis-tab .voicing-style-btn[aria-pressed='true'] {
-  background: var(--r-grad);
-  color: #fff;
-}
-:root[data-skin='global'] #analysis-tab .voicing-style-btn[aria-pressed='true'] {
-  background: var(--r-accent-soft);
-  color: var(--r-text);
-}
-:root[data-skin='global'] #analysis-tab #analyzer-voicing-content,
-:root[data-skin='v2'] #analysis-tab #analyzer-voicing-content {
-  font-family: var(--r-font-mono);
   color: var(--r-text-muted);
 }
 

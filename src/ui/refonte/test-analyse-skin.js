@@ -79,18 +79,9 @@ test('analyse.css — la scène laisse passer le fond Astra', () => {
     'aucune dalle --r-ground peinte sur les panneaux de sous-onglets');
 });
 
-test('analyse.css — §3.1 Accord sélectionné : carte héros dégradée (v2) vs aplat (Global)', () => {
-  assert(/\[data-skin='v2'\] #analysis-tab \.analyzer-hero-card\s*{[^}]*linear-gradient/.test(css),
-    'v2 : carte héros en dégradé plein');
-  assert(/\[data-skin='v2'\] #analysis-tab \.analyzer-hero-name[^{]*{[^}]*color:\s*#fff/.test(css)
-    || /\[data-skin='v2'\][^{]*\.analyzer-hero-name,[^{]*\{[^}]*#fff/.test(css)
-    || css.includes('.analyzer-hero-notes {   color: #fff'),
-    'v2 : nom d\'accord de la carte héros en blanc');
-  assert(/voicing-style-btn\[aria-pressed='true'\]\s*{[^}]*var\(--r-grad\)/.test(css),
-    'v2 : segmented Fermer/Simple actif en dégradé');
-  assert(/\[data-skin='global'\] #analysis-tab \.voicing-style-btn\[aria-pressed='true'\]\s*{[^}]*var\(--r-accent-soft\)/.test(css),
-    'Global : segmented Fermer/Simple actif en accent-soft');
-});
+// [Claude] — 2026-11-13 — §3.1 « Accord sélectionné » retiré : la carte héros a quitté la page le
+// 12/09 (e89369b) et le sélecteur Fermer/Simple de l'aperçu de voicing, inutilisé depuis le 23/09
+// (d975709), a été supprimé avec son module à la demande de Narcisse.
 
 console.log('');
 if (failures) { console.error(`\n❌ ${failures} assertion(s) en échec.`); process.exit(1); }

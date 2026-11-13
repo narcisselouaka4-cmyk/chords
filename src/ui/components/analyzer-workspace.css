@@ -1180,10 +1180,6 @@
   flex-shrink: 0;
 }
 
-.analyzer-chords-layout .voicing-preview-panel {
-  flex-shrink: 0;
-}
-
 .analyzer-hero-card,
 .analyzer-inspector-card {
   background: var(--panel-bg);

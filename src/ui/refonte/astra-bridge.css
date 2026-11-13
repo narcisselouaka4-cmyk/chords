@@ -1323,30 +1323,6 @@
 }
 #analyzer-inspector-chord.an-degree-badge { font-size: 13px; font-weight: 650; }
 
-/* Aperçu du voicing alternatif (voicing-preview.js). */
-#analyzer-voicing-content .voicing-preview-title {
-  color: var(--an-text);
-  font-size: 13px;
-  font-weight: 600;
-}
-#analyzer-voicing-content .voicing-preview-label {
-  color: var(--an-text-muted);
-  font: 9px var(--an-mono);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-}
-#analyzer-voicing-content .voicing-preview-notes {
-  color: var(--an-accent-bright);
-  font: 13px var(--an-mono);
-  letter-spacing: .03em;
-}
-#analyzer-voicing-content .voicing-preview-reason,
-#analyzer-voicing-content .voicing-preview-status {
-  color: var(--an-text-secondary);
-  font-size: 11.5px;
-}
-#analyzer-voicing-style-selector .voicing-style-btn.active { color: var(--an-text); }
-
 /* ---- Corriger -----------------------------------------------------------
    Flux et inspecteur remplis par corriger-panel.js (classes corriger-*). */
 /* [Correctif 02/10] — « Corriger » restait le dernier sous-onglet à se
