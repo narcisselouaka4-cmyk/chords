@@ -37,7 +37,7 @@ import { onlySpeech, activitySummary } from './teacher-activity.js';
 import { exerciseContextLines } from './exercise-context.js';
 import { buildStudyDemo } from '../practice-demo.js';
 import movementsLibrary from '../exercise-catalogue.js';
-import { loadTutorialLibrary, libraryCatalogue, consultLibrary, combineLibrary, libraryRequestCall, libraryPartsFromText, CONSULT_LIBRARY_TOOL, COMBINE_LIBRARY_TOOL, COMPACT_COMBINE_LIBRARY_TOOL, LIBRARY_GUIDANCE, COMPACT_LIBRARY_GUIDANCE } from './library-combine.js';
+import { loadTutorialLibrary, libraryCatalogue, consultLibrary, combineLibrary, libraryRequestCall, libraryPartsFromText, libraryCallContradicts, CONSULT_LIBRARY_TOOL, COMBINE_LIBRARY_TOOL, COMPACT_COMBINE_LIBRARY_TOOL, LIBRARY_GUIDANCE, COMPACT_LIBRARY_GUIDANCE } from './library-combine.js';
 import {
   generateCopilotVoicing,
   voicingToNoteSequence,
@@ -2624,6 +2624,9 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // (l'appliquer à une progression, l'entendre dans une autre tonalité, « ce voicing »)
     // reçoit l'outil qui reprend SES notes ; « qu'a-t-il voulu dire ? » : l'explication seule.
     let libraryAsk = null;
+    // [Claude] — 2026-11-14 — Le modèle a combiné autre chose que ce qui est nommé (« sans le montuno 1 ») :
+    // la demande écrite l'emporte, et son texte, qui décrivait sa combinaison, est remplacé.
+    let libraryOverride = false;
     let takeAsk = null;
     const tutorialAsk = tutorialData && message && !review ? parseTutorialRequest(message) : null;
     const tutorialCalls = toolsMode && tutorialAsk ? tutorialToolCalls(tutorialAsk, rawToolCalls, tutorialData) : null;
@@ -2644,7 +2647,8 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
       // « Joue-la d'une autre façon » : la même progression, avec d'autres gestes d'accompagnement.
       forcedToolCalls = [takeAsk.call];
     } else if (toolsMode && library && message && !review && !mine && !chordsAsked && asksForExample(message)
-      && !(rawToolCalls || []).some((c) => c?.function?.name === 'combine_library') && (libraryAsk = libraryRequestCall(hearIt ? `${previousQuestion || ''} ${message}` : message, library.tutorials, libraryHistory(messages)))) {
+      && (!(rawToolCalls || []).some((c) => c?.function?.name === 'combine_library') || (libraryOverride = libraryCallContradicts(rawToolCalls, message, library.tutorials)))
+      && (libraryAsk = libraryRequestCall(hearIt ? `${previousQuestion || ''} ${message}` : message, library.tutorials, libraryHistory(messages)))) {
       // [Claude] — 2026-11-12 — Conversation de Narcisse : « joue "Lick 1…" puis t'enchaîne avec
       // "Montuno mineur…" ». Le modèle n'a pas appelé combine_library et l'ancien secours ci-dessous
       // a fabriqué un « Lick sur G7b9 » générique, sous un texte disant qu'il ne pouvait rien jouer.
@@ -2737,7 +2741,7 @@ async function sendCopilotMessageRaw({ message, messages = [], context, conversa
     // (ou qui parlait d'autre chose) laisse la place à ce qui est réellement préparé.
     if (libraryAsk && toolResult.example?.kind === 'library') {
       const refusal = /ne (?:peux|pourrai|suis) pas|pas (?:été |pu )?(?:lanc|jou|fair|déclench)|n['’]arrive (?:toujours )?pas|je ne lance pas|je (?:tente|retente|réessaie)|impossible|il faut demander|pas réussi/i.test(content || '');
-      content = refusal || !String(content || '').trim() ? libraryAsk.text : `${content}\n\n${libraryAsk.text}`;
+      content = refusal || libraryOverride || !String(content || '').trim() ? libraryAsk.text : `${content}\n\n${libraryAsk.text}`;
       if (toolResult.tempoQuestion && !content.includes(toolResult.tempoQuestion)) content += `\n\n${toolResult.tempoQuestion}`;
     }
     // Son jeu demandé, mais pas confié au Copilote : comment le lui confier.

@@ -300,5 +300,62 @@ await check('Éléments nommés reconnus dans l’ordre dit, mains et tonalité 
   assert.equal(libraryPartsFromText('Explique-moi un 2-5-1'), null);
 });
 
+// [Claude] — 2026-11-14 — Conversation de Narcisse : le Copilote ne respectait pas les consignes.
+const { libraryCallContradicts } = await import('./library-combine.js');
+const ids = (r) => JSON.parse(r.call.function.arguments).parts.map((p) => p.id);
+await check('« montuno 1 avec Montuno mineur » : ni le montuno 2 (même titre), ni deux fois le Montuno mineur', () => {
+  assert.deepEqual(libraryPartsFromText('enchaine "I Like It Like That · montuno 1" avec "Montuno mineur · octaves et relances"').parts.map((p) => p.id),
+    ['latin-like-it-montuno-1', 'latin-montuno-guajeo']);
+  // « I Like It Like That » seul : les deux montunos (rien ne les départage).
+  assert.deepEqual(libraryPartsFromText('joue I Like It Like That').parts.map((p) => p.id), ['latin-like-it-montuno-1', 'latin-like-it-montuno-2']);
+  // L'alias « Montuno » compte encore quand il est dit seul.
+  assert.deepEqual(libraryPartsFromText('joue le montuno').parts.map((p) => p.id), ['latin-montuno-guajeo']);
+});
+const turn2 = 'enchaine "Lick 1 · octaves et dixièmes" avec "I Like It Like That · montuno 2" sans le "I Like It Like That · montuno 1"';
+await check('« … sans le montuno 1 » : Lick 1 → montuno 2, le montuno 1 retiré et la réponse le dit', () => {
+  const r = requestCall(turn2, [], { previous: { mode: 'chain', parts: [{ id: 'latin-like-it-montuno-1' }, { id: 'latin-montuno-guajeo' }] } });
+  assert.deepEqual(ids(r), ['latin-ellen-lick-1', 'latin-like-it-montuno-2']);
+  assert.match(r.text, /\(sans I Like It Like That · montuno 1\)/);
+  assert.deepEqual(ids(requestCall('enchaîne le turnaround et le blues jazz, sauf le turnaround', [])), ['study-jazz-blues']);
+  assert.deepEqual(ids(requestCall('joue le turnaround, le blues jazz et le passage tritonique sans le blues jazz ni le passage tritonique', [])), ['study-turnaround']);
+});
+await check('« Tu as joué le montuno 1, recommence mais sans » : la combinaison d’avant, sans lui', () => {
+  const previous = { mode: 'chain', parts: [{ id: 'latin-ellen-lick-1', key: 'A' }, { id: 'latin-like-it-montuno-1', key: 'A' }, { id: 'latin-like-it-montuno-2', key: 'A' }] };
+  const r = requestCall('tu as joué le "I Like It Like That · montuno 1" recommence mais sans', [], { previous, recent: [turn2] });
+  assert.deepEqual(ids(r), ['latin-ellen-lick-1', 'latin-like-it-montuno-2']);
+  assert.deepEqual(ids(requestCall('rejoue sans le montuno 2', [], { previous })), ['latin-ellen-lick-1', 'latin-like-it-montuno-1']);
+  // Tout retiré : rien à jouer, pas un enchaînement au hasard.
+  assert.equal(requestCall('recommence sans le Lick 1', [], { previous: { mode: 'chain', parts: [{ id: 'latin-ellen-lick-1' }] } }), null);
+});
+await check('Le modèle combine autre chose que ce qui est nommé : l’application reprend la demande', () => {
+  const call = (...list) => [{ function: { name: 'combine_library', arguments: JSON.stringify({ mode: 'chain', parts: list.map((id) => ({ id })) }) } }];
+  assert.equal(libraryCallContradicts(call('latin-ellen-lick-1', 'latin-like-it-montuno-1', 'latin-like-it-montuno-2'), turn2), true);
+  assert.equal(libraryCallContradicts(call('latin-like-it-montuno-2', 'latin-ellen-lick-1'), turn2), false, 'même choix, autre ordre');
+  assert.equal(libraryCallContradicts(call('latin-ellen-lick-1'), 'joue-les'), false, 'rien de nommé : le modèle décide');
+  assert.equal(libraryCallContradicts(call('latin-ellen-lick-1', 'latin-like-it-montuno-2', 'study-turnaround'), turn2), false, 'un ajout que le texte n’a pas reconnu reste permis');
+  assert.equal(libraryCallContradicts(call('latin-ellen-lick-1'), turn2), true, 'le montuno 2 nommé est oublié');
+  assert.equal(libraryCallContradicts([{ function: { name: 'play_lick', arguments: '{}' } }], turn2), false);
+});
+
+// La conversation du 14/11 rejouée de bout en bout dans le Copilote (faux fournisseur).
+const talk = [];
+async function say(message, reply) {
+  bodies.length = 0;
+  replies.push(reply);
+  const r = await sendCopilotMessage({ message, messages: [...talk] });
+  talk.push({ role: 'user', content: message }, { role: 'assistant', content: r.content, toolResult: r.toolResult });
+  return r;
+}
+const c1 = await say('enchaine "I Like It Like That · montuno 1" avec "Montuno mineur · octaves et relances"', { content: '' });
+const c2 = await say(turn2, { content: 'Voici Lick 1, montuno 1 et montuno 2 enchaînés.', tool_calls: [call('combine_library', { mode: 'chain', parts: [{ id: 'latin-ellen-lick-1' }, { id: 'latin-like-it-montuno-1' }, { id: 'latin-like-it-montuno-2' }] })] });
+const c3 = await say('tu as joué le "I Like It Like That · montuno 1" recommence mais sans', { content: '' });
+await check('Conversation du 14/11 : chaque consigne suivie, même quand le modèle combine autre chose', () => {
+  assert.equal(c1.toolResult.example?.title, 'I Like It Like That · montuno 1 → Montuno mineur · octaves et relances');
+  assert.equal(c2.toolResult.example?.title, 'Lick 1 · octaves et dixièmes → I Like It Like That · montuno 2');
+  assert.ok(!c2.content.includes('montuno 1 et montuno 2'), 'le texte du modèle, qui décrivait sa combinaison, est remplacé');
+  assert.match(c2.content, /\(sans I Like It Like That · montuno 1\)/);
+  assert.equal(c3.toolResult.example?.title, 'Lick 1 · octaves et dixièmes → I Like It Like That · montuno 2');
+});
+
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
 process.exit(failed ? 1 : 0);

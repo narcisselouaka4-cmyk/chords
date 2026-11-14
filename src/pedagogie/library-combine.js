@@ -384,13 +384,20 @@ export function combineLibrary(rawArgs, tutorials = []) {
 const plainText = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   .replace(/[’']/g, "'").replace(/[·•–—→>|«»"“”]/g, ' ').replace(/[^a-z0-9#' ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-function mentionAt(text, phrase) {
+/** Toutes les places où la phrase est dite : [début, fin] dans le texte simplifié. */
+function mentionSpans(text, phrase) {
   const p = plainText(phrase);
-  if (p.length < 4) return -1;
-  const re = new RegExp(`(?:^| )${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?= |$)`);
-  const m = re.exec(text);
-  return m ? m.index : -1;
+  if (p.length < 4) return [];
+  const re = new RegExp(`(?<=^|[ '])${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?= |$)`, 'g');
+  return [...text.matchAll(re)].map((m) => [m.index, m.index + p.length]);
 }
+
+// [Claude] — 2026-11-14 — Conversation de Narcisse : « enchaîne Lick 1 avec montuno 2 SANS le
+// montuno 1 » jouait le montuno 1 (et un Montuno mineur jamais demandé). Un élément dit juste après
+// « sans », « sauf », « pas », « enlève »… est retiré au lieu d'être ajouté.
+const WITHOUT_BEFORE = /(?:^| )(?:sans|sauf|hormis|excepte|ni|pas|enleve\w*|retire\w*|supprime\w*|oublie\w*)(?: (?:le|la|les|du|des|de|ce|cet|cette|passage|lick|exercice|etude|morceau))*(?: l'| )$/;
+// « Tu as joué le montuno 1, recommence mais sans » : « sans » en fin de phrase vise ce qui vient d'être nommé.
+const WITHOUT_AT_END = /(?:^| )sans(?: (?:lui|elle|ca|cela|eux|celui(?: la| ci)?|celle(?: la| ci)?|ceux la|ce morceau|cette partie))?$/;
 
 const LIBRARY_CUE = /\b(?:passage|lick|exercice|etude|biblioth\w*|montuno|groove|cadence|mouvement|geste|progression|grille)\b/;
 let wordOwners = null;
@@ -412,7 +419,7 @@ function distinctiveWords(movement) {
 export function libraryPartsFromText(message, tutorials = []) {
   const text = plainText(message);
   if (!text) return null;
-  const found = [];
+  const hits = [];
   for (const m of movementsLibrary.movements) {
     const short = m.name.split(' · ')[0];
     // Premier mot assez parlant et propre à cet exercice (« Turnaround », « Suspension »).
@@ -421,19 +428,36 @@ export function libraryPartsFromText(message, tutorials = []) {
     // Un mot qui n'appartient qu'à cet exercice (« tritonique », « backdoor », « appoggiatures »),
     // seulement si la phrase parle d'un élément de bibliothèque (passage, lick, exercice…).
     const distinctive = LIBRARY_CUE.test(text) ? distinctiveWords(m) : [];
-    const at = [m.name, m.id, short.length >= 6 ? short : '', own, ...(m.aliases || []), ...distinctive].map((n) => mentionAt(text, n)).filter((i) => i >= 0);
-    if (at.length) found.push({ id: m.id, at: Math.min(...at), length: plainText(m.name).length });
+    // La fin du nom, si elle n'appartient qu'à lui (« montuno 2 », « octaves et dixièmes »).
+    const tail = m.name.includes(' · ') ? m.name.split(' · ').slice(1).join(' · ') : '';
+    const ownTail = tail.length >= 6 && movementsLibrary.movements.filter((o) => o.name.endsWith(` · ${tail}`)).length === 1 ? tail : '';
+    const spans = [m.name, m.id, short.length >= 6 ? short : '', own, ownTail, ...(m.aliases || []), ...distinctive].flatMap((n) => mentionSpans(text, n));
+    if (spans.length) hits.push({ id: m.id, spans, length: plainText(m.name).length });
   }
   for (const t of tutorials) {
     const words = plainText(t.title).split(' ');
-    const at = [t.title, words.slice(0, 4).join(' ')].map((n) => mentionAt(text, n)).filter((i) => i >= 0);
-    if (at.length && t.notes.length) found.push({ id: t.id, at: Math.min(...at), length: t.title.length });
+    const spans = [t.title, words.slice(0, 4).join(' ')].flatMap((n) => mentionSpans(text, n));
+    if (spans.length && t.notes.length) hits.push({ id: t.id, spans, length: t.title.length });
   }
-  // « Lick 1 » ne doit pas aussi compter « Lick 1 · octaves… » deux fois, ni un nom inclus dans un autre.
+  // [Claude] — 2026-11-14 — Un nom pris DANS le nom plus long d'un autre élément ne compte pas :
+  // « I Like It Like That · montuno 1 » ajoutait le montuno 2 (même titre « I Like It Like That »)
+  // et le Montuno mineur (son alias « Montuno »).
+  const all = hits.flatMap((h) => h.spans.map((s) => ({ id: h.id, s })));
+  const inside = (s) => all.some((o) => o.s[0] <= s[0] && o.s[1] >= s[1] && o.s[1] - o.s[0] > s[1] - s[0]);
+  const found = [];
+  const without = [];
+  const bareWithout = WITHOUT_AT_END.test(text);
+  for (const h of hits) {
+    const free = h.spans.filter((s) => !inside(s));
+    if (!free.length) continue;
+    if (bareWithout || free.some((s) => WITHOUT_BEFORE.test(text.slice(Math.max(0, s[0] - 40), s[0])))) without.push(h.id);
+    else found.push({ id: h.id, at: Math.min(...free.map((s) => s[0])), length: h.length });
+  }
+  // « Lick 1 » ne doit pas aussi compter « Lick 1 · octaves… » deux fois.
   found.sort((a, b) => a.at - b.at || b.length - a.length);
   const parts = [];
   for (const f of found) if (!parts.some((p) => p.id === f.id)) parts.push(f);
-  if (!parts.length) return null;
+  if (!parts.length && !without.length) return null;
   const overlay = /superpos|en meme temps|par dessus|ensemble/.test(text);
   for (const p of parts) {
     const before = text.slice(Math.max(0, p.at - 30), p.at);
@@ -445,7 +469,24 @@ export function libraryPartsFromText(message, tutorials = []) {
     mode: overlay ? 'overlay' : 'chain',
     key: keyWord ? `${keyWord[1]}${(keyWord[2] || '').trim().replace('diese', '#').replace('bemol', 'b')}` : null,
     parts: parts.slice(0, MAX_PARTS).map(({ id, hand }) => ({ id, ...(hand ? { hand } : {}) })),
+    without,
   };
+}
+
+/**
+ * Le modèle a appelé combine_library, mais pas avec ce que la phrase demande en toutes lettres :
+ * un élément retiré (« sans le montuno 1 ») est joué, ou un élément nommé manque.
+ */
+export function libraryCallContradicts(rawToolCalls, message, tutorials = []) {
+  const calls = (Array.isArray(rawToolCalls) ? rawToolCalls : []).filter((c) => c?.function?.name === 'combine_library');
+  if (!calls.length) return false;
+  const asked = libraryPartsFromText(message, tutorials);
+  if (!asked) return false;
+  const ids = calls.flatMap((c) => { try { return (JSON.parse(c.function.arguments || '{}').parts || []).map((p) => p?.id); } catch { return []; } });
+  if (ids.some((id) => asked.without.includes(id))) return true;
+  // Le modèle peut AJOUTER ce que la lecture du texte n'a pas reconnu (un tuto, « le II–V–I mineur ») ;
+  // il ne doit pas OUBLIER ce qui est nommé en toutes lettres.
+  return asked.parts.some((p) => !ids.includes(p.id));
 }
 
 /** Tempo demandé en toutes lettres (« tempo de 170 », « à 120 à la noire », « 90 bpm »). */
@@ -470,10 +511,13 @@ const NAMES_A_CHORD = /\b[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add|°|ø)?\d{0,2
  */
 export function libraryRequestCall(message, tutorials = [], { previous = null, recent = [] } = {}) {
   let asked = libraryPartsFromText(message, tutorials);
+  // « Sans le montuno 1 » : retiré de ce qui est joué (de la phrase, ou de la combinaison reprise).
+  const without = asked?.without || [];
+  if (asked && !asked.parts.length) asked = null;
   const text = plainText(message);
   let tempo = tempoFromText(message);
-  if (!asked && REFERS_BACK.test(text) && !NAMES_A_CHORD.test(String(message || '').replace(/\b(?:La|Do|Ré|Re|Mi|Fa|Sol|Si)\b/g, ''))) {
-    const named = recent.map((t) => libraryPartsFromText(t, tutorials)).find(Boolean);
+  if (!asked && (REFERS_BACK.test(text) || without.length) && !NAMES_A_CHORD.test(String(message || '').replace(/\b(?:La|Do|Ré|Re|Mi|Fa|Sol|Si)\b/g, ''))) {
+    const named = recent.map((t) => libraryPartsFromText(t, tutorials)).find((r) => r?.parts.length);
     const base = previous?.parts?.length ? { mode: previous.mode === 'overlay' ? 'overlay' : 'chain', key: null, parts: previous.parts.map(({ key, ...p }) => p), prevKey: previous.parts[0]?.key || null } : named;
     if (!base) return null;
     const keyNow = libraryPartsFromText(`x ${message}`, [])?.key || /(?:^| )en (do|re|mi|fa|sol|la|si|[a-g])( ?(?:#|b|diese|bemol))?( mineur| majeur|m)?(?= |$)/.exec(text)?.slice(1, 3).join('') || null;
@@ -488,6 +532,8 @@ export function libraryRequestCall(message, tutorials = [], { previous = null, r
     }
   }
   if (!asked) return null;
+  if (without.length) asked = { ...asked, parts: asked.parts.filter((p) => !without.includes(p.id)) };
+  if (!asked.parts.length) return null;
   const first = exerciseEntry(asked.parts[0].id);
   const firstTuto = tutorials.find((t) => t.id === asked.parts[0].id);
   const key = asked.key || (first ? NAMES[writtenKeyOf(first)] : firstTuto?.key) || null;
@@ -496,8 +542,9 @@ export function libraryRequestCall(message, tutorials = [], { previous = null, r
   const names = parts.map((p) => exerciseEntry(p.id)?.name || tutorials.find((t) => t.id === p.id)?.title || p.id);
   const keyName = key && keyPcOf(key) != null ? NAMES[keyPcOf(key)] : key;
   // « Au même tempo » : celui du premier exercice, seulement à la demande du pianiste (ou gardé d'avant).
-  const sameTempo = !tempo && (SAME_TEMPO.test(text) || Boolean(previous?.sameTempo && !libraryPartsFromText(message, tutorials)));
-  const said = `${asked.mode === 'overlay' ? 'Voici, superposés' : names.length > 1 ? 'Voici, enchaînés' : 'Voici'} : ${names.join(asked.mode === 'overlay' ? ' + ' : ' → ')}, avec les notes de la bibliothèque${tempo ? `, à ${tempo} à la noire` : sameTempo ? ', au même tempo (celui du premier)' : ''}.${moved.length && keyName ? ` Tout est en ${keyName} : ${moved.map((p) => exerciseEntry(p.id).name).join(', ')} ${moved.length > 1 ? 'sont transposés depuis leur tonalité écrite' : 'est transposé depuis sa tonalité écrite'}.` : ''}`;
+  const sameTempo = !tempo && (SAME_TEMPO.test(text) || Boolean(previous?.sameTempo && !libraryPartsFromText(message, tutorials)?.parts.length));
+  const left = without.map((id) => exerciseEntry(id)?.name || tutorials.find((t) => t.id === id)?.title || id);
+  const said = `${asked.mode === 'overlay' ? 'Voici, superposés' : names.length > 1 ? 'Voici, enchaînés' : 'Voici'} : ${names.join(asked.mode === 'overlay' ? ' + ' : ' → ')}${left.length ? ` (sans ${left.join(', ni ')})` : ''}, avec les notes de la bibliothèque${tempo ? `, à ${tempo} à la noire` : sameTempo ? ', au même tempo (celui du premier)' : ''}.${moved.length && keyName ? ` Tout est en ${keyName} : ${moved.map((p) => exerciseEntry(p.id).name).join(', ')} ${moved.length > 1 ? 'sont transposés depuis leur tonalité écrite' : 'est transposé depuis sa tonalité écrite'}.` : ''}`;
   return { call: { function: { name: 'combine_library', arguments: JSON.stringify({ mode: asked.mode, parts, ...(tempo ? { tempo } : sameTempo ? { sameTempo: true } : {}) }) } }, text: said };
 }
 
